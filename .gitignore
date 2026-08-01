@@ -1,0 +1,27 @@
+# AL build artifacts
+*.app
+.alcache/
+.alpackages/
+.snapshots/
+.output/
+rad.json
+.radar/
+.netpackages/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*~
+*.swp
+
+# Secrets / local env
+.env
+.env.*
+*.key
+secrets/

@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Publish: localhost",
+      "type": "al",
+      "request": "launch",
+      "environmentType": "OnPrem",
+      "server": "http://localhost",
+      "serverInstance": "BC",
+      "authentication": "UserPassword",
+      "startupObjectId": 0,
+      "startupObjectType": "Page",
+      "breakOnError": "All",
+      "launchBrowser": true,
+      "enableLongRunningSqlStatements": true,
+      "enableSqlInformationDebugger": true
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+# Configuration for issue templates
+
+blank_issues_enabled: false
+contact_links: []
