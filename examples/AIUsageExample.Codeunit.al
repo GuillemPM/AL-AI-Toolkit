@@ -3,50 +3,69 @@ codeunit 70180 "AI Usage Example"
     Access = Public;
 
     /// <summary>
-    /// How a consuming extension would call the toolkit: bind a model from a provider, then Generate.
+    /// Mock demo — no network, no API key.
+    /// Same shape as: generateText({ model, system, prompt })
     /// </summary>
     procedure RunFeedbackSummaryDemo()
     var
-        MockProvider: Codeunit "AI Example Mock Provider";
-        Provider: Interface "AI Provider";
-        LanguageModel: Interface "AI Language Model";
-        Request: Record "AI Chat Request";
-        Response: Record "AI Chat Response";
+        Mock: Codeunit "AI Mock";
+        Client: Codeunit "AI Client";
     begin
-        // 1) Obtain a provider (from setup/DI in real apps; mock here for a runnable demo)
-        MockProvider.SetNextResponse('{"sentiment":"positive","topics":["pricing","support"]}');
-        Provider := MockProvider;
+        Mock.SetNextResponse('{"sentiment":"positive","topics":["pricing","support"]}');
 
-        // 2) Provider is a factory — bind the model you want
-        if not Provider.BindLanguageModel('demo-model', LanguageModel) then
-            Error(UnsupportedModelErr, 'demo-model', Provider.GetName());
+        Message(SuccessMsg,
+            Client.GenerateJson(
+                Mock.Model('demo-model'),
+                'You extract sentiment and topics from customer feedback.',
+                'Feedback: Great product, but support felt pricey.'));
+    end;
 
-        // 3) Build the request
-        Clear(Request);
-        Request.SetSystemMessage('You extract sentiment and topics from customer feedback.');
-        Request.SetPrompt('Feedback: Great product, but support felt pricey.');
-        Request.SetJsonMode(true);
+    /// <summary>
+    /// Anthropic — same shape as: generateText({ model: anthropic('…'), system, prompt })
+    /// </summary>
+    procedure RunAnthropicDemo(ApiKey: SecretText)
+    var
+        Anthropic: Codeunit "AI Anthropic";
+        Client: Codeunit "AI Client";
+    begin
+        Message(SuccessMsg,
+            Client.GenerateJson(
+                Anthropic.Model('claude-sonnet-4-5', ApiKey),
+                'You extract sentiment and topics from customer feedback.',
+                'Feedback: Great product, but support felt pricey.'));
+    end;
 
-        // 4) Generate on the language model (not on the provider)
-        if not LanguageModel.Generate(Request, Response) then begin
-            case Response.GetErrorType() of
-                "AI Error Type"::RateLimited:
-                    Message(RateLimitedMsg);
-                "AI Error Type"::AuthenticationFailed:
-                    Message(AuthFailedMsg);
-                else
-                    Message(FailedMsg, Response.GetErrorType(), Response."Error Message");
-            end;
-            exit;
-        end;
+    /// <summary>
+    /// OpenAI — same shape as: generateText({ model: openai('…'), system, prompt })
+    /// </summary>
+    procedure RunOpenAIDemo(ApiKey: SecretText)
+    var
+        OpenAI: Codeunit "AI OpenAI";
+        Client: Codeunit "AI Client";
+    begin
+        Message(SuccessMsg,
+            Client.GenerateJson(
+                OpenAI.Model('gpt-4.1-mini', ApiKey),
+                'You extract sentiment and topics from customer feedback.',
+                'Feedback: Great product, but support felt pricey.'));
+    end;
 
-        Message(SuccessMsg, LanguageModel.GetModelId(), Provider.GetName(), Response.GetText());
+    /// <summary>
+    /// OpenCode Zen — same shape as: generateText({ model, system, prompt })
+    /// Get a key at https://opencode.ai/auth.
+    /// </summary>
+    procedure RunOpenCodeZenDemo(ApiKey: SecretText)
+    var
+        Zen: Codeunit "AI OpenCode Zen";
+        Client: Codeunit "AI Client";
+    begin
+        Message(SuccessMsg,
+            Client.GenerateJson(
+                Zen.Model('big-pickle', ApiKey),
+                'You extract sentiment and topics from customer feedback.',
+                'Feedback: Great product, but support felt pricey.'));
     end;
 
     var
-        UnsupportedModelErr: Label 'Model %1 is not supported by provider %2.', Comment = '%1 = model id, %2 = provider name';
-        SuccessMsg: Label 'Model %1 (%2) returned:\\%3', Comment = '%1 = model id, %2 = provider, %3 = content';
-        FailedMsg: Label 'Generation failed (%1): %2', Comment = '%1 = error type, %2 = message';
-        RateLimitedMsg: Label 'Rate limited — retry later.';
-        AuthFailedMsg: Label 'Authentication failed — check provider configuration.';
+        SuccessMsg: Label '%1', Comment = '%1 = model response text';
 }

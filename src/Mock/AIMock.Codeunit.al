@@ -1,4 +1,4 @@
-codeunit 70181 "AI Example Mock Provider" implements "AI Provider"
+codeunit 70146 "AI Mock" implements "AI Provider"
 {
     Access = Public;
 
@@ -15,18 +15,30 @@ codeunit 70181 "AI Example Mock Provider" implements "AI Provider"
 
     procedure GetName(): Text
     begin
-        exit('example-mock');
+        exit('mock');
     end;
 
-    procedure BindLanguageModel(ModelId: Text; var Model: Interface "AI Language Model"): Boolean
+    /// <summary>
+    /// Bind a mock model (no API key). Use SetNextResponse / SetNextError before calling.
+    /// </summary>
+    procedure Model(ModelId: Text): Interface "AI Language Model"
     var
-        LanguageModel: Codeunit "AI Example Mock Lang. Model";
+        LanguageModel: Interface "AI Language Model";
+    begin
+        if not BindLanguageModel(ModelId, LanguageModel) then
+            Error(BindFailedErr, ModelId, GetName());
+        exit(LanguageModel);
+    end;
+
+    procedure BindLanguageModel(ModelId: Text; var BoundModel: Interface "AI Language Model"): Boolean
+    var
+        LanguageModel: Codeunit "AI Mock Model";
     begin
         if ModelId = '' then
             exit(false);
 
         LanguageModel.Initialize(ModelId, NextContent, ForceFail, NextErrorType, NextErrorMessage);
-        Model := LanguageModel;
+        BoundModel := LanguageModel;
         exit(true);
     end;
 
@@ -45,4 +57,7 @@ codeunit 70181 "AI Example Mock Provider" implements "AI Provider"
         NextErrorMessage := ErrorMessage;
         NextContent := '';
     end;
+
+    var
+        BindFailedErr: Label 'Model %1 is not supported by provider %2 (missing model id).', Comment = '%1 = model id, %2 = provider name';
 }

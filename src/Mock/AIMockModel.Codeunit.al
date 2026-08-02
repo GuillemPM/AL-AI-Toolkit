@@ -1,4 +1,4 @@
-codeunit 70182 "AI Example Mock Lang. Model" implements "AI Language Model"
+codeunit 70147 "AI Mock Model" implements "AI Language Model"
 {
     Access = Internal;
 
@@ -26,7 +26,7 @@ codeunit 70182 "AI Example Mock Lang. Model" implements "AI Language Model"
     procedure Generate(var Request: Record "AI Chat Request"; var Response: Record "AI Chat Response"): Boolean
     begin
         Clear(Response);
-        Response."Provider Name" := 'example-mock';
+        Response."Provider Name" := 'mock';
 
         if FailOnGenerate then begin
             Response.SetError(FailErrorType, FailErrorMessage);

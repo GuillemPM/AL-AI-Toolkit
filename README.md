@@ -39,7 +39,34 @@ Object IDs: provisional **70100–70199**. Replace with an AppSource-assigned ra
 2. Ensure BC symbols are in `.alpackages` (Application 28.x).
 3. Open this folder and compile with ALC / the AL extension.
 
-Library API objects land in milestone M2+. See [`examples/AIUsageExample.Codeunit.al`](examples/AIUsageExample.Codeunit.al) — call `RunFeedbackSummaryDemo()` to see Provider → `BindLanguageModel` → `Generate` with an in-repo example mock.
+Happy path — same shape as Vercel AI SDK’s `generateText({ model, prompt })` (returns text, Errors on failure):
+
+```al
+Anthropic: Codeunit "AI Anthropic";
+Client: Codeunit "AI Client";
+ApiKey: SecretText;
+begin
+    // Prefer loading into SecretText (Isolated Storage / setup) so the debugger never shows the key
+    Message(Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), 'Hello'));
+end;
+```
+
+```ts
+// AI SDK equivalent
+const { text } = await generateText({
+  model: anthropic('claude-sonnet-4-5'),
+  prompt: 'Hello',
+});
+```
+
+Shipped factories: `"AI Anthropic"`, `"AI OpenAI"`, `"AI OpenCode Zen"`, `"AI Mock"`. API keys are `SecretText` end-to-end (hidden in the debugger; HTTP headers use the SecretText overloads).
+
+- `Client.GenerateText` / `GenerateJson` — return `Text`, Error on failure (like AI SDK throw)
+- `Client.TryGenerateText` / `TryGenerateJson` / `TryGenerate` — soft-fail with `AI Chat Response` when you need error type / tokens
+- `Client.Generate(Model, Request)` — full request escape hatch that still Errors on failure
+- Interfaces remain available if you need a custom provider
+
+See [`examples/AIUsageExample.Codeunit.al`](examples/AIUsageExample.Codeunit.al) for mock / Anthropic / OpenAI / Zen demos.
 
 ## License
 
