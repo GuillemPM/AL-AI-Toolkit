@@ -1,0 +1,912 @@
+namespace PM.Guillem.AIOpenSDK.Examples;
+
+using PM.Guillem.AIOpenSDK.Core;
+using PM.Guillem.AIOpenSDK.Provider.Anthropic;
+using PM.Guillem.AIOpenSDK.Provider.Mock;
+using PM.Guillem.AIOpenSDK.Provider.OpenAI;
+using PM.Guillem.AIOpenSDK.Provider.OpenCodeZen;
+using System.Reflection;
+
+page 87481 "AIOS Toolkit Demo"
+{
+    ApplicationArea = All;
+    Caption = 'AIOS Toolkit Demo';
+    PageType = Card;
+    UsageCategory = Tasks;
+    AdditionalSearchTerms = 'AI, LLM, mock, toolkit, openai, anthropic, alaidemo, provider';
+    AboutTitle = 'AIOS Toolkit Demo';
+    AboutText = 'Pick a provider, model, and API key, then Generate, Try generate, or Generate structured (JSON Schema → validated JSON).';
+
+    layout
+    {
+        area(Content)
+        {
+            group(ProviderGroup)
+            {
+                Caption = 'Provider';
+
+                field(SelectedProvider; SelectedProvider)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Provider';
+                    OptionCaption = 'Mock,Anthropic,OpenAI,OpenCode Zen';
+                    ToolTip = 'Which AI provider to call.';
+
+                    trigger OnValidate()
+                    begin
+                        ApplyProviderDefaults();
+                        SaveSettings();
+                    end;
+                }
+                field(ModelId; ModelId)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Model';
+                    ToolTip = 'Model id for the selected provider.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(ApiKeyText; ApiKeyText)
+                {
+                    ApplicationArea = All;
+                    Caption = 'API key';
+                    ExtendedDatatype = Masked;
+                    Editable = ApiKeyEditable;
+                    ToolTip = 'Provider API key. Not required for Mock. Stored per user in Isolated Storage.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+            }
+            group(PromptGroup)
+            {
+                Caption = 'Prompt';
+
+                field(SystemPrompt; SystemPrompt)
+                {
+                    ApplicationArea = All;
+                    Caption = 'System';
+                    MultiLine = true;
+                    ToolTip = 'Optional system message.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(UserPrompt; UserPrompt)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Prompt';
+                    MultiLine = true;
+                    ToolTip = 'User prompt sent to the model.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(JsonMode; JsonMode)
+                {
+                    ApplicationArea = All;
+                    Caption = 'JSON mode';
+                    ToolTip = 'Request JSON-oriented output when the provider supports it.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+            }
+            group(OptionsGroup)
+            {
+                Caption = 'Generate options';
+
+                field(Temperature; Temperature)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Temperature';
+                    DecimalPlaces = 0 : 2;
+                    ToolTip = 'Sampling temperature. Sent when Send temperature is enabled.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(UseTemperature; UseTemperature)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Send temperature';
+                    ToolTip = 'When enabled, temperature is included in the provider request.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(TopP; TopP)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Top P';
+                    DecimalPlaces = 0 : 4;
+                    ToolTip = 'Nucleus sampling. Sent when Send top P is enabled.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(UseTopP; UseTopP)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Send top P';
+                    ToolTip = 'When enabled, top P is included in the provider request.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(TopK; TopK)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Top K';
+                    ToolTip = 'Sample from top K tokens. Mainly Anthropic. Sent when Send top K is enabled.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(UseTopK; UseTopK)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Send top K';
+                    ToolTip = 'When enabled, top K is included in the provider request.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(PresencePenalty; PresencePenalty)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Presence penalty';
+                    DecimalPlaces = 0 : 2;
+                    ToolTip = 'Presence penalty. OpenAI-compatible providers.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(UsePresencePenalty; UsePresencePenalty)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Send presence penalty';
+                    ToolTip = 'When enabled, presence penalty is included in the provider request.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(FrequencyPenalty; FrequencyPenalty)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Frequency penalty';
+                    DecimalPlaces = 0 : 2;
+                    ToolTip = 'Frequency penalty. OpenAI-compatible providers.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(UseFrequencyPenalty; UseFrequencyPenalty)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Send frequency penalty';
+                    ToolTip = 'When enabled, frequency penalty is included in the provider request.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(Seed; Seed)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Seed';
+                    ToolTip = 'Seed for deterministic sampling when the provider supports it.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(UseSeed; UseSeed)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Send seed';
+                    ToolTip = 'When enabled, seed is included in the provider request.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(StopSequencesText; StopSequencesText)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Stop sequences';
+                    MultiLine = true;
+                    ToolTip = 'One stop sequence per line.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(Reasoning; Reasoning)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Reasoning';
+                    ToolTip = 'Reasoning effort. ProviderDefault omits the option.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(MaxTokens; MaxTokens)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Max tokens';
+                    ToolTip = 'Maximum tokens to generate. 0 omits the limit where the provider allows it.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(TimeoutMs; TimeoutMs)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Timeout (ms)';
+                    ToolTip = 'HTTP timeout in milliseconds. 0 means the default (120000).';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(MaxRetries; MaxRetries)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Max retries';
+                    ToolTip = 'Max retries. 0 disables retries. Default when Send max retries is off is still client default (2) unless you enable and set a value.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(UseMaxRetries; UseMaxRetries)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Send max retries';
+                    ToolTip = 'When enabled, Max retries is applied on the request (including 0 to disable).';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+            }
+            group(ResultGroup)
+            {
+                Caption = 'Result';
+
+                field(LastResult; LastResult)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Output';
+                    Editable = false;
+                    MultiLine = true;
+                    ToolTip = 'Last generation result or error details.';
+                }
+            }
+            part(HistoryPart; "AIOS Demo History")
+            {
+                ApplicationArea = All;
+                Caption = 'Request history';
+            }
+        }
+    }
+
+    actions
+    {
+        area(Processing)
+        {
+            action(Generate)
+            {
+                ApplicationArea = All;
+                Caption = 'Generate';
+                Image = Process;
+                ToolTip = 'Call AI Client with the selected provider and model.';
+
+                trigger OnAction()
+                begin
+                    RunGenerate(false);
+                end;
+            }
+            action(TryGenerate)
+            {
+                ApplicationArea = All;
+                Caption = 'Try generate';
+                Image = TestFile;
+                ToolTip = 'Soft-fail generate — shows error type instead of throwing.';
+
+                trigger OnAction()
+                begin
+                    RunGenerate(true);
+                end;
+            }
+            action(GenerateStructured)
+            {
+                ApplicationArea = All;
+                Caption = 'Generate structured';
+                Image = ExportFile;
+                ToolTip = 'GenerateText with Request.SetOutput(JSON Schema). Response is validated and shown as JSON.';
+
+                trigger OnAction()
+                begin
+                    RunGenerateStructured();
+                end;
+            }
+            action(ResetSettings)
+            {
+                ApplicationArea = All;
+                Caption = 'Reset settings';
+                Image = Restore;
+                ToolTip = 'Clear saved settings and restore demo defaults.';
+
+                trigger OnAction()
+                begin
+                    ClearSavedSettings();
+                    ApplyFirstOpenDefaults();
+                    CurrPage.Update(false);
+                end;
+            }
+            action(ReuseSelected)
+            {
+                ApplicationArea = All;
+                Caption = 'Reuse selected';
+                Image = Restore;
+                ToolTip = 'Load the selected history line back into the form.';
+
+                trigger OnAction()
+                begin
+                    ReuseSelectedHistory();
+                end;
+            }
+            action(ClearHistory)
+            {
+                ApplicationArea = All;
+                Caption = 'Clear history';
+                Image = Delete;
+                ToolTip = 'Delete all demo history lines for the current user.';
+
+                trigger OnAction()
+                begin
+                    ClearUserHistory();
+                end;
+            }
+        }
+        area(Promoted)
+        {
+            actionref(Generate_Promoted; Generate) { }
+            actionref(TryGenerate_Promoted; TryGenerate) { }
+            actionref(GenerateStructured_Promoted; GenerateStructured) { }
+            actionref(ReuseSelected_Promoted; ReuseSelected) { }
+            actionref(ClearHistory_Promoted; ClearHistory) { }
+            actionref(ResetSettings_Promoted; ResetSettings) { }
+        }
+    }
+
+    trigger OnOpenPage()
+    begin
+        if not LoadSettings() then
+            ApplyFirstOpenDefaults();
+    end;
+
+    trigger OnQueryClosePage(CloseAction: Action): Boolean
+    begin
+        SaveSettings();
+        exit(true);
+    end;
+
+    local procedure ApplyFirstOpenDefaults()
+    begin
+        SelectedProvider := SelectedProvider::Mock;
+        ApplyProviderDefaults();
+        SystemPrompt := 'You extract sentiment and topics from customer feedback.';
+        UserPrompt := 'Feedback: Great product, but support felt pricey.';
+        JsonMode := true;
+        Temperature := 0.2;
+        UseTemperature := true;
+        TopP := 0;
+        UseTopP := false;
+        TopK := 0;
+        UseTopK := false;
+        PresencePenalty := 0;
+        UsePresencePenalty := false;
+        FrequencyPenalty := 0;
+        UseFrequencyPenalty := false;
+        Seed := 0;
+        UseSeed := false;
+        StopSequencesText := '';
+        Reasoning := Reasoning::ProviderDefault;
+        MaxTokens := 1024;
+        TimeoutMs := 120000;
+        MaxRetries := 2;
+        UseMaxRetries := true;
+        SaveSettings();
+    end;
+
+    local procedure ApplyProviderDefaults()
+    begin
+        case SelectedProvider of
+            SelectedProvider::Mock:
+                begin
+                    ModelId := 'demo-model';
+                    ApiKeyEditable := false;
+                    ApiKeyText := '';
+                end;
+            SelectedProvider::Anthropic:
+                begin
+                    ModelId := 'claude-sonnet-4-5';
+                    ApiKeyEditable := true;
+                end;
+            SelectedProvider::OpenAI:
+                begin
+                    ModelId := 'gpt-4.1-mini';
+                    ApiKeyEditable := true;
+                end;
+            SelectedProvider::"OpenCode Zen":
+                begin
+                    ModelId := 'big-pickle';
+                    ApiKeyEditable := true;
+                end;
+        end;
+    end;
+
+    local procedure RunGenerate(SoftFail: Boolean)
+    var
+        Client: Codeunit "AIOS Client";
+        Request: Record "AIOS Chat Request";
+        Response: Record "AIOS Chat Response";
+        Model: Interface "AIOS Language Model";
+        Ok: Boolean;
+    begin
+        if ModelId = '' then
+            Error(ModelRequiredErr);
+        if (SelectedProvider <> SelectedProvider::Mock) and (ApiKeyText = '') then
+            Error(ApiKeyRequiredErr);
+
+        SaveSettings();
+        Model := BindSelectedModel();
+        BuildRequest(Request);
+
+        Ok := Client.TryGenerate(Model, Request, Response);
+        if Ok then
+            LastResult := Response.GetText()
+        else
+            LastResult := StrSubstNo(ErrorResultMsg, Response.GetErrorType(), Response."Error Message");
+
+        LogHistory(SoftFail, Ok, Request, Response);
+        CurrPage.HistoryPart.Page.Reload();
+        CurrPage.Update(false);
+
+        if (not SoftFail) and (not Ok) then
+            Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
+    end;
+
+    local procedure RunGenerateStructured()
+    var
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Response: Record "AIOS Chat Response";
+        Fields: List of [JsonObject];
+        Model: Interface "AIOS Language Model";
+        Ok: Boolean;
+    begin
+        if ModelId = '' then
+            Error(ModelRequiredErr);
+        if (SelectedProvider <> SelectedProvider::Mock) and (ApiKeyText = '') then
+            Error(ApiKeyRequiredErr);
+        if UserPrompt = '' then
+            Error(PromptRequiredErr);
+
+        SaveSettings();
+        Model := BindSelectedModel();
+        if SelectedProvider = SelectedProvider::Mock then
+            MockProvider.SetNextResponse(MockStructuredJsonTok);
+
+        Fields.Add(Schema.Field('Sentiment', Schema.String()));
+        Fields.Add(Schema.Field('Score', Schema.Number()));
+        Fields.Add(Schema.Field('Urgent', Schema.Boolean()));
+        Fields.Add(Schema.Field('Summary', Schema.String()));
+        Fields.Add(Schema.Field('Topics', Schema.Array(Schema.String())));
+
+        BuildRequest(Request);
+        Request.SetOutput(Schema.Object(Fields));
+
+        Ok := Client.TryGenerate(Model, Request, Response);
+        if Ok then
+            LastResult := Response.GetText()
+        else
+            LastResult := StrSubstNo(ErrorResultMsg, Response.GetErrorType(), Response."Error Message");
+
+        LogHistory(false, Ok, Request, Response);
+        CurrPage.HistoryPart.Page.Reload();
+        CurrPage.Update(false);
+
+        if not Ok then
+            Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
+    end;
+
+    local procedure LogHistory(SoftFail: Boolean; Ok: Boolean; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    var
+        History: Record "AIOS Demo History";
+    begin
+        History.Init();
+        History."Created At" := CurrentDateTime();
+        History."User ID" := CopyStr(UserId(), 1, MaxStrLen(History."User ID"));
+        History.Provider := Format(SelectedProvider);
+        History.Model := ModelId;
+        History.SetFormSystemMessage(SystemPrompt);
+        History.SetSystemMessage(Request.GetEffectiveSystemMessage());
+        History.SetPrompt(Request.GetPrompt());
+        History.SetResult(LastResult);
+        History."JSON Mode" := Request."Json Mode";
+        History.Temperature := Temperature;
+        History."Has Temperature" := UseTemperature;
+        History."Top P" := TopP;
+        History."Has Top P" := UseTopP;
+        History."Top K" := TopK;
+        History."Has Top K" := UseTopK;
+        History."Presence Penalty" := PresencePenalty;
+        History."Has Presence Penalty" := UsePresencePenalty;
+        History."Frequency Penalty" := FrequencyPenalty;
+        History."Has Frequency Penalty" := UseFrequencyPenalty;
+        History.Seed := Seed;
+        History."Has Seed" := UseSeed;
+        History."Stop Sequences" := CopyStr(StopSequencesText, 1, MaxStrLen(History."Stop Sequences"));
+        History.Reasoning := Reasoning;
+        History."Max Tokens" := MaxTokens;
+        History."Timeout Ms" := TimeoutMs;
+        History."Max Retries" := MaxRetries;
+        History."Has Max Retries" := UseMaxRetries;
+        History.Success := Ok;
+        History."Soft Fail" := SoftFail;
+        if not Ok then begin
+            History."Error Type" := Response.GetErrorType();
+            History."Error Message" := Response."Error Message";
+        end;
+        History."Input Tokens" := Response."Input Tokens";
+        History."Output Tokens" := Response."Output Tokens";
+        History.Insert(true);
+        Commit();
+    end;
+
+    local procedure ReuseSelectedHistory()
+    var
+        History: Record "AIOS Demo History";
+        ProviderName: Text;
+    begin
+        CurrPage.HistoryPart.Page.GetCurrent(History);
+        if History."Entry No." = 0 then
+            Error(NoHistorySelectedErr);
+
+        ProviderName := History.Provider;
+        case ProviderName of
+            Format(SelectedProvider::Mock):
+                SelectedProvider := SelectedProvider::Mock;
+            Format(SelectedProvider::Anthropic):
+                SelectedProvider := SelectedProvider::Anthropic;
+            Format(SelectedProvider::OpenAI):
+                SelectedProvider := SelectedProvider::OpenAI;
+            Format(SelectedProvider::"OpenCode Zen"):
+                SelectedProvider := SelectedProvider::"OpenCode Zen";
+            else
+                Error(UnknownProviderErr, ProviderName);
+        end;
+
+        ApiKeyEditable := SelectedProvider <> SelectedProvider::Mock;
+        ModelId := History.Model;
+        if History.GetFormSystemMessage() <> '' then
+            SystemPrompt := History.GetFormSystemMessage()
+        else
+            SystemPrompt := History.GetSystemMessage();
+        UserPrompt := History.GetPrompt();
+        JsonMode := History."JSON Mode";
+        Temperature := History.Temperature;
+        UseTemperature := History."Has Temperature";
+        TopP := History."Top P";
+        UseTopP := History."Has Top P";
+        TopK := History."Top K";
+        UseTopK := History."Has Top K";
+        PresencePenalty := History."Presence Penalty";
+        UsePresencePenalty := History."Has Presence Penalty";
+        FrequencyPenalty := History."Frequency Penalty";
+        UseFrequencyPenalty := History."Has Frequency Penalty";
+        Seed := History.Seed;
+        UseSeed := History."Has Seed";
+        StopSequencesText := History."Stop Sequences";
+        Reasoning := History.Reasoning;
+        MaxTokens := History."Max Tokens";
+        TimeoutMs := History."Timeout Ms";
+        MaxRetries := History."Max Retries";
+        UseMaxRetries := History."Has Max Retries";
+        LastResult := History.GetResult();
+        SaveSettings();
+        CurrPage.Update(false);
+    end;
+
+    local procedure ClearUserHistory()
+    var
+        History: Record "AIOS Demo History";
+    begin
+        if not Confirm(ClearHistoryQst) then
+            exit;
+        History.SetRange("User ID", CopyStr(UserId(), 1, MaxStrLen(History."User ID")));
+        History.DeleteAll(true);
+        CurrPage.HistoryPart.Page.Reload();
+        CurrPage.Update(false);
+    end;
+
+    local procedure BuildRequest(var Request: Record "AIOS Chat Request")
+    begin
+        Clear(Request);
+        if SystemPrompt <> '' then
+            Request.SetSystemMessage(SystemPrompt);
+        Request.SetPrompt(UserPrompt);
+        if JsonMode then
+            Request.SetJsonMode(true);
+        if UseTemperature then
+            Request.SetTemperature(Temperature);
+        if UseTopP then
+            Request.SetTopP(TopP);
+        if UseTopK then
+            Request.SetTopK(TopK);
+        if UsePresencePenalty then
+            Request.SetPresencePenalty(PresencePenalty);
+        if UseFrequencyPenalty then
+            Request.SetFrequencyPenalty(FrequencyPenalty);
+        if UseSeed then
+            Request.SetSeed(Seed);
+        ApplyStopSequences(Request);
+        Request.SetReasoning(Reasoning);
+        if MaxTokens > 0 then
+            Request.SetMaxTokens(MaxTokens);
+        if TimeoutMs > 0 then
+            Request.SetTimeout(TimeoutMs);
+        if UseMaxRetries then
+            Request.SetMaxRetries(MaxRetries);
+    end;
+
+    local procedure ApplyStopSequences(var Request: Record "AIOS Chat Request")
+    var
+        TypeHelper: Codeunit "Type Helper";
+        Lines: List of [Text];
+        Line: Text;
+        Normalized: Text;
+        CR: Char;
+    begin
+        if StopSequencesText = '' then
+            exit;
+        CR := 13;
+        Normalized := DelChr(StopSequencesText, '=', Format(CR));
+        Lines := Normalized.Split(TypeHelper.LFSeparator());
+        foreach Line in Lines do begin
+            Line := Line.Trim();
+            if Line <> '' then
+                Request.AddStopSequence(Line);
+        end;
+    end;
+
+    local procedure BindSelectedModel(): Interface "AIOS Language Model"
+    var
+        Anthropic: Codeunit "AIOS Anthropic";
+        OpenAI: Codeunit "AIOS OpenAI";
+        Zen: Codeunit "AIOS OpenCode Zen";
+        ApiKey: SecretText;
+    begin
+        ApiKey := ApiKeyText;
+
+        case SelectedProvider of
+            SelectedProvider::Mock:
+                begin
+                    if JsonMode then
+                        MockProvider.SetNextResponse('{"sentiment":"positive","topics":["pricing","support"]}')
+                    else
+                        MockProvider.SetNextResponse('Mock response: Great product, support felt pricey.');
+                    exit(MockProvider.Model(ModelId));
+                end;
+            SelectedProvider::Anthropic:
+                exit(Anthropic.Model(ModelId, ApiKey));
+            SelectedProvider::OpenAI:
+                exit(OpenAI.Model(ModelId, ApiKey));
+            SelectedProvider::"OpenCode Zen":
+                exit(Zen.Model(ModelId, ApiKey));
+        end;
+    end;
+
+    local procedure SaveSettings()
+    var
+        Settings: JsonObject;
+        SettingsText: Text;
+    begin
+        Clear(Settings);
+        Settings.Add('provider', SelectedProvider);
+        Settings.Add('model', ModelId);
+        Settings.Add('system', SystemPrompt);
+        Settings.Add('prompt', UserPrompt);
+        Settings.Add('jsonMode', JsonMode);
+        Settings.Add('temperature', Temperature);
+        Settings.Add('useTemperature', UseTemperature);
+        Settings.Add('topP', TopP);
+        Settings.Add('useTopP', UseTopP);
+        Settings.Add('topK', TopK);
+        Settings.Add('useTopK', UseTopK);
+        Settings.Add('presencePenalty', PresencePenalty);
+        Settings.Add('usePresencePenalty', UsePresencePenalty);
+        Settings.Add('frequencyPenalty', FrequencyPenalty);
+        Settings.Add('useFrequencyPenalty', UseFrequencyPenalty);
+        Settings.Add('seed', Seed);
+        Settings.Add('useSeed', UseSeed);
+        Settings.Add('stopSequences', StopSequencesText);
+        Settings.Add('reasoning', Reasoning.AsInteger());
+        Settings.Add('maxTokens', MaxTokens);
+        Settings.Add('timeoutMs', TimeoutMs);
+        Settings.Add('maxRetries', MaxRetries);
+        Settings.Add('useMaxRetries', UseMaxRetries);
+        Settings.WriteTo(SettingsText);
+        IsolatedStorage.Set(SettingsKeyTok, SettingsText, DataScope::User);
+
+        if ApiKeyText = '' then begin
+            if IsolatedStorage.Contains(ApiKeyKeyTok, DataScope::User) then
+                IsolatedStorage.Delete(ApiKeyKeyTok, DataScope::User);
+        end else
+            IsolatedStorage.Set(ApiKeyKeyTok, ApiKeyText, DataScope::User);
+    end;
+
+    local procedure LoadSettings(): Boolean
+    var
+        Settings: JsonObject;
+        SettingsToken: JsonToken;
+        SettingsText: Text;
+        ProviderValue: Integer;
+    begin
+        if not IsolatedStorage.Contains(SettingsKeyTok, DataScope::User) then
+            exit(false);
+        if not IsolatedStorage.Get(SettingsKeyTok, DataScope::User, SettingsText) then
+            exit(false);
+        if not Settings.ReadFrom(SettingsText) then
+            exit(false);
+
+        if Settings.Get('provider', SettingsToken) then begin
+            ProviderValue := SettingsToken.AsValue().AsInteger();
+            SelectedProvider := ProviderValue;
+        end;
+        if Settings.Get('model', SettingsToken) then
+            ModelId := CopyStr(SettingsToken.AsValue().AsText(), 1, MaxStrLen(ModelId));
+        if Settings.Get('system', SettingsToken) then
+            SystemPrompt := SettingsToken.AsValue().AsText();
+        if Settings.Get('prompt', SettingsToken) then
+            UserPrompt := SettingsToken.AsValue().AsText();
+        if Settings.Get('jsonMode', SettingsToken) then
+            JsonMode := SettingsToken.AsValue().AsBoolean();
+        if Settings.Get('temperature', SettingsToken) then
+            Temperature := SettingsToken.AsValue().AsDecimal();
+        if Settings.Get('useTemperature', SettingsToken) then
+            UseTemperature := SettingsToken.AsValue().AsBoolean();
+        if Settings.Get('topP', SettingsToken) then
+            TopP := SettingsToken.AsValue().AsDecimal();
+        if Settings.Get('useTopP', SettingsToken) then
+            UseTopP := SettingsToken.AsValue().AsBoolean();
+        if Settings.Get('topK', SettingsToken) then
+            TopK := SettingsToken.AsValue().AsInteger();
+        if Settings.Get('useTopK', SettingsToken) then
+            UseTopK := SettingsToken.AsValue().AsBoolean();
+        if Settings.Get('presencePenalty', SettingsToken) then
+            PresencePenalty := SettingsToken.AsValue().AsDecimal();
+        if Settings.Get('usePresencePenalty', SettingsToken) then
+            UsePresencePenalty := SettingsToken.AsValue().AsBoolean();
+        if Settings.Get('frequencyPenalty', SettingsToken) then
+            FrequencyPenalty := SettingsToken.AsValue().AsDecimal();
+        if Settings.Get('useFrequencyPenalty', SettingsToken) then
+            UseFrequencyPenalty := SettingsToken.AsValue().AsBoolean();
+        if Settings.Get('seed', SettingsToken) then
+            Seed := SettingsToken.AsValue().AsInteger();
+        if Settings.Get('useSeed', SettingsToken) then
+            UseSeed := SettingsToken.AsValue().AsBoolean();
+        if Settings.Get('stopSequences', SettingsToken) then
+            StopSequencesText := SettingsToken.AsValue().AsText();
+        if Settings.Get('reasoning', SettingsToken) then
+            Reasoning := "AIOS Reasoning Effort".FromInteger(SettingsToken.AsValue().AsInteger());
+        if Settings.Get('maxTokens', SettingsToken) then
+            MaxTokens := SettingsToken.AsValue().AsInteger();
+        if Settings.Get('timeoutMs', SettingsToken) then
+            TimeoutMs := SettingsToken.AsValue().AsInteger();
+        if Settings.Get('maxRetries', SettingsToken) then
+            MaxRetries := SettingsToken.AsValue().AsInteger();
+        if Settings.Get('useMaxRetries', SettingsToken) then
+            UseMaxRetries := SettingsToken.AsValue().AsBoolean();
+
+        ApiKeyEditable := SelectedProvider <> SelectedProvider::Mock;
+        ApiKeyText := '';
+        if IsolatedStorage.Contains(ApiKeyKeyTok, DataScope::User) then
+            IsolatedStorage.Get(ApiKeyKeyTok, DataScope::User, ApiKeyText);
+
+        exit(true);
+    end;
+
+    local procedure ClearSavedSettings()
+    begin
+        if IsolatedStorage.Contains(SettingsKeyTok, DataScope::User) then
+            IsolatedStorage.Delete(SettingsKeyTok, DataScope::User);
+        if IsolatedStorage.Contains(ApiKeyKeyTok, DataScope::User) then
+            IsolatedStorage.Delete(ApiKeyKeyTok, DataScope::User);
+    end;
+
+    var
+        MockProvider: Codeunit "AIOS Mock";
+        Reasoning: Enum "AIOS Reasoning Effort";
+        SelectedProvider: Option Mock,Anthropic,OpenAI,"OpenCode Zen";
+        ModelId: Text[100];
+        ApiKeyText: Text[250];
+        SystemPrompt: Text;
+        UserPrompt: Text;
+        LastResult: Text;
+        StopSequencesText: Text;
+        JsonMode: Boolean;
+        Temperature: Decimal;
+        UseTemperature: Boolean;
+        TopP: Decimal;
+        UseTopP: Boolean;
+        TopK: Integer;
+        UseTopK: Boolean;
+        PresencePenalty: Decimal;
+        UsePresencePenalty: Boolean;
+        FrequencyPenalty: Decimal;
+        UseFrequencyPenalty: Boolean;
+        Seed: Integer;
+        UseSeed: Boolean;
+        MaxTokens: Integer;
+        TimeoutMs: Integer;
+        MaxRetries: Integer;
+        UseMaxRetries: Boolean;
+        ApiKeyEditable: Boolean;
+        SettingsKeyTok: Label 'AIToolkitDemo.Settings', Locked = true;
+        ApiKeyKeyTok: Label 'AIToolkitDemo.ApiKey', Locked = true;
+        ModelRequiredErr: Label 'Enter a model id.';
+        ApiKeyRequiredErr: Label 'Enter an API key for this provider (not needed for Mock).';
+        ErrorResultMsg: Label 'Failed (%1): %2', Comment = '%1 = error type, %2 = message';
+        GenerationFailedErr: Label 'Generation failed (%1): %2', Comment = '%1 = error type, %2 = message';
+        PromptRequiredErr: Label 'Enter a prompt before structured generate.';
+        MockStructuredJsonTok: Label '{"Sentiment":"positive","Score":0.9,"Urgent":false,"Summary":"Good product, pricey support.","Topics":["pricing","support"]}', Locked = true;
+        NoHistorySelectedErr: Label 'Select a history line first.';
+        UnknownProviderErr: Label 'Unknown provider in history: %1', Comment = '%1 = provider name';
+        ClearHistoryQst: Label 'Delete all demo history for your user?';
+}

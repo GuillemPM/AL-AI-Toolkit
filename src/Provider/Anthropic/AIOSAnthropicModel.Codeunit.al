@@ -1,4 +1,8 @@
-codeunit 70141 "AI Anthropic Model" implements "AI Language Model"
+namespace PM.Guillem.AIOpenSDK.Provider.Anthropic;
+
+using PM.Guillem.AIOpenSDK.Core;
+
+codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
 {
     Access = Internal;
 
@@ -19,7 +23,7 @@ codeunit 70141 "AI Anthropic Model" implements "AI Language Model"
         exit(BoundModelId);
     end;
 
-    procedure Generate(var Request: Record "AI Chat Request"; var Response: Record "AI Chat Response"): Boolean
+    procedure Generate(var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
     var
         Client: HttpClient;
         HttpRequest: HttpRequestMessage;
@@ -29,11 +33,13 @@ codeunit 70141 "AI Anthropic Model" implements "AI Language Model"
         Body: Text;
         ResponseText: Text;
         StatusCode: Integer;
+        Warnings: JsonArray;
     begin
         Clear(Response);
         Response."Provider Name" := 'anthropic';
 
-        Body := BuildRequestBody(Request);
+        Body := BuildRequestBody(Request, Warnings);
+        Response.AppendWarnings(Warnings);
         Content.WriteFrom(Body);
         Content.GetHeaders(Headers);
         Headers.Clear();
@@ -47,9 +53,9 @@ codeunit 70141 "AI Anthropic Model" implements "AI Language Model"
         Headers.Add('anthropic-version', ApiVersion);
         Headers.Add('Accept', 'application/json');
 
-        Client.Timeout := 120000;
+        Client.Timeout := Request.GetHttpTimeout();
         if not Client.Send(HttpRequest, HttpResponse) then begin
-            Response.SetError("AI Error Type"::Timeout, SendFailedErr);
+            Response.SetError("AIOS Error Type"::Timeout, SendFailedErr);
             exit(false);
         end;
 
@@ -65,8 +71,9 @@ codeunit 70141 "AI Anthropic Model" implements "AI Language Model"
         exit(ParseSuccess(ResponseText, Response));
     end;
 
-    local procedure BuildRequestBody(var Request: Record "AI Chat Request"): Text
+    local procedure BuildRequestBody(var Request: Record "AIOS Chat Request"; var Warnings: JsonArray): Text
     var
+        RequestOptions: Codeunit "AIOS Request Options";
         Root: JsonObject;
         Messages: JsonArray;
         UserMessage: JsonObject;
@@ -76,14 +83,9 @@ codeunit 70141 "AI Anthropic Model" implements "AI Language Model"
     begin
         MaxTokens := Request."Max Tokens";
         if MaxTokens <= 0 then
-            MaxTokens := 1024;
+            MaxTokens := 4096;
 
-        SystemText := Request."System Message";
-        if Request."Json Mode" then
-            if SystemText = '' then
-                SystemText := JsonModeInstructionTxt
-            else
-                SystemText += ' ' + JsonModeInstructionTxt;
+        SystemText := Request.GetEffectiveSystemMessage();
 
         UserMessage.Add('role', 'user');
         UserMessage.Add('content', Request.GetPrompt());
@@ -94,14 +96,15 @@ codeunit 70141 "AI Anthropic Model" implements "AI Language Model"
         if SystemText <> '' then
             Root.Add('system', SystemText);
         Root.Add('messages', Messages);
-        if Request.Temperature <> 0 then
+        if Request."Has Temperature" then
             Root.Add('temperature', Request.Temperature);
+        RequestOptions.ApplyAnthropic(Root, Request, Warnings);
 
         Root.WriteTo(Body);
         exit(Body);
     end;
 
-    local procedure ParseSuccess(ResponseText: Text; var Response: Record "AI Chat Response"): Boolean
+    local procedure ParseSuccess(ResponseText: Text; var Response: Record "AIOS Chat Response"): Boolean
     var
         Root: JsonObject;
         ContentToken: JsonToken;
@@ -116,12 +119,12 @@ codeunit 70141 "AI Anthropic Model" implements "AI Language Model"
         i: Integer;
     begin
         if not Root.ReadFrom(ResponseText) then begin
-            Response.SetError("AI Error Type"::ParseFailed, InvalidJsonErr);
+            Response.SetError("AIOS Error Type"::ParseFailed, InvalidJsonErr);
             exit(false);
         end;
 
         if not Root.Get('content', ContentToken) then begin
-            Response.SetError("AI Error Type"::ParseFailed, MissingContentErr);
+            Response.SetError("AIOS Error Type"::ParseFailed, MissingContentErr);
             exit(false);
         end;
 
@@ -138,8 +141,8 @@ codeunit 70141 "AI Anthropic Model" implements "AI Language Model"
                     ContentText += TextToken.AsValue().AsText();
         end;
 
-        Response.SetText(ContentText);
-        Response.ClearError();
+        if Root.Get('stop_reason', TextToken) then
+            Response."Finish Reason" := CopyStr(TextToken.AsValue().AsText(), 1, MaxStrLen(Response."Finish Reason"));
 
         if Root.Get('usage', UsageToken) then begin
             Usage := UsageToken.AsObject();
@@ -149,24 +152,34 @@ codeunit 70141 "AI Anthropic Model" implements "AI Language Model"
                 Response."Output Tokens" := TextToken.AsValue().AsInteger();
         end;
 
+        if ContentText = '' then begin
+            if Response."Finish Reason" = 'max_tokens' then
+                Response.SetError("AIOS Error Type"::InvalidRequest, EmptyDueToMaxTokensErr)
+            else
+                Response.SetError("AIOS Error Type"::ParseFailed, StrSubstNo(EmptyContentErr, Response."Finish Reason"));
+            exit(false);
+        end;
+
+        Response.SetText(ContentText);
+        Response.ClearError();
         exit(true);
     end;
 
-    local procedure MapHttpError(StatusCode: Integer; ResponseText: Text; var Response: Record "AI Chat Response")
+    local procedure MapHttpError(StatusCode: Integer; ResponseText: Text; var Response: Record "AIOS Chat Response")
     begin
         case StatusCode of
             401, 403:
-                Response.SetError("AI Error Type"::AuthenticationFailed, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::AuthenticationFailed, CopyStr(ResponseText, 1, 250));
             429:
-                Response.SetError("AI Error Type"::RateLimited, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::RateLimited, CopyStr(ResponseText, 1, 250));
             400, 404, 422:
-                Response.SetError("AI Error Type"::InvalidRequest, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::InvalidRequest, CopyStr(ResponseText, 1, 250));
             408, 504:
-                Response.SetError("AI Error Type"::Timeout, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::Timeout, CopyStr(ResponseText, 1, 250));
             500, 502, 503:
-                Response.SetError("AI Error Type"::ProviderUnavailable, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::ProviderUnavailable, CopyStr(ResponseText, 1, 250));
             else
-                Response.SetError("AI Error Type"::Unknown, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::Unknown, CopyStr(ResponseText, 1, 250));
         end;
     end;
 
@@ -174,5 +187,6 @@ codeunit 70141 "AI Anthropic Model" implements "AI Language Model"
         SendFailedErr: Label 'Failed to send request to Anthropic.';
         InvalidJsonErr: Label 'Anthropic returned invalid JSON.';
         MissingContentErr: Label 'Anthropic response missing content.';
-        JsonModeInstructionTxt: Label 'Respond with valid JSON only, no markdown fences.';
+        EmptyDueToMaxTokensErr: Label 'Empty model content (stop_reason=max_tokens).';
+        EmptyContentErr: Label 'Empty model content (stop_reason=%1).', Comment = '%1 = stop reason';
 }

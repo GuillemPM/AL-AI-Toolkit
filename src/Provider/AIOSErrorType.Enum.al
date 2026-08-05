@@ -1,4 +1,6 @@
-enum 70100 "AI Error Type"
+namespace PM.Guillem.AIOpenSDK.Core;
+
+enum 87400 "AIOS Error Type"
 {
     Extensible = false;
 

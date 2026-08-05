@@ -1,4 +1,8 @@
-codeunit 70142 "AI OpenAI" implements "AI Provider"
+namespace PM.Guillem.AIOpenSDK.Provider.OpenCodeZen;
+
+using PM.Guillem.AIOpenSDK.Core;
+
+codeunit 87444 "AIOS OpenCode Zen" implements "AIOS Provider"
 {
     Access = Public;
 
@@ -13,16 +17,19 @@ codeunit 70142 "AI OpenAI" implements "AI Provider"
 
     procedure GetName(): Text
     begin
-        exit('openai');
+        exit('opencode-zen');
     end;
 
+    /// <summary>
+    /// Configure the OpenCode Zen API key from https://opencode.ai/auth.
+    /// </summary>
     procedure SetApiKey(KeyValue: SecretText)
     begin
         ApiKey := KeyValue;
     end;
 
     /// <summary>
-    /// Optional base URL override (default https://api.openai.com/v1).
+    /// Optional base URL override (default https://opencode.ai/zen/v1).
     /// </summary>
     procedure SetBaseUrl(Url: Text)
     begin
@@ -30,9 +37,9 @@ codeunit 70142 "AI OpenAI" implements "AI Provider"
     end;
 
     /// <summary>
-    /// One-shot factory: bind a model with an API key (Vercel AI SDK-style).
+    /// One-shot factory: bind a model with an API key.
     /// </summary>
-    procedure Model(ModelId: Text; KeyValue: SecretText): Interface "AI Language Model"
+    procedure Model(ModelId: Text; KeyValue: SecretText): Interface "AIOS Language Model"
     begin
         SetApiKey(KeyValue);
         exit(Model(ModelId));
@@ -41,24 +48,24 @@ codeunit 70142 "AI OpenAI" implements "AI Provider"
     /// <summary>
     /// Bind a model using a key previously set via SetApiKey.
     /// </summary>
-    procedure Model(ModelId: Text): Interface "AI Language Model"
+    procedure Model(ModelId: Text): Interface "AIOS Language Model"
     var
-        LanguageModel: Interface "AI Language Model";
+        LanguageModel: Interface "AIOS Language Model";
     begin
         if not BindLanguageModel(ModelId, LanguageModel) then
             Error(BindFailedErr, ModelId, GetName());
         exit(LanguageModel);
     end;
 
-    procedure BindLanguageModel(ModelId: Text; var BoundModel: Interface "AI Language Model"): Boolean
+    procedure BindLanguageModel(ModelId: Text; var BoundModel: Interface "AIOS Language Model"): Boolean
     var
-        LanguageModel: Codeunit "AI OpenAI Model";
+        LanguageModel: Codeunit "AIOS OpenCode Zen Model";
     begin
         if (ModelId = '') or ApiKey.IsEmpty() then
             exit(false);
 
         if BaseUrl = '' then
-            BaseUrl := 'https://api.openai.com/v1';
+            BaseUrl := 'https://opencode.ai/zen/v1';
 
         LanguageModel.Initialize(ModelId, ApiKey, BaseUrl);
         BoundModel := LanguageModel;

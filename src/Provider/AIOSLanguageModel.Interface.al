@@ -1,4 +1,6 @@
-interface "AI Language Model"
+namespace PM.Guillem.AIOpenSDK.Core;
+
+interface "AIOS Language Model"
 {
     /// <summary>
     /// Model id this instance was bound with (e.g. deployment or model name).
@@ -9,5 +11,5 @@ interface "AI Language Model"
     /// Run a chat/text generation against this model.
     /// Returns true on success; on failure returns false and populates Response error fields.
     /// </summary>
-    procedure Generate(var Request: Record "AI Chat Request"; var Response: Record "AI Chat Response"): Boolean
+    procedure Generate(var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
 }

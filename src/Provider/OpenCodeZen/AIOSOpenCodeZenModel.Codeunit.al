@@ -1,4 +1,8 @@
-codeunit 70145 "AI OpenCode Zen Model" implements "AI Language Model"
+namespace PM.Guillem.AIOpenSDK.Provider.OpenCodeZen;
+
+using PM.Guillem.AIOpenSDK.Core;
+
+codeunit 87445 "AIOS OpenCode Zen Model" implements "AIOS Language Model"
 {
     Access = Internal;
 
@@ -24,7 +28,7 @@ codeunit 70145 "AI OpenCode Zen Model" implements "AI Language Model"
     /// Works for models listed under /v1/chat/completions (e.g. big-pickle, minimax-m2.5).
     /// Claude-family models use /v1/messages and GPT-family use /v1/responses — not covered here.
     /// </summary>
-    procedure Generate(var Request: Record "AI Chat Request"; var Response: Record "AI Chat Response"): Boolean
+    procedure Generate(var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
     var
         Client: HttpClient;
         HttpRequest: HttpRequestMessage;
@@ -34,11 +38,13 @@ codeunit 70145 "AI OpenCode Zen Model" implements "AI Language Model"
         Body: Text;
         ResponseText: Text;
         StatusCode: Integer;
+        Warnings: JsonArray;
     begin
         Clear(Response);
         Response."Provider Name" := 'opencode-zen';
 
-        Body := BuildRequestBody(Request);
+        Body := BuildRequestBody(Request, Warnings);
+        Response.AppendWarnings(Warnings);
         Content.WriteFrom(Body);
         Content.GetHeaders(Headers);
         Headers.Clear();
@@ -51,9 +57,9 @@ codeunit 70145 "AI OpenCode Zen Model" implements "AI Language Model"
         Headers.Add('Authorization', SecretStrSubstNo('Bearer %1', ApiKey));
         Headers.Add('Accept', 'application/json');
 
-        Client.Timeout := 120000;
+        Client.Timeout := Request.GetHttpTimeout();
         if not Client.Send(HttpRequest, HttpResponse) then begin
-            Response.SetError("AI Error Type"::Timeout, SendFailedErr);
+            Response.SetError("AIOS Error Type"::Timeout, SendFailedErr);
             exit(false);
         end;
 
@@ -69,18 +75,22 @@ codeunit 70145 "AI OpenCode Zen Model" implements "AI Language Model"
         exit(ParseSuccess(ResponseText, Response));
     end;
 
-    local procedure BuildRequestBody(var Request: Record "AI Chat Request"): Text
+    local procedure BuildRequestBody(var Request: Record "AIOS Chat Request"; var Warnings: JsonArray): Text
     var
+        RequestOptions: Codeunit "AIOS Request Options";
         Root: JsonObject;
         Messages: JsonArray;
         SystemMessage: JsonObject;
         UserMessage: JsonObject;
         ResponseFormat: JsonObject;
+        SystemText: Text;
         Body: Text;
     begin
-        if Request."System Message" <> '' then begin
+        SystemText := Request.GetEffectiveSystemMessage();
+
+        if SystemText <> '' then begin
             SystemMessage.Add('role', 'system');
-            SystemMessage.Add('content', Request."System Message");
+            SystemMessage.Add('content', SystemText);
             Messages.Add(SystemMessage);
         end;
 
@@ -92,18 +102,19 @@ codeunit 70145 "AI OpenCode Zen Model" implements "AI Language Model"
         Root.Add('messages', Messages);
         if Request."Max Tokens" > 0 then
             Root.Add('max_tokens', Request."Max Tokens");
-        if Request.Temperature <> 0 then
+        if Request."Has Temperature" then
             Root.Add('temperature', Request.Temperature);
         if Request."Json Mode" then begin
             ResponseFormat.Add('type', 'json_object');
             Root.Add('response_format', ResponseFormat);
         end;
+        RequestOptions.ApplyOpenAICompatible(Root, Request, Warnings);
 
         Root.WriteTo(Body);
         exit(Body);
     end;
 
-    local procedure ParseSuccess(ResponseText: Text; var Response: Record "AI Chat Response"): Boolean
+    local procedure ParseSuccess(ResponseText: Text; var Response: Record "AIOS Chat Response"): Boolean
     var
         Root: JsonObject;
         ChoicesToken: JsonToken;
@@ -115,38 +126,45 @@ codeunit 70145 "AI OpenCode Zen Model" implements "AI Language Model"
         ContentToken: JsonToken;
         UsageToken: JsonToken;
         Usage: JsonObject;
+        FinishReasonToken: JsonToken;
+        ContentText: Text;
+        FinishReason: Text;
     begin
         if not Root.ReadFrom(ResponseText) then begin
-            Response.SetError("AI Error Type"::ParseFailed, InvalidJsonErr);
+            Response.SetError("AIOS Error Type"::ParseFailed, InvalidJsonErr);
             exit(false);
         end;
 
         if not Root.Get('choices', ChoicesToken) then begin
-            Response.SetError("AI Error Type"::ParseFailed, MissingChoicesErr);
+            Response.SetError("AIOS Error Type"::ParseFailed, MissingChoicesErr);
             exit(false);
         end;
 
         Choices := ChoicesToken.AsArray();
         if Choices.Count() = 0 then begin
-            Response.SetError("AI Error Type"::ParseFailed, MissingChoicesErr);
+            Response.SetError("AIOS Error Type"::ParseFailed, MissingChoicesErr);
             exit(false);
         end;
 
         Choices.Get(0, ChoiceToken);
         Choice := ChoiceToken.AsObject();
+        if Choice.Get('finish_reason', FinishReasonToken) then
+            FinishReason := FinishReasonToken.AsValue().AsText();
+        Response."Finish Reason" := CopyStr(FinishReason, 1, MaxStrLen(Response."Finish Reason"));
+
         if not Choice.Get('message', MessageToken) then begin
-            Response.SetError("AI Error Type"::ParseFailed, MissingContentErr);
+            Response.SetError("AIOS Error Type"::ParseFailed, MissingContentErr);
             exit(false);
         end;
 
         MessageObj := MessageToken.AsObject();
         if not MessageObj.Get('content', ContentToken) then begin
-            Response.SetError("AI Error Type"::ParseFailed, MissingContentErr);
+            Response.SetError("AIOS Error Type"::ParseFailed, MissingContentErr);
             exit(false);
         end;
 
-        Response.SetText(ContentToken.AsValue().AsText());
-        Response.ClearError();
+        if not ContentToken.AsValue().IsNull() then
+            ContentText := ContentToken.AsValue().AsText();
 
         if Root.Get('usage', UsageToken) then begin
             Usage := UsageToken.AsObject();
@@ -156,24 +174,34 @@ codeunit 70145 "AI OpenCode Zen Model" implements "AI Language Model"
                 Response."Output Tokens" := ContentToken.AsValue().AsInteger();
         end;
 
+        if ContentText = '' then begin
+            if FinishReason = 'length' then
+                Response.SetError("AIOS Error Type"::InvalidRequest, EmptyDueToMaxTokensErr)
+            else
+                Response.SetError("AIOS Error Type"::ParseFailed, StrSubstNo(EmptyContentErr, FinishReason));
+            exit(false);
+        end;
+
+        Response.SetText(ContentText);
+        Response.ClearError();
         exit(true);
     end;
 
-    local procedure MapHttpError(StatusCode: Integer; ResponseText: Text; var Response: Record "AI Chat Response")
+    local procedure MapHttpError(StatusCode: Integer; ResponseText: Text; var Response: Record "AIOS Chat Response")
     begin
         case StatusCode of
             401, 403:
-                Response.SetError("AI Error Type"::AuthenticationFailed, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::AuthenticationFailed, CopyStr(ResponseText, 1, 250));
             429:
-                Response.SetError("AI Error Type"::RateLimited, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::RateLimited, CopyStr(ResponseText, 1, 250));
             400, 404, 422:
-                Response.SetError("AI Error Type"::InvalidRequest, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::InvalidRequest, CopyStr(ResponseText, 1, 250));
             408, 504:
-                Response.SetError("AI Error Type"::Timeout, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::Timeout, CopyStr(ResponseText, 1, 250));
             500, 502, 503:
-                Response.SetError("AI Error Type"::ProviderUnavailable, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::ProviderUnavailable, CopyStr(ResponseText, 1, 250));
             else
-                Response.SetError("AI Error Type"::Unknown, CopyStr(ResponseText, 1, 250));
+                Response.SetError("AIOS Error Type"::Unknown, CopyStr(ResponseText, 1, 250));
         end;
     end;
 
@@ -182,4 +210,6 @@ codeunit 70145 "AI OpenCode Zen Model" implements "AI Language Model"
         InvalidJsonErr: Label 'OpenCode Zen returned invalid JSON.';
         MissingChoicesErr: Label 'OpenCode Zen response missing choices.';
         MissingContentErr: Label 'OpenCode Zen response missing message content.';
+        EmptyDueToMaxTokensErr: Label 'Empty model content (finish_reason=length).';
+        EmptyContentErr: Label 'Empty model content (finish_reason=%1).', Comment = '%1 = finish reason';
 }

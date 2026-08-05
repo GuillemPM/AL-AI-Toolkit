@@ -1,6 +1,6 @@
 # Governance
 
-AL AI Toolkit is open-source infrastructure. Governance exists so downstream AL
+AL AI Open SDK is open-source infrastructure. Governance exists so downstream AL
 extensions that depend on this library are not left without a clear succession
 path ([ADR-008](docs/adr/008-bdfl-with-succession.md)).
 
@@ -27,7 +27,7 @@ Document any permanent succession in this file via PR.
 
 - Small maintainers group with commit access
 - Lazy consensus for non-architectural changes
-- BDFL-arbitrated decisions for anything touching `"AI Provider"` / core contracts ([ADR-003](docs/adr/003-provider-abstraction.md))
+- BDFL-arbitrated decisions for anything touching `"AIOS Provider"` / core contracts ([ADR-003](docs/adr/003-provider-abstraction.md))
 
 ## Phase 3 — Maturity
 

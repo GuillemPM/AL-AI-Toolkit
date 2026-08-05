@@ -1,42 +1,61 @@
 # Object ID ranges
 
-Current provisional range in `app.json`: **70100–70199**.
+Current provisional range in `app.json`: **87400–87499**.
 
 | Range (planned) | Use |
 |---|---|
-| 70100–70139 | Core: error enum, chat request/response, AI Provider + AI Language Model interfaces, AI Client |
-| 70140–70159 | Provider adapters (OpenAI, Anthropic, OpenCode Zen, mock, …) |
-| 70160–70179 | Structured output, retry, telemetry |
-| 70180–70199 | Examples / reserved |
+| 87400–87439 | Core: error enum, chat request/response, AIOS Provider + AIOS Language Model interfaces, AIOS Client |
+| 87440–87459 | Provider adapters (OpenAI, Anthropic, OpenCode Zen, mock, …) |
+| 87460–87479 | Structured output, retry, telemetry |
+| 87480–87499 | Examples / reserved |
 
-### Core (70100–70139)
-
-| ID | Object |
-|---|---|
-| 70100 | AI Error Type |
-| 70101 | AI Chat Request |
-| 70102 | AI Chat Response |
-| 70110 | AI Client |
-
-### Provider adapters (70140–70159)
+### Core (87400–87439)
 
 | ID | Object |
 |---|---|
-| 70140 | AI Anthropic |
-| 70141 | AI Anthropic Model |
-| 70142 | AI OpenAI |
-| 70143 | AI OpenAI Model |
-| 70144 | AI OpenCode Zen |
-| 70145 | AI OpenCode Zen Model |
-| 70146 | AI Mock |
-| 70147 | AI Mock Model |
+| 87400 | AIOS Error Type |
+| 87401 | AIOS Chat Request |
+| 87402 | AIOS Chat Response |
+| 87405 | AIOS Reasoning Effort |
+| 87410 | AIOS Client |
+| 87413 | AIOS Request Options |
 
-### Examples / tests (70180–70199)
+### Provider adapters (87440–87459)
 
 | ID | Object |
 |---|---|
-| 70180 | AI Usage Example |
-| 70181 | AI Toolkit Demo (page) |
-| 70190 | AI Mock Tests |
+| 87440 | AIOS Anthropic |
+| 87441 | AIOS Anthropic Model |
+| 87442 | AIOS OpenAI |
+| 87443 | AIOS OpenAI Model |
+| 87444 | AIOS OpenCode Zen |
+| 87445 | AIOS OpenCode Zen Model |
+| 87446 | AIOS Mock |
+| 87447 | AIOS Mock Model |
+
+### Structured output (87460–87479)
+
+| ID | Object |
+|---|---|
+| 87461 | AIOS Json Binder |
+| 87462 | AIOS Schema |
+| 87463 | AIOS Schema Validator |
+
+### Examples / tests (87480–87499)
+
+| ID | Object |
+|---|---|
+| 87480 | AIOS Usage Example |
+| 87481 | AIOS Toolkit Demo (page) |
+| 87482 | AIOS Demo History (table) |
+| 87483 | AIOS Demo History (listpart) |
+| 87484 | AIOS Lifecycle Example |
+| 87485 | AIOS Feedback Buffer |
+| 87486 | AIOS Demo History Card |
+| 87490 | AIOS Mock Tests |
+| 87491 | AIOS Lifecycle Tests |
+| 87492 | AIOS Lifecycle Spy |
+| 87493 | AIOS Generate Options Tests |
+| 87494 | AIOS Structured Output Tests |
 
 Before AppSource publication, replace this range with an assigned ID range and update this file.

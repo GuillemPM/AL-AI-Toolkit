@@ -1,4 +1,8 @@
-codeunit 70147 "AI Mock Model" implements "AI Language Model"
+namespace PM.Guillem.AIOpenSDK.Provider.Mock;
+
+using PM.Guillem.AIOpenSDK.Core;
+
+codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
 {
     Access = Internal;
 
@@ -6,16 +10,18 @@ codeunit 70147 "AI Mock Model" implements "AI Language Model"
         BoundModelId: Text;
         CannedContent: Text;
         FailOnGenerate: Boolean;
-        FailErrorType: Enum "AI Error Type";
+        FailErrorType: Enum "AIOS Error Type";
         FailErrorMessage: Text;
+        RemainingFailures: Integer;
 
-    procedure Initialize(ModelId: Text; Content: Text; ShouldFail: Boolean; ErrorType: Enum "AI Error Type"; ErrorMessage: Text)
+    procedure Initialize(ModelId: Text; Content: Text; ShouldFail: Boolean; ErrorType: Enum "AIOS Error Type"; ErrorMessage: Text; FailuresBeforeSuccess: Integer)
     begin
         BoundModelId := ModelId;
         CannedContent := Content;
         FailOnGenerate := ShouldFail;
         FailErrorType := ErrorType;
         FailErrorMessage := ErrorMessage;
+        RemainingFailures := FailuresBeforeSuccess;
     end;
 
     procedure GetModelId(): Text
@@ -23,10 +29,16 @@ codeunit 70147 "AI Mock Model" implements "AI Language Model"
         exit(BoundModelId);
     end;
 
-    procedure Generate(var Request: Record "AI Chat Request"; var Response: Record "AI Chat Response"): Boolean
+    procedure Generate(var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
     begin
         Clear(Response);
         Response."Provider Name" := 'mock';
+
+        if RemainingFailures > 0 then begin
+            RemainingFailures -= 1;
+            Response.SetError(FailErrorType, FailErrorMessage);
+            exit(false);
+        end;
 
         if FailOnGenerate then begin
             Response.SetError(FailErrorType, FailErrorMessage);

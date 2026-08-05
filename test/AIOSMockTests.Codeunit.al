@@ -1,22 +1,29 @@
-codeunit 70190 "AI Mock Tests"
+namespace PM.Guillem.AIOpenSDK.Test;
+
+using PM.Guillem.AIOpenSDK.Core;
+using PM.Guillem.AIOpenSDK.Provider.Mock;
+
+codeunit 87490 "AIOS Mock Tests"
 {
     Subtype = Test;
 
     [Test]
-    procedure GenerateJson_ReturnsConfiguredMockContent()
+    procedure GenerateText_JsonMode_ReturnsConfiguredMockContent()
     var
-        Mock: Codeunit "AI Mock";
-        Client: Codeunit "AI Client";
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Request: Record "AIOS Chat Request";
         Result: Text;
         Expected: Text;
     begin
         Expected := '{"sentiment":"positive","topics":["pricing","support"]}';
         Mock.SetNextResponse(Expected);
 
-        Result := Client.GenerateJson(
-            Mock.Model('demo-model'),
-            'You extract sentiment and topics.',
-            'Feedback: Great product.');
+        Request.SetSystemMessage('You extract sentiment and topics.');
+        Request.SetPrompt('Feedback: Great product.');
+        Request.SetJsonMode(true);
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
 
         if Result <> Expected then
             Error(UnexpectedResultErr, Expected, Result);
@@ -25,24 +32,24 @@ codeunit 70190 "AI Mock Tests"
     [Test]
     procedure TryGenerateText_ReturnsFalseOnMockError()
     var
-        Mock: Codeunit "AI Mock";
-        Client: Codeunit "AI Client";
-        Response: Record "AI Chat Response";
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Response: Record "AIOS Chat Response";
     begin
-        Mock.SetNextError("AI Error Type"::ProviderUnavailable, 'simulated failure');
+        Mock.SetNextError("AIOS Error Type"::ProviderUnavailable, 'simulated failure');
 
         if Client.TryGenerateText(Mock.Model('demo-model'), 'hello', Response) then
             Error(ExpectedFailureErr);
 
-        if Response.GetErrorType() <> "AI Error Type"::ProviderUnavailable then
+        if Response.GetErrorType() <> "AIOS Error Type"::ProviderUnavailable then
             Error(UnexpectedErrorTypeErr, Response.GetErrorType());
     end;
 
     [Test]
     procedure GenerateText_ReturnsMockContent()
     var
-        Mock: Codeunit "AI Mock";
-        Client: Codeunit "AI Client";
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
         Result: Text;
     begin
         Mock.SetNextResponse('hello from mock');

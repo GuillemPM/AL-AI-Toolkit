@@ -1,10 +1,14 @@
-codeunit 70140 "AI Anthropic" implements "AI Provider"
+namespace PM.Guillem.AIOpenSDK.Provider.OpenAI;
+
+using PM.Guillem.AIOpenSDK.Core;
+
+codeunit 87442 "AIOS OpenAI" implements "AIOS Provider"
 {
     Access = Public;
 
     var
         ApiKey: SecretText;
-        ApiVersion: Text;
+        BaseUrl: Text;
 
     procedure SpecificationVersion(): Text
     begin
@@ -13,7 +17,7 @@ codeunit 70140 "AI Anthropic" implements "AI Provider"
 
     procedure GetName(): Text
     begin
-        exit('anthropic');
+        exit('openai');
     end;
 
     procedure SetApiKey(KeyValue: SecretText)
@@ -22,17 +26,17 @@ codeunit 70140 "AI Anthropic" implements "AI Provider"
     end;
 
     /// <summary>
-    /// Optional anthropic-version header override. Defaults to 2023-06-01.
+    /// Optional base URL override (default https://api.openai.com/v1).
     /// </summary>
-    procedure SetApiVersion(Version: Text)
+    procedure SetBaseUrl(Url: Text)
     begin
-        ApiVersion := Version;
+        BaseUrl := Url;
     end;
 
     /// <summary>
-    /// One-shot factory: bind a model with an API key (Vercel AI SDK-style).
+    /// One-shot factory: bind a model with an API key.
     /// </summary>
-    procedure Model(ModelId: Text; KeyValue: SecretText): Interface "AI Language Model"
+    procedure Model(ModelId: Text; KeyValue: SecretText): Interface "AIOS Language Model"
     begin
         SetApiKey(KeyValue);
         exit(Model(ModelId));
@@ -41,26 +45,26 @@ codeunit 70140 "AI Anthropic" implements "AI Provider"
     /// <summary>
     /// Bind a model using a key previously set via SetApiKey.
     /// </summary>
-    procedure Model(ModelId: Text): Interface "AI Language Model"
+    procedure Model(ModelId: Text): Interface "AIOS Language Model"
     var
-        LanguageModel: Interface "AI Language Model";
+        LanguageModel: Interface "AIOS Language Model";
     begin
         if not BindLanguageModel(ModelId, LanguageModel) then
             Error(BindFailedErr, ModelId, GetName());
         exit(LanguageModel);
     end;
 
-    procedure BindLanguageModel(ModelId: Text; var BoundModel: Interface "AI Language Model"): Boolean
+    procedure BindLanguageModel(ModelId: Text; var BoundModel: Interface "AIOS Language Model"): Boolean
     var
-        LanguageModel: Codeunit "AI Anthropic Model";
+        LanguageModel: Codeunit "AIOS OpenAI Model";
     begin
         if (ModelId = '') or ApiKey.IsEmpty() then
             exit(false);
 
-        if ApiVersion = '' then
-            ApiVersion := '2023-06-01';
+        if BaseUrl = '' then
+            BaseUrl := 'https://api.openai.com/v1';
 
-        LanguageModel.Initialize(ModelId, ApiKey, ApiVersion);
+        LanguageModel.Initialize(ModelId, ApiKey, BaseUrl);
         BoundModel := LanguageModel;
         exit(true);
     end;

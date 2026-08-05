@@ -1,4 +1,4 @@
-# Contributing to AL AI Toolkit
+# Contributing to AL AI Open SDK
 
 Thanks for contributing. This project is a **client library** for AL (see [ADR-001](docs/adr/001-library-not-platform.md) and [ADR-002](docs/adr/002-client-library-not-orchestration.md)). Keep PRs focused and testable without live API keys.
 
@@ -13,7 +13,7 @@ Thanks for contributing. This project is a **client library** for AL (see [ADR-0
 | Change type | Bar |
 |---|---|
 | Bug fix | PR + mock-provider regression test when applicable |
-| New Tier 2/3 provider adapter | Implement `"AI Provider"` + `"AI Language Model"`, docs, mock-covered mapping tests ([ADR-004](docs/adr/004-tiered-provider-support.md)) |
+| New Tier 2/3 provider adapter | Implement `"AIOS Provider"` + `"AIOS Language Model"`, docs, mock-covered mapping tests ([ADR-004](docs/adr/004-tiered-provider-support.md)) |
 | Core interface / structured-output / telemetry schema | **RFC required** before implementation ([docs/rfc/](docs/rfc/)) |
 | Docs, examples | PR welcome |
 
@@ -29,7 +29,7 @@ Thanks for contributing. This project is a **client library** for AL (see [ADR-0
 
 Open an RFC (copy [docs/rfc/0000-template.md](docs/rfc/0000-template.md)) for:
 
-- Changes to `"AI Provider"` / `"AI Language Model"` or the request/response contract
+- Changes to `"AIOS Provider"` / `"AIOS Language Model"` or the request/response contract
 - Structured-output binding contract
 - Telemetry / GenAI attribute schema
 

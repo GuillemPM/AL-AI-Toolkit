@@ -1,4 +1,6 @@
-interface "AI Provider"
+namespace PM.Guillem.AIOpenSDK.Core;
+
+interface "AIOS Provider"
 {
     /// <summary>
     /// Contract version for this provider factory (e.g. 'v1').
@@ -14,5 +16,5 @@ interface "AI Provider"
     /// Bind a language model for ModelId into Model (provider as factory).
     /// Returns false if the model id is not supported by this provider.
     /// </summary>
-    procedure BindLanguageModel(ModelId: Text; var Model: Interface "AI Language Model"): Boolean
+    procedure BindLanguageModel(ModelId: Text; var Model: Interface "AIOS Language Model"): Boolean
 }
