@@ -188,6 +188,192 @@ codeunit 87494 "AIOS Structured Output Tests"
             Error(UnexpectedErrorTypeErr, Response.GetErrorType());
     end;
 
+    [Test]
+    procedure GenerateText_TextOutput_ReturnsPlainText()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Result: Text;
+    begin
+        Mock.SetNextResponse('hello world');
+
+        Request.SetPrompt('say hello');
+        Request.SetOutput(Schema.Text());
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        if Result <> 'hello world' then
+            Error(UnexpectedTextErr, 'hello world', Result);
+        if Request."Json Mode" then
+            Error(ExpectedNoJsonModeErr);
+    end;
+
+    [Test]
+    procedure GenerateText_JsonOutput_AcceptsAnyValidJson()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Result: Text;
+    begin
+        Mock.SetNextResponse('{"a":1,"b":[true,"x"]}');
+
+        Request.SetPrompt('json');
+        Request.SetOutput(Schema.Json());
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        if Result <> '{"a":1,"b":[true,"x"]}' then
+            Error(UnexpectedTextErr, '{"a":1,"b":[true,"x"]}', Result);
+    end;
+
+    [Test]
+    procedure TryGenerate_JsonOutput_InvalidJson_ReturnsParseFailed()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Response: Record "AIOS Chat Response";
+    begin
+        Mock.SetNextResponse('not-json');
+
+        Request.SetPrompt('json');
+        Request.SetMaxRetries(0);
+        Request.SetOutput(Schema.Json());
+
+        if Client.TryGenerate(Mock.Model('demo-model'), Request, Response) then
+            Error(ExpectedSchemaFailureErr);
+        if Response.GetErrorType() <> "AIOS Error Type"::ParseFailed then
+            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
+        if Response.GetText() <> 'not-json' then
+            Error(UnexpectedTextErr, 'not-json', Response.GetText());
+    end;
+
+    [Test]
+    procedure GenerateText_Choice_ReturnsPlainString()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Options: List of [Text];
+        Result: Text;
+    begin
+        Mock.SetNextResponse('{"result":"rainy"}');
+
+        Options.Add('sunny');
+        Options.Add('rainy');
+        Options.Add('snowy');
+        Request.SetPrompt('weather');
+        Request.SetOutput(Schema.Choice(Options));
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        if Result <> 'rainy' then
+            Error(UnexpectedTextErr, 'rainy', Result);
+    end;
+
+    [Test]
+    procedure GenerateText_Choice_BareText_ReturnsParseFailed()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Response: Record "AIOS Chat Response";
+        Options: List of [Text];
+    begin
+        Mock.SetNextResponse('sunny');
+
+        Options.Add('sunny');
+        Options.Add('rainy');
+        Options.Add('snowy');
+        Request.SetPrompt('weather');
+        Request.SetMaxRetries(0);
+        Request.SetOutput(Schema.Choice(Options));
+
+        if Client.TryGenerate(Mock.Model('demo-model'), Request, Response) then
+            Error(ExpectedSchemaFailureErr);
+        if Response.GetErrorType() <> "AIOS Error Type"::ParseFailed then
+            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
+        if Response.GetText() <> 'sunny' then
+            Error(UnexpectedTextErr, 'sunny', Response.GetText());
+    end;
+
+    [Test]
+    procedure TryGenerate_Choice_InvalidOption_ReturnsParseFailed()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Response: Record "AIOS Chat Response";
+        Options: List of [Text];
+    begin
+        Mock.SetNextResponse('{"result":"windy"}');
+
+        Options.Add('sunny');
+        Options.Add('rainy');
+        Options.Add('snowy');
+        Request.SetPrompt('weather');
+        Request.SetMaxRetries(0);
+        Request.SetOutput(Schema.Choice(Options));
+
+        if Client.TryGenerate(Mock.Model('demo-model'), Request, Response) then
+            Error(ExpectedSchemaFailureErr);
+        if Response.GetErrorType() <> "AIOS Error Type"::ParseFailed then
+            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
+        if Response.GetText() <> '{"result":"windy"}' then
+            Error(UnexpectedTextErr, '{"result":"windy"}', Response.GetText());
+        if StrPos(Response."Error Message", 'got:') = 0 then
+            Error(ExpectedModelTextInErrMsgErr);
+        if StrPos(Response."Error Message", 'Model response:') > 0 then
+            Error(UnexpectedModelResponseSuffixErr);
+    end;
+
+    [Test]
+    procedure GenerateText_NestedEnum_Validates()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Fields: List of [JsonObject];
+        Options: List of [Text];
+        Root: JsonToken;
+        RootObj: JsonObject;
+        WeatherToken: JsonToken;
+        Result: Text;
+    begin
+        Mock.SetNextResponse('{"weather":"snowy"}');
+
+        Options.Add('sunny');
+        Options.Add('rainy');
+        Options.Add('snowy');
+        Fields.Add(Schema.Field('weather', Schema.Enum(Options)));
+        Request.SetPrompt('forecast');
+        Request.SetOutput(Schema.Object(Fields));
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        if not Root.ReadFrom(Result) then
+            Error(ExpectedRawJsonErr);
+        RootObj := Root.AsObject();
+        if not RootObj.Get('weather', WeatherToken) then
+            Error(MissingPropErr, 'weather');
+        if WeatherToken.AsValue().AsText() <> 'snowy' then
+            Error(UnexpectedTextErr, 'snowy', WeatherToken.AsValue().AsText());
+    end;
+
+    [Test]
+    procedure Choice_EmptyOptions_Errors()
+    var
+        Schema: Codeunit "AIOS Schema";
+        Options: List of [Text];
+    begin
+        asserterror Schema.Choice(Options);
+    end;
+
     var
         UnexpectedTextErr: Label 'Expected ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
         UnexpectedDecErr: Label 'Expected %1, got %2.', Comment = '%1 = expected, %2 = actual';
@@ -196,6 +382,9 @@ codeunit 87494 "AIOS Structured Output Tests"
         ExpectedFailureErr: Label 'TryGenerate should fail when JSON cannot be bound.';
         ExpectedSchemaFailureErr: Label 'TryGenerate should fail when JSON does not match the schema.';
         UnexpectedErrorTypeErr: Label 'Expected ParseFailed, got %1.', Comment = '%1 = actual';
+        ExpectedModelTextInErrMsgErr: Label 'Expected error message to include the model response text.';
+        UnexpectedModelResponseSuffixErr: Label 'Error message should not repeat Model response when got: already includes it.';
+        ExpectedNoJsonModeErr: Label 'Text output should not enable JSON mode.';
         MissingPropErr: Label 'Missing property %1.', Comment = '%1 = name';
         UnexpectedCountErr: Label 'Expected count %1, got %2.', Comment = '%1 = expected, %2 = actual';
 }

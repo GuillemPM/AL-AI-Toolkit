@@ -128,15 +128,57 @@ codeunit 87410 "AIOS Client"
     local procedure TryValidateOutputSchema(var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
     var
         Validator: Codeunit "AIOS Schema Validator";
+        SchemaCodeunit: Codeunit "AIOS Schema";
+        SchemaObj: JsonObject;
         Output: JsonToken;
         BindError: Text;
+        SchemaText: Text;
     begin
         if not Request.HasOutputSchema() then
             exit(true);
-        if not Validator.TryValidate(Response.GetText(), Request.GetOutputSchema(), Output, BindError) then begin
-            Response.SetError("AIOS Error Type"::ParseFailed, BindError);
+        SchemaText := Request.GetOutputSchema();
+        if not SchemaObj.ReadFrom(SchemaText) then begin
+            SetOutputValidationError(Response, InvalidOutputSchemaErr);
             exit(false);
         end;
+
+        if SchemaCodeunit.IsTextSchema(SchemaObj) then
+            exit(true);
+
+        if SchemaCodeunit.IsJsonSchema(SchemaObj) then begin
+            if not Validator.TryParseJson(Response.GetText(), Output, BindError) then begin
+                SetOutputValidationError(Response, BindError);
+                exit(false);
+            end;
+            exit(true);
+        end;
+
+        if not Validator.TryValidate(Response.GetText(), SchemaText, Output, BindError) then begin
+            SetOutputValidationError(Response, BindError);
+            exit(false);
+        end;
+        // Choice: model returns { "result": "…" }; expose the selected option as plain text.
+        if SchemaCodeunit.IsChoiceSchema(SchemaObj) then
+            if not TryUnwrapChoiceResult(Output, Response) then begin
+                SetOutputValidationError(Response, ChoiceUnwrapFailedErr);
+                exit(false);
+            end;
+        exit(true);
+    end;
+
+    local procedure TryUnwrapChoiceResult(Output: JsonToken; var Response: Record "AIOS Chat Response"): Boolean
+    var
+        Root: JsonObject;
+        ResultToken: JsonToken;
+    begin
+        if not Output.IsObject() then
+            exit(false);
+        Root := Output.AsObject();
+        if not Root.Get('result', ResultToken) then
+            exit(false);
+        if not ResultToken.IsValue() then
+            exit(false);
+        Response.SetText(ResultToken.AsValue().AsText());
         exit(true);
     end;
 
@@ -152,10 +194,24 @@ codeunit 87410 "AIOS Client"
             exit(false);
         end;
         if not JsonBinder.TryBind(Response.GetText(), OutputRecRef, BindError) then begin
-            Response.SetError("AIOS Error Type"::ParseFailed, BindError);
+            SetOutputValidationError(Response, BindError);
             exit(false);
         end;
         exit(true);
+    end;
+
+    local procedure SetOutputValidationError(var Response: Record "AIOS Chat Response"; Reason: Text)
+    var
+        ModelText: Text;
+        Message: Text;
+    begin
+        ModelText := Response.GetText();
+
+        if (ModelText = '') or (StrPos(Reason, ModelText) > 0) then
+            Message := StrSubstNo(OutputValidationFailedNoTextMsg, Reason)
+        else
+            Message := StrSubstNo(OutputValidationFailedMsg, Reason, ModelText);
+        Response.SetError("AIOS Error Type"::ParseFailed, Message);
     end;
 
     local procedure IsRetriableError(var Response: Record "AIOS Chat Response"): Boolean
@@ -218,4 +274,8 @@ codeunit 87410 "AIOS Client"
         GenerationFailedErr: Label 'Generation failed (%1): %2', Comment = '%1 = error type, %2 = message';
         OutputRecordMissingErr: Label 'Structured output requires an open record.';
         StructuredNeedsRecRefErr: Label 'Structured output requires GenerateText(Model, Request, RecRef) so the record can be filled.';
+        OutputValidationFailedMsg: Label 'Output validation failed: %1 Model response: %2', Comment = '%1 = validation reason, %2 = raw model text';
+        OutputValidationFailedNoTextMsg: Label 'Output validation failed: %1', Comment = '%1 = validation reason';
+        ChoiceUnwrapFailedErr: Label 'Choice response missing a string result property.';
+        InvalidOutputSchemaErr: Label 'Output schema is not a valid JSON object.';
 }

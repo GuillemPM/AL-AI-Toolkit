@@ -11,7 +11,7 @@ Structured output is schema-driven on `GenerateText`: callers attach a JSON Sche
 
 ## Motivation
 
-Callers need nested objects and arrays in structured output. AL has no schema DSL; `"AIOS Schema"` builds JSON Schema from `Field` / `Object` / `Array` helpers, and `"AIOS Schema Validator"` checks the model response.
+Callers need nested objects and arrays in structured output. AL has no schema DSL; `"AIOS Schema"` builds JSON Schema from `Field` / `Object` / `Array` / `Enum` / `Choice` helpers, and `"AIOS Schema Validator"` checks the model response.
 
 ## Detailed design
 
@@ -26,8 +26,46 @@ Request.SetOutput(Schema.Object(Fields));
 Result := Client.GenerateText(Model, Request);
 ```
 
+```al
+Request.SetOutput(Schema.Text()); // optional; same as omitting SetOutput
+Result := Client.GenerateText(Model, Request); // plain text, no JSON validation
+
+Request.SetOutput(Schema.Json());
+Result := Client.GenerateText(Model, Request); // any valid JSON text
+```
+
+Choice — root classification schema:
+
+```al
+Options.Add('sunny');
+Options.Add('rainy');
+Options.Add('snowy');
+Request.SetOutput(Schema.Choice(Options));
+Result := Client.GenerateText(Model, Request); // plain string: rainy
+```
+
+Choice schema shape:
+
+```json
+{ "type": "object", "properties": { "result": { "type": "string", "enum": ["sunny","rainy","snowy"] } }, "required": ["result"], "additionalProperties": false }
+```
+
+The model must return `{ "result": "rainy" }`. `GenerateText` returns the selected option as plain text.
+
+Nested fixed strings use `Enum`, not `Choice`:
+
+```al
+Fields.Add(Schema.Field('weather', Schema.Enum(Options)));
+Request.SetOutput(Schema.Object(Fields));
+```
+
 - `String()` / `Number()` / `Integer()` / `Boolean()` — type schemas
 - `Array(Items)` — array schema
+- `Enum(Options: List of [Text])` — `{ "type": "string", "enum": [...] }` for nested properties
+- `Choice(Options)` — object schema with required `result` enum; empty list, empty option, and duplicates Error
+- `Json()` — unstructured JSON; GenerateText requires valid JSON only
+- `Text()` — plain text; same as omitting SetOutput; disables JSON mode
+- `IsChoiceSchema` / `IsJsonSchema` / `IsTextSchema` — detect output mode documents for client handling
 - `Field(name, schema)` — required property fragment
 - `OptionalField(name, schema)` — property omitted from `required`
 - `Object(Fields: List of [JsonObject])` — object schema from any number of field fragments
@@ -35,18 +73,25 @@ Result := Client.GenerateText(Model, Request);
 
 ### Request
 
-- `SetOutput(SchemaText)` / `SetOutput(Schema: JsonObject)` — schema mode; clears RecRef mode
+- `SetOutput(SchemaText)` / `SetOutput(Schema: JsonObject)` — sets output mode; clears RecRef mode
+- `Text()`: JSON mode off, no system hint appended
+- `Json()`: JSON mode on, JSON-only instruction
+- Object/Array/Choice/Enum schemas: JSON mode on, schema embedded in system hint
 - `SetOutput(RecRef)` — flat binder; clears schema mode
 - `HasOutput` / `HasOutputSchema` / `GetOutputSchema` / `ClearOutput`
+- Prefer `SetOutput(Schema.Json())` over any separate JSON-mode API
 
 ### Client
 
-- `GenerateText(Model, Request): Text` — when `HasOutputSchema()`, validates response JSON (`ParseFailed` on mismatch)
+- `GenerateText(Model, Request): Text` — when `HasOutputSchema()`, applies the output mode
+- `Text()`: no validation (default behavior)
+- `Json()`: parse-only (valid JSON); shape is not checked
+- Choice: after validation, returns the `result` property as plain text
 - RecRef bind path unchanged when `HasOutput()`
 
 ### Validator — `"AIOS Schema Validator"` (internal)
 
-Subset: `type` (object | array | string | number | integer | boolean), `properties`, `required`, `items`, nested recursion. Builder-only `x-aios-optional` is stripped before the schema is stored.
+Subset: `type` (object | array | string | number | integer | boolean), `properties`, `required`, `items`, `enum`, nested recursion. Builder-only `x-aios-optional` is stripped before the schema is stored. `additionalProperties` may be present on Choice schemas but is not enforced yet.
 
 ## Drawbacks
 
@@ -59,10 +104,12 @@ Subset: `type` (object | array | string | number | integer | boolean), `properti
 - Separate generate entry point for objects — rejected (one client API: `GenerateText`)
 - `Object` arity overloads — rejected (use `List of [JsonObject]`)
 - `Properties()` + manual required list — rejected (unclear)
+- Separate `SetOutputChoice` API — rejected (`Choice` is a schema; use `SetOutput`)
+- Root bare-string Choice (no `{ result }` wrapper) — rejected (model output must be valid JSON matching the Choice schema)
 
 ## Adoption / migration
 
-Additive for RecRef path. Prefer `SetOutput(Schema.Object(Fields))` + `GenerateText` for nested or array-rooted payloads.
+Additive for RecRef path. Prefer `SetOutput(Schema.Object(Fields))` + `GenerateText` for nested or array-rooted payloads. Use `SetOutput(Schema.Choice(Options))` for classification; treat `GenerateText` result as plain text. Use `Schema.Enum` inside `Field` for nested enums. Use `SetOutput(Schema.Json())` when any valid JSON is enough.
 
 ## Unresolved questions
 

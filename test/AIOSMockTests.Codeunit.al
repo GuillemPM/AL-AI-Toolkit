@@ -8,10 +8,11 @@ codeunit 87490 "AIOS Mock Tests"
     Subtype = Test;
 
     [Test]
-    procedure GenerateText_JsonMode_ReturnsConfiguredMockContent()
+    procedure GenerateText_JsonOutput_ReturnsConfiguredMockContent()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
         Result: Text;
         Expected: Text;
@@ -21,7 +22,7 @@ codeunit 87490 "AIOS Mock Tests"
 
         Request.SetSystemMessage('You extract sentiment and topics.');
         Request.SetPrompt('Feedback: Great product.');
-        Request.SetJsonMode(true);
+        Request.SetOutput(Schema.Json());
 
         Result := Client.GenerateText(Mock.Model('demo-model'), Request);
 

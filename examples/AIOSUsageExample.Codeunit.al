@@ -82,6 +82,31 @@ codeunit 87480 "AIOS Usage Example"
     end;
 
     /// <summary>
+    /// Mock demo for Choice output: validates { "result": "…" } and returns the selected option as plain text.
+    /// </summary>
+    procedure RunSchemaChoiceDemo()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Options: List of [Text];
+        Result: Text;
+    begin
+        Mock.SetNextResponse('{"result":"rainy"}');
+
+        Options.Add('sunny');
+        Options.Add('rainy');
+        Options.Add('snowy');
+
+        Request.SetPrompt('Is the weather sunny, rainy, or snowy today?');
+        Request.SetOutput(Schema.Choice(Options));
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Message(SchemaChoiceMsg, Result);
+    end;
+
+    /// <summary>
     /// Mock demo with generation options on the request
     /// (temperature, topP, seed, stopSequences, reasoning, maxRetries).
     /// Providers map Reasoning to native effort/budget; Mock ignores it.
@@ -109,17 +134,18 @@ codeunit 87480 "AIOS Usage Example"
     end;
 
     /// <summary>
-    /// Anthropic — generateText with system + prompt + JSON mode.
+    /// Anthropic — generateText with system + prompt + unstructured JSON output.
     /// </summary>
     procedure RunAnthropicDemo(ApiKey: SecretText)
     var
         Anthropic: Codeunit "AIOS Anthropic";
         Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
     begin
         Request.SetSystemMessage('You extract sentiment and topics from customer feedback.');
         Request.SetPrompt('Feedback: Great product, but support felt pricey.');
-        Request.SetJsonMode(true);
+        Request.SetOutput(Schema.Json());
 
         Message(SuccessMsg, Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), Request));
     end;
@@ -132,11 +158,12 @@ codeunit 87480 "AIOS Usage Example"
     var
         Anthropic: Codeunit "AIOS Anthropic";
         Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
     begin
         Request.SetSystemMessage('You extract sentiment and topics from customer feedback.');
         Request.SetPrompt('Feedback: Great product, but support felt pricey.');
-        Request.SetJsonMode(true);
+        Request.SetOutput(Schema.Json());
         Request.SetTemperature(0.2);
         Request.SetTopP(0.95);
         Request.SetTopK(40);
@@ -167,17 +194,18 @@ codeunit 87480 "AIOS Usage Example"
     end;
 
     /// <summary>
-    /// OpenAI — generateText with system + prompt + JSON mode.
+    /// OpenAI — generateText with system + prompt + unstructured JSON output.
     /// </summary>
     procedure RunOpenAIDemo(ApiKey: SecretText)
     var
         OpenAI: Codeunit "AIOS OpenAI";
         Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
     begin
         Request.SetSystemMessage('You extract sentiment and topics from customer feedback.');
         Request.SetPrompt('Feedback: Great product, but support felt pricey.');
-        Request.SetJsonMode(true);
+        Request.SetOutput(Schema.Json());
 
         Message(SuccessMsg, Client.GenerateText(OpenAI.Model('gpt-4.1-mini', ApiKey), Request));
     end;
@@ -190,11 +218,12 @@ codeunit 87480 "AIOS Usage Example"
     var
         OpenAI: Codeunit "AIOS OpenAI";
         Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
     begin
         Request.SetSystemMessage('You extract sentiment and topics from customer feedback.');
         Request.SetPrompt('Feedback: Great product, but support felt pricey.');
-        Request.SetJsonMode(true);
+        Request.SetOutput(Schema.Json());
         Request.SetTemperature(0.2);
         Request.SetTopP(0.9);
         Request.SetPresencePenalty(0);
@@ -228,18 +257,19 @@ codeunit 87480 "AIOS Usage Example"
     end;
 
     /// <summary>
-    /// OpenCode Zen — generateText with system + prompt + JSON mode.
+    /// OpenCode Zen — generateText with system + prompt + unstructured JSON output.
     /// Get a key at https://opencode.ai/auth.
     /// </summary>
     procedure RunOpenCodeZenDemo(ApiKey: SecretText)
     var
         Zen: Codeunit "AIOS OpenCode Zen";
         Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
     begin
         Request.SetSystemMessage('You extract sentiment and topics from customer feedback.');
         Request.SetPrompt('Feedback: Great product, but support felt pricey.');
-        Request.SetJsonMode(true);
+        Request.SetOutput(Schema.Json());
 
         Message(SuccessMsg, Client.GenerateText(Zen.Model('big-pickle', ApiKey), Request));
     end;
@@ -291,4 +321,5 @@ codeunit 87480 "AIOS Usage Example"
         SuccessMsg: Label '%1', Comment = '%1 = model response text';
         StructuredMsg: Label 'Sentiment=%1 Score=%2 Urgent=%3 Summary=%4 Topics=%5 | Raw=%6', Comment = '%1 sentiment, %2 score, %3 urgent, %4 summary, %5 topics, %6 raw JSON';
         SchemaObjectMsg: Label '%1', Comment = '%1 = validated JSON object text';
+        SchemaChoiceMsg: Label '%1', Comment = '%1 = validated choice string';
 }

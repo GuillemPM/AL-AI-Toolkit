@@ -204,8 +204,8 @@ table 87401 "AIOS Chat Request"
     end;
 
     /// <summary>
-    /// System message as sent to providers. Appends a JSON-mode instruction when Json Mode is on
-    /// and no output schema hint is already present.
+    /// System message as sent to providers. When Json Mode is on and no output schema
+    /// hint was already appended by SetOutput, appends a JSON-only instruction.
     /// </summary>
     procedure GetEffectiveSystemMessage(): Text
     var
@@ -223,11 +223,6 @@ table 87401 "AIOS Chat Request"
         exit(SystemText);
     end;
 
-    procedure SetJsonMode(Value: Boolean)
-    begin
-        "Json Mode" := Value;
-    end;
-
     /// <summary>
     /// Binds flat JSON fields onto RecRef. Pass the same RecRef to GenerateText(Model, Request, RecRef).
     /// Prefer SetOutput with a JSON Schema for nested shapes.
@@ -243,7 +238,7 @@ table 87401 "AIOS Chat Request"
 
         ClearOutput();
         "Has Output" := true;
-        SetJsonMode(true);
+        "Json Mode" := true;
 
         Hint := JsonBinder.BuildSchemaHint(RecRef);
         SystemText := GetSystemMessage();
@@ -254,14 +249,19 @@ table 87401 "AIOS Chat Request"
     end;
 
     /// <summary>
-    /// Sets a JSON Schema for structured output. Enables JSON mode and appends a schema hint.
-    /// Use with GenerateText(Model, Request). Response JSON is validated against the schema.
+    /// Sets the output mode from a schema document. Object/Array/Choice/Json enable JSON mode and append a system hint.
+    /// Text disables JSON mode and does not append a hint (same as omitting SetOutput).
+    /// Use with GenerateText(Model, Request). For Choice, GenerateText returns the result property as plain text.
     /// </summary>
     procedure SetOutput(SchemaText: Text)
     var
+        SchemaCodeunit: Codeunit "AIOS Schema";
+        SchemaObj: JsonObject;
         OutStream: OutStream;
         SystemText: Text;
         Hint: Text;
+        IsText: Boolean;
+        IsJson: Boolean;
     begin
         if DelChr(SchemaText, '<>', ' ') = '' then
             Error(OutputSchemaMissingErr);
@@ -270,9 +270,26 @@ table 87401 "AIOS Chat Request"
         "Output Schema".CreateOutStream(OutStream, TextEncoding::UTF8);
         OutStream.WriteText(SchemaText);
         "Has Output Schema" := true;
-        SetJsonMode(true);
 
-        Hint := StrSubstNo(OutputSchemaHintTxt, SchemaText);
+        IsText := false;
+        IsJson := false;
+        if SchemaObj.ReadFrom(SchemaText) then begin
+            IsText := SchemaCodeunit.IsTextSchema(SchemaObj);
+            IsJson := SchemaCodeunit.IsJsonSchema(SchemaObj);
+        end;
+        "Json Mode" := not IsText;
+
+        if IsText then
+            Hint := ''
+        else
+            if IsJson then
+                Hint := JsonModeInstructionTxt
+            else
+                Hint := StrSubstNo(OutputSchemaHintTxt, SchemaText);
+
+        if Hint = '' then
+            exit;
+
         SystemText := GetSystemMessage();
         if SystemText = '' then
             SetSystemMessage(Hint)

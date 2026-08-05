@@ -1,7 +1,7 @@
 namespace PM.Guillem.AIOpenSDK.Core;
 
 /// <summary>
-/// Validates a JsonToken against a JSON Schema subset (type, properties, required, items).
+/// Validates a JsonToken against a JSON Schema subset (type, properties, required, items, enum).
 /// </summary>
 codeunit 87463 "AIOS Schema Validator"
 {
@@ -15,12 +15,6 @@ codeunit 87463 "AIOS Schema Validator"
         ErrorMessage := '';
         Clear(Output);
 
-        JsonText := StripMarkdownFence(JsonText);
-        if not Output.ReadFrom(JsonText) then begin
-            ErrorMessage := InvalidJsonErr;
-            exit(false);
-        end;
-
         if SchemaText = '' then begin
             ErrorMessage := SchemaMissingErr;
             exit(false);
@@ -29,8 +23,32 @@ codeunit 87463 "AIOS Schema Validator"
             ErrorMessage := InvalidSchemaErr;
             exit(false);
         end;
+
+        JsonText := StripMarkdownFence(JsonText);
+        if not Output.ReadFrom(JsonText) then begin
+            if TryParseBareEnumOption(JsonText, SchemaObj, Output) then
+                exit(TryValidateToken(Output, SchemaObj.AsToken(), '$', ErrorMessage));
+            ErrorMessage := InvalidJsonErr;
+            exit(false);
+        end;
+
         SchemaToken := SchemaObj.AsToken();
         exit(TryValidateToken(Output, SchemaToken, '$', ErrorMessage));
+    end;
+
+    /// <summary>
+    /// Parses JsonText as JSON (after stripping markdown fences). Does not apply a schema.
+    /// </summary>
+    procedure TryParseJson(JsonText: Text; var Output: JsonToken; var ErrorMessage: Text): Boolean
+    begin
+        ErrorMessage := '';
+        Clear(Output);
+        JsonText := StripMarkdownFence(JsonText);
+        if not Output.ReadFrom(JsonText) then begin
+            ErrorMessage := InvalidJsonErr;
+            exit(false);
+        end;
+        exit(true);
     end;
 
     local procedure TryValidateToken(Data: JsonToken; SchemaToken: JsonToken; Path: Text; var ErrorMessage: Text): Boolean
@@ -56,17 +74,25 @@ codeunit 87463 "AIOS Schema Validator"
 
             case TypeName of
                 'object':
-                    exit(TryValidateObject(Data, Schema, Path, ErrorMessage));
+                    if not TryValidateObject(Data, Schema, Path, ErrorMessage) then
+                        exit(false);
                 'array':
-                    exit(TryValidateArray(Data, Schema, Path, ErrorMessage));
+                    if not TryValidateArray(Data, Schema, Path, ErrorMessage) then
+                        exit(false);
             end;
         end else begin
             // No type: still walk properties/items if present.
-            if Schema.Get('properties', TypeToken) then
-                exit(TryValidateObject(Data, Schema, Path, ErrorMessage));
-            if Schema.Get('items', TypeToken) then
-                exit(TryValidateArray(Data, Schema, Path, ErrorMessage));
+            if Schema.Get('properties', TypeToken) then begin
+                if not TryValidateObject(Data, Schema, Path, ErrorMessage) then
+                    exit(false);
+            end else
+                if Schema.Get('items', TypeToken) then
+                    if not TryValidateArray(Data, Schema, Path, ErrorMessage) then
+                        exit(false);
         end;
+
+        if not MatchesEnum(Data, Schema, Path, ErrorMessage) then
+            exit(false);
 
         exit(true);
     end;
@@ -102,6 +128,91 @@ codeunit 87463 "AIOS Schema Validator"
         end;
 
         ErrorMessage := StrSubstNo(TypeMismatchErr, TypeName, Path);
+        exit(false);
+    end;
+
+    local procedure MatchesEnum(Data: JsonToken; Schema: JsonObject; Path: Text; var ErrorMessage: Text): Boolean
+    var
+        EnumToken: JsonToken;
+        EnumArr: JsonArray;
+        OptionToken: JsonToken;
+        DataText: Text;
+        OptionText: Text;
+        i: Integer;
+    begin
+        if not Schema.Get('enum', EnumToken) then
+            exit(true);
+        if not EnumToken.IsArray() then begin
+            ErrorMessage := StrSubstNo(EnumNotArrayErr, Path);
+            exit(false);
+        end;
+
+        EnumArr := EnumToken.AsArray();
+        if EnumArr.Count() = 0 then begin
+            ErrorMessage := StrSubstNo(EnumEmptyErr, Path);
+            exit(false);
+        end;
+
+        Data.WriteTo(DataText);
+        for i := 0 to EnumArr.Count() - 1 do begin
+            EnumArr.Get(i, OptionToken);
+            OptionToken.WriteTo(OptionText);
+            if DataText = OptionText then
+                exit(true);
+        end;
+
+        ErrorMessage := StrSubstNo(EnumMismatchErr, Path, PreviewText(DataText));
+        exit(false);
+    end;
+
+    local procedure PreviewText(Value: Text): Text
+    var
+        Trimmed: Text;
+    begin
+        Trimmed := DelChr(Value, '<>', ' ');
+        if StrLen(Trimmed) <= 200 then
+            exit(Trimmed);
+        exit(CopyStr(Trimmed, 1, 200) + '...');
+    end;
+
+    /// <summary>
+    /// When the model returns a bare option for a root string enum schema, accept it.
+    /// </summary>
+    local procedure TryParseBareEnumOption(JsonText: Text; Schema: JsonObject; var Output: JsonToken): Boolean
+    var
+        TypeToken: JsonToken;
+        EnumToken: JsonToken;
+        EnumArr: JsonArray;
+        OptionToken: JsonToken;
+        Wrapper: JsonArray;
+        Option: Text;
+        i: Integer;
+    begin
+        if not Schema.Get('type', TypeToken) then
+            exit(false);
+        if not TypeToken.IsValue() then
+            exit(false);
+        if LowerCase(TypeToken.AsValue().AsText()) <> 'string' then
+            exit(false);
+        if not Schema.Get('enum', EnumToken) then
+            exit(false);
+        if not EnumToken.IsArray() then
+            exit(false);
+
+        EnumArr := EnumToken.AsArray();
+        JsonText := DelChr(JsonText, '<>', ' ');
+        for i := 0 to EnumArr.Count() - 1 do begin
+            EnumArr.Get(i, OptionToken);
+            if not OptionToken.IsValue() then
+                continue;
+            Option := OptionToken.AsValue().AsText();
+            if Option = JsonText then begin
+                Clear(Wrapper);
+                Wrapper.Add(Option);
+                Wrapper.Get(0, Output);
+                exit(true);
+            end;
+        end;
         exit(false);
     end;
 
@@ -234,19 +345,45 @@ codeunit 87463 "AIOS Schema Validator"
         StartPos: Integer;
         EndPos: Integer;
         i: Integer;
+        StartCh: Text[1];
+        EndCh: Text[1];
     begin
         Trimmed := DelChr(JsonText, '<>', ' ');
         if CopyStr(Trimmed, 1, 3) <> '```' then
             exit(Trimmed);
+
         StartPos := StrPos(Trimmed, '{');
         if StartPos = 0 then
             StartPos := StrPos(Trimmed, '[');
+        if StartPos = 0 then
+            StartPos := StrPos(Trimmed, '"');
+        if StartPos = 0 then
+            exit(Trimmed);
+
+        StartCh := CopyStr(Trimmed, StartPos, 1);
+        case StartCh of
+            '{':
+                EndCh := '}';
+            '[':
+                EndCh := ']';
+            else
+                EndCh := '"';
+        end;
+
         EndPos := 0;
-        for i := StrLen(Trimmed) downto 1 do
-            if (CopyStr(Trimmed, i, 1) = '}') or (CopyStr(Trimmed, i, 1) = ']') then begin
-                EndPos := i;
-                break;
-            end;
+        if EndCh = '"' then begin
+            for i := StrLen(Trimmed) downto StartPos + 1 do
+                if CopyStr(Trimmed, i, 1) = '"' then begin
+                    EndPos := i;
+                    break;
+                end;
+        end else
+            for i := StrLen(Trimmed) downto 1 do
+                if CopyStr(Trimmed, i, 1) = EndCh then begin
+                    EndPos := i;
+                    break;
+                end;
+
         if (StartPos > 0) and (EndPos >= StartPos) then
             exit(CopyStr(Trimmed, StartPos, EndPos - StartPos + 1));
         exit(Trimmed);
@@ -263,4 +400,7 @@ codeunit 87463 "AIOS Schema Validator"
         MissingRequiredErr: Label 'Missing required property ''%1'' at %2.', Comment = '%1 = name, %2 = path';
         RequiredNotArrayErr: Label 'Schema required at %1 must be an array.', Comment = '%1 = path';
         PropertiesNotObjectErr: Label 'Schema properties at %1 must be an object.', Comment = '%1 = path';
+        EnumNotArrayErr: Label 'Schema enum at %1 must be an array.', Comment = '%1 = path';
+        EnumEmptyErr: Label 'Schema enum at %1 cannot be empty.', Comment = '%1 = path';
+        EnumMismatchErr: Label 'Value at %1 is not one of the allowed options (got: %2).', Comment = '%1 = path, %2 = actual value preview';
 }

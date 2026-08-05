@@ -15,7 +15,7 @@ page 87481 "AIOS Toolkit Demo"
     UsageCategory = Tasks;
     AdditionalSearchTerms = 'AI, LLM, mock, toolkit, openai, anthropic, alaidemo, provider';
     AboutTitle = 'AIOS Toolkit Demo';
-    AboutText = 'Pick a provider, model, and API key, then Generate, Try generate, or Generate structured (JSON Schema → validated JSON).';
+    AboutText = 'Pick a provider, model, and API key, then Generate, Try generate, Generate structured, Generate JSON, or Generate choice.';
 
     layout
     {
@@ -91,11 +91,12 @@ page 87481 "AIOS Toolkit Demo"
                         SaveSettings();
                     end;
                 }
-                field(JsonMode; JsonMode)
+                field(ChoiceOptionsText; ChoiceOptionsText)
                 {
                     ApplicationArea = All;
-                    Caption = 'JSON mode';
-                    ToolTip = 'Request JSON-oriented output when the provider supports it.';
+                    Caption = 'Choice options';
+                    MultiLine = true;
+                    ToolTip = 'Comma-separated options for Generate choice. Example: sunny, rainy, snowy';
 
                     trigger OnValidate()
                     begin
@@ -372,6 +373,30 @@ page 87481 "AIOS Toolkit Demo"
                     RunGenerateStructured();
                 end;
             }
+            action(GenerateJson)
+            {
+                ApplicationArea = All;
+                Caption = 'Generate JSON';
+                Image = ExportFile;
+                ToolTip = 'GenerateText with Request.SetOutput(Schema.Json). Response must be valid JSON; shape is not checked.';
+
+                trigger OnAction()
+                begin
+                    RunGenerateJson();
+                end;
+            }
+            action(GenerateChoice)
+            {
+                ApplicationArea = All;
+                Caption = 'Generate choice';
+                Image = SelectLine;
+                ToolTip = 'GenerateText with Request.SetOutput(Schema.Choice). Result is one plain option string from Choice options.';
+
+                trigger OnAction()
+                begin
+                    RunGenerateChoice();
+                end;
+            }
             action(ResetSettings)
             {
                 ApplicationArea = All;
@@ -416,6 +441,8 @@ page 87481 "AIOS Toolkit Demo"
             actionref(Generate_Promoted; Generate) { }
             actionref(TryGenerate_Promoted; TryGenerate) { }
             actionref(GenerateStructured_Promoted; GenerateStructured) { }
+            actionref(GenerateJson_Promoted; GenerateJson) { }
+            actionref(GenerateChoice_Promoted; GenerateChoice) { }
             actionref(ReuseSelected_Promoted; ReuseSelected) { }
             actionref(ClearHistory_Promoted; ClearHistory) { }
             actionref(ResetSettings_Promoted; ResetSettings) { }
@@ -440,7 +467,7 @@ page 87481 "AIOS Toolkit Demo"
         ApplyProviderDefaults();
         SystemPrompt := 'You extract sentiment and topics from customer feedback.';
         UserPrompt := 'Feedback: Great product, but support felt pricey.';
-        JsonMode := true;
+        ChoiceOptionsText := 'sunny, rainy, snowy';
         Temperature := 0.2;
         UseTemperature := true;
         TopP := 0;
@@ -510,7 +537,7 @@ page 87481 "AIOS Toolkit Demo"
         if Ok then
             LastResult := Response.GetText()
         else
-            LastResult := StrSubstNo(ErrorResultMsg, Response.GetErrorType(), Response."Error Message");
+            LastResult := FormatFailedResult(Response);
 
         LogHistory(SoftFail, Ok, Request, Response);
         CurrPage.HistoryPart.Page.Reload();
@@ -555,7 +582,7 @@ page 87481 "AIOS Toolkit Demo"
         if Ok then
             LastResult := Response.GetText()
         else
-            LastResult := StrSubstNo(ErrorResultMsg, Response.GetErrorType(), Response."Error Message");
+            LastResult := FormatFailedResult(Response);
 
         LogHistory(false, Ok, Request, Response);
         CurrPage.HistoryPart.Page.Reload();
@@ -563,6 +590,124 @@ page 87481 "AIOS Toolkit Demo"
 
         if not Ok then
             Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
+    end;
+
+    local procedure RunGenerateJson()
+    var
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Response: Record "AIOS Chat Response";
+        Model: Interface "AIOS Language Model";
+        Ok: Boolean;
+    begin
+        if ModelId = '' then
+            Error(ModelRequiredErr);
+        if (SelectedProvider <> SelectedProvider::Mock) and (ApiKeyText = '') then
+            Error(ApiKeyRequiredErr);
+        if UserPrompt = '' then
+            Error(JsonPromptRequiredErr);
+
+        SaveSettings();
+        Model := BindSelectedModel();
+        if SelectedProvider = SelectedProvider::Mock then
+            MockProvider.SetNextResponse(MockJsonTok);
+
+        BuildRequest(Request);
+        Request.SetOutput(Schema.Json());
+
+        Ok := Client.TryGenerate(Model, Request, Response);
+        if Ok then
+            LastResult := Response.GetText()
+        else
+            LastResult := FormatFailedResult(Response);
+
+        LogHistory(false, Ok, Request, Response);
+        CurrPage.HistoryPart.Page.Reload();
+        CurrPage.Update(false);
+
+        if not Ok then
+            Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
+    end;
+
+    local procedure RunGenerateChoice()
+    var
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Response: Record "AIOS Chat Response";
+        Options: List of [Text];
+        Model: Interface "AIOS Language Model";
+        FirstOption: Text;
+        Ok: Boolean;
+    begin
+        if ModelId = '' then
+            Error(ModelRequiredErr);
+        if (SelectedProvider <> SelectedProvider::Mock) and (ApiKeyText = '') then
+            Error(ApiKeyRequiredErr);
+        if UserPrompt = '' then
+            Error(ChoicePromptRequiredErr);
+
+        ParseChoiceOptions(ChoiceOptionsText, Options);
+        if Options.Count() = 0 then
+            Error(ChoiceOptionsRequiredErr);
+
+        SaveSettings();
+        Model := BindSelectedModel();
+        if SelectedProvider = SelectedProvider::Mock then begin
+            Options.Get(1, FirstOption);
+            MockProvider.SetNextResponse(StrSubstNo('{"result":"%1"}', FirstOption));
+        end;
+
+        BuildRequest(Request);
+        Request.SetOutput(Schema.Choice(Options));
+
+        Ok := Client.TryGenerate(Model, Request, Response);
+        if Ok then
+            LastResult := Response.GetText()
+        else
+            LastResult := FormatFailedResult(Response);
+
+        LogHistory(false, Ok, Request, Response);
+        CurrPage.HistoryPart.Page.Reload();
+        CurrPage.Update(false);
+
+        if not Ok then
+            Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
+    end;
+
+    local procedure FormatFailedResult(var Response: Record "AIOS Chat Response"): Text
+    var
+        ModelText: Text;
+        ErrMsg: Text;
+    begin
+        ErrMsg := Response."Error Message";
+        ModelText := Response.GetText();
+        if (ModelText = '') or (StrPos(ErrMsg, ModelText) > 0) then
+            exit(StrSubstNo(ErrorResultMsg, Response.GetErrorType(), ErrMsg));
+        exit(StrSubstNo(ErrorResultWithTextMsg, Response.GetErrorType(), ErrMsg, ModelText));
+    end;
+
+    local procedure ParseChoiceOptions(OptionsText: Text; var Options: List of [Text])
+    var
+        Remaining: Text;
+        Piece: Text;
+        CommaPos: Integer;
+    begin
+        Clear(Options);
+        Remaining := DelChr(OptionsText, '<>', ' ');
+        while Remaining <> '' do begin
+            CommaPos := StrPos(Remaining, ',');
+            if CommaPos = 0 then begin
+                Piece := DelChr(Remaining, '<>', ' ');
+                Remaining := '';
+            end else begin
+                Piece := DelChr(CopyStr(Remaining, 1, CommaPos - 1), '<>', ' ');
+                Remaining := DelChr(CopyStr(Remaining, CommaPos + 1), '<>', ' ');
+            end;
+            if Piece <> '' then
+                Options.Add(Piece);
+        end;
     end;
 
     local procedure LogHistory(SoftFail: Boolean; Ok: Boolean; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
@@ -639,7 +784,6 @@ page 87481 "AIOS Toolkit Demo"
         else
             SystemPrompt := History.GetSystemMessage();
         UserPrompt := History.GetPrompt();
-        JsonMode := History."JSON Mode";
         Temperature := History.Temperature;
         UseTemperature := History."Has Temperature";
         TopP := History."Top P";
@@ -681,8 +825,6 @@ page 87481 "AIOS Toolkit Demo"
         if SystemPrompt <> '' then
             Request.SetSystemMessage(SystemPrompt);
         Request.SetPrompt(UserPrompt);
-        if JsonMode then
-            Request.SetJsonMode(true);
         if UseTemperature then
             Request.SetTemperature(Temperature);
         if UseTopP then
@@ -737,10 +879,7 @@ page 87481 "AIOS Toolkit Demo"
         case SelectedProvider of
             SelectedProvider::Mock:
                 begin
-                    if JsonMode then
-                        MockProvider.SetNextResponse('{"sentiment":"positive","topics":["pricing","support"]}')
-                    else
-                        MockProvider.SetNextResponse('Mock response: Great product, support felt pricey.');
+                    MockProvider.SetNextResponse('Mock response: Great product, support felt pricey.');
                     exit(MockProvider.Model(ModelId));
                 end;
             SelectedProvider::Anthropic:
@@ -762,7 +901,7 @@ page 87481 "AIOS Toolkit Demo"
         Settings.Add('model', ModelId);
         Settings.Add('system', SystemPrompt);
         Settings.Add('prompt', UserPrompt);
-        Settings.Add('jsonMode', JsonMode);
+        Settings.Add('choiceOptions', ChoiceOptionsText);
         Settings.Add('temperature', Temperature);
         Settings.Add('useTemperature', UseTemperature);
         Settings.Add('topP', TopP);
@@ -815,8 +954,10 @@ page 87481 "AIOS Toolkit Demo"
             SystemPrompt := SettingsToken.AsValue().AsText();
         if Settings.Get('prompt', SettingsToken) then
             UserPrompt := SettingsToken.AsValue().AsText();
-        if Settings.Get('jsonMode', SettingsToken) then
-            JsonMode := SettingsToken.AsValue().AsBoolean();
+        if Settings.Get('choiceOptions', SettingsToken) then
+            ChoiceOptionsText := SettingsToken.AsValue().AsText();
+        if ChoiceOptionsText = '' then
+            ChoiceOptionsText := 'sunny, rainy, snowy';
         if Settings.Get('temperature', SettingsToken) then
             Temperature := SettingsToken.AsValue().AsDecimal();
         if Settings.Get('useTemperature', SettingsToken) then
@@ -878,9 +1019,9 @@ page 87481 "AIOS Toolkit Demo"
         ApiKeyText: Text[250];
         SystemPrompt: Text;
         UserPrompt: Text;
+        ChoiceOptionsText: Text;
         LastResult: Text;
         StopSequencesText: Text;
-        JsonMode: Boolean;
         Temperature: Decimal;
         UseTemperature: Boolean;
         TopP: Decimal;
@@ -903,9 +1044,14 @@ page 87481 "AIOS Toolkit Demo"
         ModelRequiredErr: Label 'Enter a model id.';
         ApiKeyRequiredErr: Label 'Enter an API key for this provider (not needed for Mock).';
         ErrorResultMsg: Label 'Failed (%1): %2', Comment = '%1 = error type, %2 = message';
+        ErrorResultWithTextMsg: Label 'Failed (%1): %2\n\nModel response:\n%3', Comment = '%1 = error type, %2 = message, %3 = model text';
         GenerationFailedErr: Label 'Generation failed (%1): %2', Comment = '%1 = error type, %2 = message';
         PromptRequiredErr: Label 'Enter a prompt before structured generate.';
+        JsonPromptRequiredErr: Label 'Enter a prompt before generate JSON.';
+        ChoicePromptRequiredErr: Label 'Enter a prompt before generate choice.';
+        ChoiceOptionsRequiredErr: Label 'Enter at least one choice option (comma-separated).';
         MockStructuredJsonTok: Label '{"Sentiment":"positive","Score":0.9,"Urgent":false,"Summary":"Good product, pricey support.","Topics":["pricing","support"]}', Locked = true;
+        MockJsonTok: Label '{"sentiment":"positive","topics":["pricing","support"]}', Locked = true;
         NoHistorySelectedErr: Label 'Select a history line first.';
         UnknownProviderErr: Label 'Unknown provider in history: %1', Comment = '%1 = provider name';
         ClearHistoryQst: Label 'Delete all demo history for your user?';

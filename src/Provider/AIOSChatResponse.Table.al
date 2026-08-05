@@ -97,11 +97,14 @@ table 87402 "AIOS Chat Response"
         exit("Error Type");
     end;
 
+    /// <summary>
+    /// Marks the response as failed. Does not clear Content so callers can still
+    /// inspect model text after a post-generation validation failure.
+    /// </summary>
     procedure SetError(ErrorType: Enum "AIOS Error Type"; Message: Text)
     begin
         "Error Type" := ErrorType;
         "Error Message" := CopyStr(Message, 1, MaxStrLen("Error Message"));
-        Clear(Content);
     end;
 
     procedure ClearError()
