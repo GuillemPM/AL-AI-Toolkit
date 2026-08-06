@@ -155,9 +155,9 @@ codeunit 87410 "AIOS Client"
 
     local procedure TryGenerateImageBatch(Model: Interface "AIOS Image Model"; var BatchRequest: Record "AIOS Image Request"; var BatchResponse: Record "AIOS Image Response"): Boolean
     var
+        Retry: Codeunit "AIOS Retry";
         Attempt: Integer;
         MaxRetries: Integer;
-        DelayMs: Integer;
     begin
         MaxRetries := BatchRequest.GetMaxRetries();
         for Attempt := 0 to MaxRetries do begin
@@ -165,13 +165,10 @@ codeunit 87410 "AIOS Client"
             if Model.GenerateImage(BatchRequest, BatchResponse) then
                 exit(true);
 
-            if (Attempt = MaxRetries) or (not IsRetriableImageError(BatchResponse)) then
+            if (Attempt = MaxRetries) or (not Retry.IsRetriable(BatchResponse.GetErrorType())) then
                 exit(false);
 
-            DelayMs := 200 * (Attempt + 1);
-            if DelayMs > 2000 then
-                DelayMs := 2000;
-            Sleep(DelayMs);
+            Retry.SleepBackoff(Attempt);
         end;
         exit(false);
     end;
@@ -194,18 +191,6 @@ codeunit 87410 "AIOS Client"
     begin
         CallCU.SetMetadata(BatchResponse."Call Timestamp", BatchResponse."Model Id", BatchResponse."HTTP Status Code", BatchResponse.GetHeaders());
         ResponseCallList.Add(CallCU);
-    end;
-
-    local procedure IsRetriableImageError(var Response: Record "AIOS Image Response"): Boolean
-    begin
-        case Response.GetErrorType() of
-            "AIOS Error Type"::RateLimited,
-            "AIOS Error Type"::Timeout,
-            "AIOS Error Type"::ProviderUnavailable:
-                exit(true);
-            else
-                exit(false);
-        end;
     end;
 
     /// <summary>
@@ -239,10 +224,10 @@ codeunit 87410 "AIOS Client"
     /// </summary>
     internal procedure TryGenerate(Model: Interface "AIOS Language Model"; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"; var OutputRecRef: RecordRef): Boolean
     var
+        Retry: Codeunit "AIOS Retry";
         ModelId: Text;
         Attempt: Integer;
         MaxRetries: Integer;
-        DelayMs: Integer;
     begin
         Clear(Response);
         ModelId := Model.GetModelId();
@@ -265,13 +250,10 @@ codeunit 87410 "AIOS Client"
 
             OnAfterLanguageModelCall(ModelId, Request, Response);
 
-            if (Attempt = MaxRetries) or (not IsRetriableError(Response)) then
+            if (Attempt = MaxRetries) or (not Retry.IsRetriable(Response.GetErrorType())) then
                 exit(false);
 
-            DelayMs := 200 * (Attempt + 1);
-            if DelayMs > 2000 then
-                DelayMs := 2000;
-            Sleep(DelayMs);
+            Retry.SleepBackoff(Attempt);
         end;
 
         exit(false);
@@ -355,18 +337,6 @@ codeunit 87410 "AIOS Client"
     local procedure SetOutputValidationError(var Response: Record "AIOS Chat Response"; Reason: Text)
     begin
         Response.SetError("AIOS Error Type"::ParseFailed, StrSubstNo(OutputValidationFailedMsg, Reason));
-    end;
-
-    local procedure IsRetriableError(var Response: Record "AIOS Chat Response"): Boolean
-    begin
-        case Response.GetErrorType() of
-            "AIOS Error Type"::RateLimited,
-            "AIOS Error Type"::Timeout,
-            "AIOS Error Type"::ProviderUnavailable:
-                exit(true);
-            else
-                exit(false);
-        end;
     end;
 
     local procedure TryGenerateBuiltRequest(Model: Interface "AIOS Language Model"; SystemMessage: Text; Prompt: Text; var Response: Record "AIOS Chat Response"): Boolean

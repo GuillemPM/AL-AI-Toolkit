@@ -1,13 +1,13 @@
-namespace PM.Guillem.AIOpenSDK.Examples;
+namespace PM.Guillem.AIOpenSDK.Test;
 
 /// <summary>
-/// Temporary DTO for structured-output examples.
+/// Temporary DTO for structured-output RecRef binding tests (not for production use).
 /// </summary>
-table 87485 "AIOS Feedback Buffer"
+table 87496 "AIOS Test Bind Target"
 {
-    Caption = 'AIOS Feedback Buffer';
+    Caption = 'AIOS Test Bind Target';
     TableType = Temporary;
-    DataClassification = CustomerContent;
+    DataClassification = SystemMetadata;
 
     fields
     {
@@ -19,28 +19,28 @@ table 87485 "AIOS Feedback Buffer"
         field(10; Sentiment; Text[50])
         {
             Caption = 'Sentiment';
-            DataClassification = CustomerContent;
+            DataClassification = SystemMetadata;
         }
         field(11; Score; Decimal)
         {
             Caption = 'Score';
-            DataClassification = CustomerContent;
+            DataClassification = SystemMetadata;
             DecimalPlaces = 0 : 2;
         }
         field(12; Urgent; Boolean)
         {
             Caption = 'Urgent';
-            DataClassification = CustomerContent;
+            DataClassification = SystemMetadata;
         }
         field(13; Summary; Text[250])
         {
             Caption = 'Summary';
-            DataClassification = CustomerContent;
+            DataClassification = SystemMetadata;
         }
         field(14; Topics; Text[250])
         {
             Caption = 'Topics';
-            DataClassification = CustomerContent;
+            DataClassification = SystemMetadata;
         }
     }
 

@@ -6,11 +6,23 @@ codeunit 87492 "AIOS Lifecycle Spy"
 {
     SingleInstance = true;
 
-    procedure Reset()
+    /// <summary>
+    /// Clears the trace and starts recording lifecycle events.
+    /// </summary>
+    procedure StartRecording()
     begin
         EventTrace := '';
         LastModelId := '';
         AfterGenerateCalled := false;
+        Recording := true;
+    end;
+
+    /// <summary>
+    /// Stops recording. Events are ignored until StartRecording.
+    /// </summary>
+    procedure StopRecording()
+    begin
+        Recording := false;
     end;
 
     procedure GetEventTrace(): Text
@@ -55,6 +67,8 @@ codeunit 87492 "AIOS Lifecycle Spy"
 
     local procedure Append(EventName: Text; ModelId: Text)
     begin
+        if not Recording then
+            exit;
         LastModelId := ModelId;
         if EventTrace = '' then
             EventTrace := EventName
@@ -66,4 +80,5 @@ codeunit 87492 "AIOS Lifecycle Spy"
         EventTrace: Text;
         LastModelId: Text;
         AfterGenerateCalled: Boolean;
+        Recording: Boolean;
 }

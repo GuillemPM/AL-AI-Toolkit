@@ -43,10 +43,11 @@ Current provisional range in `app.json`: **87400–87499**.
 | 87448 | AIOS OpenAI Image Model |
 | 87449 | AIOS Mock Image Model |
 
-### Structured output (87460–87479)
+### Structured output / retry (87460–87479)
 
 | ID | Object |
 |---|---|
+| 87460 | AIOS Retry |
 | 87461 | AIOS Json Binder |
 | 87462 | AIOS Schema |
 | 87463 | AIOS Schema Validator |
@@ -69,5 +70,6 @@ Current provisional range in `app.json`: **87400–87499**.
 | 87493 | AIOS Generate Options Tests |
 | 87494 | AIOS Structured Output Tests |
 | 87495 | AIOS Image Tests |
+| 87496 | AIOS Test Bind Target |
 
 Before AppSource publication, replace this range with an assigned ID range and update this file.

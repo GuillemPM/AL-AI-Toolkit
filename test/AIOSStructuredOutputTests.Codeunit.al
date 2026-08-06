@@ -1,7 +1,6 @@
 namespace PM.Guillem.AIOpenSDK.Test;
 
 using PM.Guillem.AIOpenSDK.Core;
-using PM.Guillem.AIOpenSDK.Examples;
 using PM.Guillem.AIOpenSDK.Provider.Mock;
 
 codeunit 87494 "AIOS Structured Output Tests"
@@ -14,7 +13,7 @@ codeunit 87494 "AIOS Structured Output Tests"
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         Request: Record "AIOS Chat Request";
-        Feedback: Record "AIOS Feedback Buffer";
+        Feedback: Record "AIOS Test Bind Target";
         RecRef: RecordRef;
         Result: Text;
     begin
@@ -47,7 +46,7 @@ codeunit 87494 "AIOS Structured Output Tests"
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         Request: Record "AIOS Chat Request";
-        Feedback: Record "AIOS Feedback Buffer";
+        Feedback: Record "AIOS Test Bind Target";
         RecRef: RecordRef;
     begin
         Mock.SetNextResponse('{"sentiment":"neutral","score":0.1,"urgent":false,"summary":"ok"}');
@@ -70,7 +69,7 @@ codeunit 87494 "AIOS Structured Output Tests"
         Client: Codeunit "AIOS Client";
         Request: Record "AIOS Chat Request";
         Response: Record "AIOS Chat Response";
-        Feedback: Record "AIOS Feedback Buffer";
+        Feedback: Record "AIOS Test Bind Target";
         RecRef: RecordRef;
     begin
         Mock.SetNextResponse('not-json');
@@ -368,6 +367,8 @@ codeunit 87494 "AIOS Structured Output Tests"
         Options: List of [Text];
     begin
         asserterror Schema.Choice(Options);
+        if StrPos(GetLastErrorText(), 'Choice options cannot be empty') = 0 then
+            Error(UnexpectedChoiceEmptyErr, GetLastErrorText());
     end;
 
     var
@@ -381,4 +382,5 @@ codeunit 87494 "AIOS Structured Output Tests"
         ExpectedNoJsonModeErr: Label 'Text output should not enable JSON mode.';
         MissingPropErr: Label 'Missing property %1.', Comment = '%1 = name';
         UnexpectedCountErr: Label 'Expected count %1, got %2.', Comment = '%1 = expected, %2 = actual';
+        UnexpectedChoiceEmptyErr: Label 'Expected empty-options error, got: %1', Comment = '%1 = actual error text';
 }

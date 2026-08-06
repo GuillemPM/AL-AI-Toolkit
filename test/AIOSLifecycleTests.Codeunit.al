@@ -16,7 +16,7 @@ codeunit 87491 "AIOS Lifecycle Tests"
         Response: Record "AIOS Chat Response";
         ExpectedTrace: Text;
     begin
-        Spy.Reset();
+        Spy.StartRecording();
         Mock.SetNextResponse('ok');
         ExpectedTrace := 'OnBeforeGenerate|OnBeforeLanguageModelCall|OnAfterLanguageModelCall|OnAfterGenerate';
 
@@ -29,6 +29,7 @@ codeunit 87491 "AIOS Lifecycle Tests"
             Error(UnexpectedModelIdErr, 'demo-model', Spy.GetLastModelId());
         if not Spy.WasAfterGenerateCalled() then
             Error(ExpectedAfterGenerateErr);
+        Spy.StopRecording();
     end;
 
     [Test]
@@ -41,7 +42,7 @@ codeunit 87491 "AIOS Lifecycle Tests"
         Response: Record "AIOS Chat Response";
         ExpectedTrace: Text;
     begin
-        Spy.Reset();
+        Spy.StartRecording();
         Mock.SetNextError("AIOS Error Type"::ProviderUnavailable, 'simulated failure');
         Clear(Request);
         Request.SetPrompt('ping');
@@ -55,6 +56,7 @@ codeunit 87491 "AIOS Lifecycle Tests"
             Error(UnexpectedTraceErr, ExpectedTrace, Spy.GetEventTrace());
         if Spy.WasAfterGenerateCalled() then
             Error(UnexpectedAfterGenerateErr);
+        Spy.StopRecording();
     end;
 
     var

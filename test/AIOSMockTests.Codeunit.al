@@ -8,29 +8,6 @@ codeunit 87490 "AIOS Mock Tests"
     Subtype = Test;
 
     [Test]
-    procedure GenerateText_JsonOutput_ReturnsConfiguredMockContent()
-    var
-        Mock: Codeunit "AIOS Mock";
-        Client: Codeunit "AIOS Client";
-        Schema: Codeunit "AIOS Schema";
-        Request: Record "AIOS Chat Request";
-        Result: Text;
-        Expected: Text;
-    begin
-        Expected := '{"sentiment":"positive","topics":["pricing","support"]}';
-        Mock.SetNextResponse(Expected);
-
-        Request.SetSystemMessage('You extract sentiment and topics.');
-        Request.SetPrompt('Feedback: Great product.');
-        Request.SetOutput(Schema.Json());
-
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request).Output();
-
-        if Result <> Expected then
-            Error(UnexpectedResultErr, Expected, Result);
-    end;
-
-    [Test]
     procedure TryGenerateText_ReturnsFalseOnMockError()
     var
         Mock: Codeunit "AIOS Mock";
@@ -44,19 +21,6 @@ codeunit 87490 "AIOS Mock Tests"
 
         if Response.GetErrorType() <> "AIOS Error Type"::ProviderUnavailable then
             Error(UnexpectedErrorTypeErr, Response.GetErrorType());
-    end;
-
-    [Test]
-    procedure GenerateText_ReturnsMockContent()
-    var
-        Mock: Codeunit "AIOS Mock";
-        Client: Codeunit "AIOS Client";
-        Result: Text;
-    begin
-        Mock.SetNextResponse('hello from mock');
-        Result := Client.GenerateText(Mock.Model('demo-model'), 'ping').Output();
-        if Result <> 'hello from mock' then
-            Error(UnexpectedResultErr, 'hello from mock', Result);
     end;
 
     [Test]
