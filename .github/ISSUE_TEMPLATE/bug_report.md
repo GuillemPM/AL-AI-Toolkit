@@ -20,7 +20,7 @@ What went wrong?
 
 - Toolkit version:
 - BC version / runtime:
-- Provider (if any): Mock / Azure OpenAI / OpenAI / Anthropic / other
+- Provider (if any): Mock / OpenAI / Anthropic / OpenCode Zen / other
 
 ## Additional context
 

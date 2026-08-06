@@ -1,6 +1,6 @@
 # Contributing to AL AI Open SDK
 
-Thanks for contributing. This project is a **client library** for AL (see [ADR-001](docs/adr/001-library-not-platform.md) and [ADR-002](docs/adr/002-client-library-not-orchestration.md)). Keep PRs focused and testable without live API keys.
+Thanks for contributing. This project is a **client library** for AL — not a Copilot platform or hosted AI service. Keep PRs focused and testable without live API keys.
 
 ## Development setup
 
@@ -13,27 +13,17 @@ Thanks for contributing. This project is a **client library** for AL (see [ADR-0
 | Change type | Bar |
 |---|---|
 | Bug fix | PR + mock-provider regression test when applicable |
-| New Tier 2/3 provider adapter | Implement `"AIOS Provider"` + `"AIOS Language Model"`, docs, mock-covered mapping tests ([ADR-004](docs/adr/004-tiered-provider-support.md)) |
-| Core interface / structured-output / telemetry schema | **RFC required** before implementation ([docs/rfc/](docs/rfc/)) |
+| New provider adapter | Implement `"AIOS Provider"` + `"AIOS Language Model"` (and `"AIOS Image Model"` if applicable), docs, mock-covered tests |
+| Core interface / structured-output / request-response contract | Discuss in the PR; keep changes focused |
 | Docs, examples | PR welcome |
 
 ## Pull request checklist
 
 - [ ] Mock-provider tests cover any provider or client logic you touch
 - [ ] No secrets, API keys, or live endpoint credentials in the repo
-- [ ] No new default network egress (telemetry stays local unless the consumer configures an exporter — [ADR-005](docs/adr/005-otel-genai-telemetry.md))
-- [ ] Object IDs stay within the project's `idRanges` in `app.json`
+- [ ] No new default network egress from the library
+- [ ] Object IDs stay within the project's `idRanges` in `app.json` (see [docs/OBJECT_IDS.md](docs/OBJECT_IDS.md))
 - [ ] Breaking public API changes are called out explicitly (semver starts at v1.0)
-
-## RFC process
-
-Open an RFC (copy [docs/rfc/0000-template.md](docs/rfc/0000-template.md)) for:
-
-- Changes to `"AIOS Provider"` / `"AIOS Language Model"` or the request/response contract
-- Structured-output binding contract
-- Telemetry / GenAI attribute schema
-
-Discuss and land the RFC before merging implementation PRs for those surfaces.
 
 ## Code of conduct
 

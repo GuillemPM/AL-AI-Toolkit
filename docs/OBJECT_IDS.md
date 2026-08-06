@@ -6,7 +6,7 @@ Current provisional range in `app.json`: **87400–87499**.
 |---|---|
 | 87400–87439 | Core: error enum, chat request/response, AIOS Provider + AIOS Language Model interfaces, AIOS Client |
 | 87440–87459 | Provider adapters (OpenAI, Anthropic, OpenCode Zen, mock, …) |
-| 87460–87479 | Structured output, retry, telemetry |
+| 87460–87479 | Structured output, retry |
 | 87480–87499 | Examples / reserved |
 
 ### Core (87400–87439)

@@ -2,12 +2,12 @@
 
 AL AI Open SDK is open-source infrastructure. Governance exists so downstream AL
 extensions that depend on this library are not left without a clear succession
-path ([ADR-008](docs/adr/008-bdfl-with-succession.md)).
+path.
 
 ## Phase 1 — Solo maintainer (current)
 
 - **BDFL:** Guillem holds final decision authority on architecture and roadmap.
-- Day-to-day contributions are welcome via PR; core interface changes require an RFC ([CONTRIBUTING.md](CONTRIBUTING.md)).
+- Day-to-day contributions are welcome via PR.
 - This phase is honest about current reality rather than inventing a foundation-style structure before there is a community to staff it.
 
 ### Succession (Phase 1)
@@ -27,7 +27,7 @@ Document any permanent succession in this file via PR.
 
 - Small maintainers group with commit access
 - Lazy consensus for non-architectural changes
-- BDFL-arbitrated decisions for anything touching `"AIOS Provider"` / core contracts ([ADR-003](docs/adr/003-provider-abstraction.md))
+- BDFL-arbitrated decisions for anything touching `"AIOS Provider"` / core contracts
 
 ## Phase 3 — Maturity
 
@@ -35,8 +35,8 @@ If adoption justifies it, move toward a more formal steering structure. Do **not
 
 ## Contribution asymmetry
 
-- **High bar:** provider abstraction, structured-output contract, telemetry schema (RFC)
-- **Lower bar:** Tier 2/3 provider adapters ([ADR-004](docs/adr/004-tiered-provider-support.md))
+- **High bar:** provider abstraction, structured-output contract, client result shapes
+- **Lower bar:** additional provider adapters
 - **Mandatory:** mock-provider test coverage for provider logic; no live API key required for core CI
 
 ## Deprecation (from v1.0)

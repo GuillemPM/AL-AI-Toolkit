@@ -10,11 +10,11 @@ Name and API docs URL:
 
 ## Proposed tier
 
-- [ ] Tier 1 (core-maintained — rare; justify)
-- [ ] Tier 2 (community, best-effort)
-- [ ] Tier 3 (OpenAI-compatible / thin adapter)
+- [ ] Core-maintained (justify — rare)
+- [ ] Community / best-effort
+- [ ] OpenAI-compatible thin adapter
 
-See [ADR-004](../../docs/adr/004-tiered-provider-support.md).
+See [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## Why this provider
 

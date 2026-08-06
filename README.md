@@ -2,30 +2,32 @@
 
 Provider-agnostic AI integration library for Microsoft Dynamics 365 Business Central, written in AL.
 
-Call large language models through one client API — with structured output parsing, retries, telemetry, and a mock provider for unit tests. This is a **library** that ships inside your extension. It is not a Copilot feature, not a hosted AI service, and not a Microsoft product.
+Call large language models through one client API — with structured output parsing, retries, image generation, and a mock provider for unit tests. This is a **library** that ships inside your extension. It is not a Copilot feature, not a hosted AI service, and not a Microsoft product.
 
-Status: **pre-implementation** (v0.1 scaffolding). See [docs/AL-AI-Toolkit-PRD-and-ADR.docx](docs/AL-AI-Toolkit-PRD-and-ADR.docx) and [docs/adr/](docs/adr/).
+Status: **v0.1** (usable client + providers; pre-1.0 — public APIs may still change).
 
 ## Design highlights
 
-- Provider selection is configuration, not a code change (`"AIOS Provider"` → `"AIOS Language Model"`)
-- Structured output (JSON Schema → validated `JsonToken`) is a first-class primitive; flat RecRef binding is a convenience
+- Provider selection is configuration, not a code change (`"AIOS Provider"` → `"AIOS Language Model"` / `"AIOS Image Model"`)
+- Structured output (JSON Schema → validated text / `JsonToken`) is a first-class primitive; flat RecRef binding is a convenience
 - Mock provider so AI-dependent code is testable without network or API keys
-- OpenTelemetry GenAI-compatible signals emitted locally — no default egress
-- Direct HTTP to providers (Azure OpenAI, OpenAI, Anthropic, …) — not a wrapper around System.AI
+- Shared retry / backoff (`"AIOS Retry"`) for text and image generation
+- Direct HTTP to providers (OpenAI, Anthropic, OpenCode Zen, …) — not a wrapper around System.AI
 
 When System.AI / Copilot is already the right tool for a Microsoft-hosted capability, prefer that. Use this toolkit when you need third-party providers, self-hosted endpoints, or a testable provider abstraction.
+
+**Not shipped yet:** Azure OpenAI adapter, System.AI platform provider, OpenTelemetry / GenAI telemetry.
 
 ## Repository layout
 
 ```
-src/Client/       Public AIOS Client entry point
-src/Provider/     "AIOS Provider" factory + "AIOS Language Model" + adapters
-src/Structured/   JSON Schema output on GenerateText; flat RecRef binder (SetOutput)
-src/Mock/         In-memory mock provider
+src/Client/       Public AIOS Client, results, retry helper
+src/Provider/     Interfaces + request/response tables + provider adapters
+src/Structured/   JSON Schema builder, validator, RecRef binder
+src/Mock/         In-memory mock provider (text + image)
 test/             Mock-based tests (no live keys required)
-examples/         Reference usage
-docs/adr/         Architecture Decision Records
+examples/         Demo page, usage examples, feedback buffer DTO
+docs/OBJECT_IDS.md
 ```
 
 Object IDs: provisional **87400–87499**. Replace with an AppSource-assigned range before publishing.
@@ -54,15 +56,15 @@ Shipped factories: `"AIOS Anthropic"`, `"AIOS OpenAI"`, `"AIOS OpenCode Zen"`, `
 
 - **Public:** `Client.GenerateText` — `(Model, Prompt)`, `(Model, System, Prompt)`, or `(Model, Request)` for options; returns `"AIOS Generate Result"`, Errors on failure
 - **Result accessors:** `Result.Output()`, `Result.Body()`, `Result.Headers()`, `Result.HttpStatusCode()`, plus token / finish / provider helpers
-- **Structured output (preferred):** `Request.SetOutput(Schema.Object(Fields))` then `GenerateText(Model, Request)` — response JSON is validated; read `Result.Output()`. See [RFC 0003](docs/rfc/0003-output-schema.md)
+- **Structured output (preferred):** `Request.SetOutput(Schema.Object(Fields))` then `GenerateText(Model, Request)` — response JSON is validated; read `Result.Output()`
 - **Flat record convenience:** `Request.SetOutput(RecRef)` then `GenerateText(Model, Request, RecRef)` — JSON fills bindable fields; raw JSON is on `Result.Output()`
-- **Image generation:** `OpenAI.ImageModel(...)` + `Client.GenerateImage` → `"AIOS Generate Image Result"` with `GetImages()`, `GetUsage()`, `GetResponseCalls()`
+- **Image generation:** `OpenAI.ImageModel(...)` / `Mock.ImageModel(...)` + `Client.GenerateImage` → `"AIOS Generate Image Result"` with `GetImages()`, `GetUsage()`, `GetResponseCalls()`
 - **Internal** (this app only — tests / demo soft-fail): `TryGenerateText` / `TryGenerate` / `TryGenerateImage`
-- Lifecycle Integration Events on `"AIOS Client"`: `OnBeforeGenerate`, `OnBeforeLanguageModelCall`, `OnAfterLanguageModelCall`, `OnAfterGenerate` (success only) — see [RFC 0001](docs/rfc/0001-lifecycle-callbacks.md)
-- Generate options + retries — see [RFC 0002](docs/rfc/0002-generate-options.md)
+- **Lifecycle** Integration Events on `"AIOS Client"`: `OnBeforeGenerate`, `OnBeforeLanguageModelCall`, `OnAfterLanguageModelCall`, `OnAfterGenerate` (success only)
+- **Retries:** request `GetMaxRetries` / `SetMaxRetries` (default 2); retriable errors are rate limit, timeout, and provider unavailable (`"AIOS Retry"`)
 - Interfaces remain available if you need a custom provider
 
-See [`examples/AIOSUsageExample.Codeunit.al`](examples/AIOSUsageExample.Codeunit.al) for demos starting with `RunBasicDemo`, plus structured output, options, and provider samples.
+See [`examples/AIOSUsageExample.Codeunit.al`](examples/AIOSUsageExample.Codeunit.al) for demos starting with `RunBasicDemo`, plus structured output, options, image, and provider samples. Interactive UI: page `"AIOS Toolkit Demo"`.
 
 ## License
 
@@ -70,4 +72,4 @@ See [`examples/AIOSUsageExample.Codeunit.al`](examples/AIOSUsageExample.Codeunit
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [GOVERNANCE.md](GOVERNANCE.md). Core interface changes need an RFC; new provider adapters have a lower bar.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [GOVERNANCE.md](GOVERNANCE.md).
