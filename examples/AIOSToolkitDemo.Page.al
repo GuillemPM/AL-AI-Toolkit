@@ -6,6 +6,8 @@ using PM.Guillem.AIOpenSDK.Provider.Mock;
 using PM.Guillem.AIOpenSDK.Provider.OpenAI;
 using PM.Guillem.AIOpenSDK.Provider.OpenCodeZen;
 using System.Reflection;
+using System.Text;
+using System.Utilities;
 
 page 87481 "AIOS Toolkit Demo"
 {
@@ -13,9 +15,9 @@ page 87481 "AIOS Toolkit Demo"
     Caption = 'AIOS Toolkit Demo';
     PageType = Card;
     UsageCategory = Tasks;
-    AdditionalSearchTerms = 'AI, LLM, mock, toolkit, openai, anthropic, alaidemo, provider';
+    AdditionalSearchTerms = 'AI, LLM, mock, toolkit, openai, anthropic, alaidemo, provider, image, dalle';
     AboutTitle = 'AIOS Toolkit Demo';
-    AboutText = 'Pick a provider, model, and API key, then Generate, Try generate, Generate structured, Generate JSON, or Generate choice.';
+    AboutText = 'Pick a provider, model, and API key, then Generate text or Generate image(s). Image generation works with Mock and OpenAI.';
 
     layout
     {
@@ -42,7 +44,18 @@ page 87481 "AIOS Toolkit Demo"
                 {
                     ApplicationArea = All;
                     Caption = 'Model';
-                    ToolTip = 'Model id for the selected provider.';
+                    ToolTip = 'Language model id for text generation.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+                field(ImageModelId; ImageModelId)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Image model';
+                    ToolTip = 'Image model id for Generate image / Generate images. Used by Mock and OpenAI.';
 
                     trigger OnValidate()
                     begin
@@ -84,7 +97,7 @@ page 87481 "AIOS Toolkit Demo"
                     ApplicationArea = All;
                     Caption = 'Prompt';
                     MultiLine = true;
-                    ToolTip = 'User prompt sent to the model.';
+                    ToolTip = 'User prompt sent to the language or image model.';
 
                     trigger OnValidate()
                     begin
@@ -312,6 +325,37 @@ page 87481 "AIOS Toolkit Demo"
                     end;
                 }
             }
+            group(ImageGroup)
+            {
+                Caption = 'Image generation';
+
+                field(ImageCount; ImageCount)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Image count';
+                    MinValue = 1;
+                    MaxValue = 10;
+                    ToolTip = 'How many images Generate images requests. Generate image always requests 1.';
+
+                    trigger OnValidate()
+                    begin
+                        if ImageCount < 1 then
+                            ImageCount := 1;
+                        SaveSettings();
+                    end;
+                }
+                field(ImageSize; ImageSize)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Size';
+                    ToolTip = 'Optional provider size string (for example 1024x1024). Leave blank to omit.';
+
+                    trigger OnValidate()
+                    begin
+                        SaveSettings();
+                    end;
+                }
+            }
             group(ResultGroup)
             {
                 Caption = 'Result';
@@ -420,6 +464,30 @@ page 87481 "AIOS Toolkit Demo"
                     RunGenerateChoice();
                 end;
             }
+            action(GenerateImage)
+            {
+                ApplicationArea = All;
+                Caption = 'Generate image';
+                Image = Camera;
+                ToolTip = 'Generate one image with AIOS Client.GenerateImage and store it on the history row. OpenAI or Mock.';
+
+                trigger OnAction()
+                begin
+                    RunGenerateImages(1);
+                end;
+            }
+            action(GenerateImages)
+            {
+                ApplicationArea = All;
+                Caption = 'Generate images';
+                Image = Picture;
+                ToolTip = 'Generate Image count images and store them on the history row. OpenAI or Mock.';
+
+                trigger OnAction()
+                begin
+                    RunGenerateImages(ImageCount);
+                end;
+            }
             action(ResetSettings)
             {
                 ApplicationArea = All;
@@ -466,6 +534,8 @@ page 87481 "AIOS Toolkit Demo"
             actionref(GenerateStructured_Promoted; GenerateStructured) { }
             actionref(GenerateJson_Promoted; GenerateJson) { }
             actionref(GenerateChoice_Promoted; GenerateChoice) { }
+            actionref(GenerateImage_Promoted; GenerateImage) { }
+            actionref(GenerateImages_Promoted; GenerateImages) { }
             actionref(ReuseSelected_Promoted; ReuseSelected) { }
             actionref(ClearHistory_Promoted; ClearHistory) { }
             actionref(ResetSettings_Promoted; ResetSettings) { }
@@ -491,6 +561,8 @@ page 87481 "AIOS Toolkit Demo"
         SystemPrompt := 'You extract sentiment and topics from customer feedback.';
         UserPrompt := 'Feedback: Great product, but support felt pricey.';
         ChoiceOptionsText := 'sunny, rainy, snowy';
+        ImageCount := 3;
+        ImageSize := '1024x1024';
         Temperature := 0.2;
         UseTemperature := true;
         TopP := 0;
@@ -518,22 +590,26 @@ page 87481 "AIOS Toolkit Demo"
             SelectedProvider::Mock:
                 begin
                     ModelId := 'demo-model';
+                    ImageModelId := 'mock-image';
                     ApiKeyEditable := false;
                     ApiKeyText := '';
                 end;
             SelectedProvider::Anthropic:
                 begin
                     ModelId := 'claude-sonnet-4-5';
+                    ImageModelId := '';
                     ApiKeyEditable := true;
                 end;
             SelectedProvider::OpenAI:
                 begin
                     ModelId := 'gpt-4.1-mini';
+                    ImageModelId := 'dall-e-3';
                     ApiKeyEditable := true;
                 end;
             SelectedProvider::"OpenCode Zen":
                 begin
                     ModelId := 'big-pickle';
+                    ImageModelId := '';
                     ApiKeyEditable := true;
                 end;
         end;
@@ -685,6 +761,141 @@ page 87481 "AIOS Toolkit Demo"
 
         if not Ok then
             Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
+    end;
+
+    local procedure RunGenerateImages(RequestedCount: Integer)
+    var
+        Client: Codeunit "AIOS Client";
+        Request: Record "AIOS Image Request";
+        Result: Codeunit "AIOS Generate Image Result";
+        Usage: Codeunit "AIOS Image Usage";
+        ImageModel: Interface "AIOS Image Model";
+        Headers: JsonObject;
+        CountToRequest: Integer;
+    begin
+        if ImageModelId = '' then
+            Error(ImageModelRequiredErr);
+        if (SelectedProvider <> SelectedProvider::Mock) and (ApiKeyText = '') then
+            Error(ApiKeyRequiredErr);
+        if UserPrompt = '' then
+            Error(ImagePromptRequiredErr);
+        if not (SelectedProvider in [SelectedProvider::Mock, SelectedProvider::OpenAI]) then
+            Error(ImageProviderUnsupportedErr, Format(SelectedProvider));
+
+        CountToRequest := RequestedCount;
+        if CountToRequest < 1 then
+            CountToRequest := 1;
+
+        SaveSettings();
+        ImageModel := BindSelectedImageModel();
+
+        Clear(Request);
+        Request.SetPrompt(UserPrompt);
+        Request.SetImageCount(CountToRequest);
+        if ImageSize <> '' then
+            Request.SetSize(ImageSize);
+        if TimeoutMs > 0 then
+            Request.SetTimeout(TimeoutMs);
+        if UseMaxRetries then
+            Request.SetMaxRetries(MaxRetries);
+
+        Result := Client.GenerateImage(ImageModel, Request);
+        Usage := Result.GetUsage();
+
+        LastResult := StrSubstNo(ImageResultMsg, Result.GetImages().Count(), Usage.ImagesGenerated(), Result.HttpStatusCode());
+        LastHttpStatus := Result.HttpStatusCode();
+        LastResponseBody := Result.Body();
+        Clear(LastResponseHeaders);
+        Headers := Result.Headers();
+        if Headers.Keys().Count() > 0 then
+            Headers.WriteTo(LastResponseHeaders);
+
+        LogImageHistory(true, UserPrompt, CountToRequest, Usage, Result);
+        CurrPage.HistoryPart.Page.Reload();
+        CurrPage.Update(false);
+    end;
+
+    local procedure BindSelectedImageModel(): Interface "AIOS Image Model"
+    var
+        OpenAI: Codeunit "AIOS OpenAI";
+        ApiKey: SecretText;
+    begin
+        ApiKey := ApiKeyText;
+
+        case SelectedProvider of
+            SelectedProvider::Mock:
+                exit(MockProvider.ImageModel(ImageModelId));
+            SelectedProvider::OpenAI:
+                exit(OpenAI.ImageModel(ImageModelId, ApiKey));
+            else
+                Error(ImageProviderUnsupportedErr, Format(SelectedProvider));
+        end;
+    end;
+
+    local procedure LogImageHistory(Ok: Boolean; PromptText: Text; RequestedCount: Integer; Usage: Codeunit "AIOS Image Usage"; Result: Codeunit "AIOS Generate Image Result")
+    var
+        History: Record "AIOS Demo History";
+        ImageCU: Codeunit "AIOS Generated Image";
+        Images: List of [Codeunit "AIOS Generated Image"];
+        Base64Convert: Codeunit "Base64 Convert";
+        TempBlob: Codeunit "Temp Blob";
+        OutStream: OutStream;
+        InStream: InStream;
+        MimeType: Text;
+        FileName: Text;
+        Base64: Text;
+        BodyText: Text;
+        i: Integer;
+    begin
+        History.Init();
+        History."Created At" := CurrentDateTime();
+        History."User ID" := CopyStr(UserId(), 1, MaxStrLen(History."User ID"));
+        History.Provider := Format(SelectedProvider);
+        History.Model := ImageModelId;
+        History.SetFormSystemMessage('');
+        History.SetSystemMessage(StrSubstNo(ImageHistorySystemTok, RequestedCount, ImageSize));
+        History.SetPrompt(PromptText);
+        History.SetResult(LastResult);
+        BodyText := Result.Body();
+        if BodyText = '' then
+            BodyText := LastResponseBody;
+        History.SetResponseBody(BodyText);
+        History.SetResponseHeaders(LastResponseHeaders);
+        History."HTTP Status Code" := LastHttpStatus;
+        History."Timeout Ms" := TimeoutMs;
+        History."Max Retries" := MaxRetries;
+        History."Has Max Retries" := UseMaxRetries;
+        History.Success := Ok;
+        History."Soft Fail" := false;
+        History."Input Tokens" := Usage.InputTokens();
+        History."Output Tokens" := Usage.OutputTokens();
+        History.Insert(true);
+
+        // Prefer provider JSON body (data[].b64_json) — avoids large-base64 JSON roundtrip truncation.
+        if not History.ImportPicturesFromImageJson(BodyText) then begin
+            Images := Result.GetImages();
+            for i := 1 to Images.Count() do begin
+                Images.Get(i, ImageCU);
+                Base64 := ImageCU.Base64();
+                if Base64 = '' then
+                    Error(MissingGeneratedBase64Err, i);
+
+                MimeType := ImageCU.MediaType();
+                if MimeType = '' then
+                    MimeType := 'image/png';
+                FileName := StrSubstNo(ImageFileNameTok, i);
+
+                Clear(TempBlob);
+                TempBlob.CreateOutStream(OutStream);
+                Base64Convert.FromBase64(Base64, OutStream);
+                TempBlob.CreateInStream(InStream);
+                History.Pictures.ImportStream(InStream, FileName, MimeType);
+            end;
+            if (Images.Count() > 0) and (History.Pictures.Count() = 0) then
+                Error(ImportGeneratedMediaErr, Images.Count());
+        end;
+        History.Modify(true);
+        Commit();
     end;
 
     local procedure ApplyResponseToPage(Ok: Boolean; var Response: Record "AIOS Chat Response")
@@ -933,9 +1144,12 @@ page 87481 "AIOS Toolkit Demo"
         Clear(Settings);
         Settings.Add('provider', SelectedProvider);
         Settings.Add('model', ModelId);
+        Settings.Add('imageModel', ImageModelId);
         Settings.Add('system', SystemPrompt);
         Settings.Add('prompt', UserPrompt);
         Settings.Add('choiceOptions', ChoiceOptionsText);
+        Settings.Add('imageCount', ImageCount);
+        Settings.Add('imageSize', ImageSize);
         Settings.Add('temperature', Temperature);
         Settings.Add('useTemperature', UseTemperature);
         Settings.Add('topP', TopP);
@@ -984,6 +1198,8 @@ page 87481 "AIOS Toolkit Demo"
         end;
         if Settings.Get('model', SettingsToken) then
             ModelId := CopyStr(SettingsToken.AsValue().AsText(), 1, MaxStrLen(ModelId));
+        if Settings.Get('imageModel', SettingsToken) then
+            ImageModelId := CopyStr(SettingsToken.AsValue().AsText(), 1, MaxStrLen(ImageModelId));
         if Settings.Get('system', SettingsToken) then
             SystemPrompt := SettingsToken.AsValue().AsText();
         if Settings.Get('prompt', SettingsToken) then
@@ -992,6 +1208,12 @@ page 87481 "AIOS Toolkit Demo"
             ChoiceOptionsText := SettingsToken.AsValue().AsText();
         if ChoiceOptionsText = '' then
             ChoiceOptionsText := 'sunny, rainy, snowy';
+        if Settings.Get('imageCount', SettingsToken) then
+            ImageCount := SettingsToken.AsValue().AsInteger();
+        if ImageCount < 1 then
+            ImageCount := 3;
+        if Settings.Get('imageSize', SettingsToken) then
+            ImageSize := CopyStr(SettingsToken.AsValue().AsText(), 1, MaxStrLen(ImageSize));
         if Settings.Get('temperature', SettingsToken) then
             Temperature := SettingsToken.AsValue().AsDecimal();
         if Settings.Get('useTemperature', SettingsToken) then
@@ -1034,6 +1256,16 @@ page 87481 "AIOS Toolkit Demo"
         if IsolatedStorage.Contains(ApiKeyKeyTok, DataScope::User) then
             IsolatedStorage.Get(ApiKeyKeyTok, DataScope::User, ApiKeyText);
 
+        if ImageModelId = '' then
+            case SelectedProvider of
+                SelectedProvider::Mock:
+                    ImageModelId := 'mock-image';
+                SelectedProvider::OpenAI:
+                    ImageModelId := 'dall-e-3';
+            end;
+        if ImageCount < 1 then
+            ImageCount := 3;
+
         exit(true);
     end;
 
@@ -1050,14 +1282,17 @@ page 87481 "AIOS Toolkit Demo"
         Reasoning: Enum "AIOS Reasoning Effort";
         SelectedProvider: Option Mock,Anthropic,OpenAI,"OpenCode Zen";
         ModelId: Text[100];
+        ImageModelId: Text[100];
         ApiKeyText: Text[250];
         SystemPrompt: Text;
         UserPrompt: Text;
         ChoiceOptionsText: Text;
+        ImageSize: Text[30];
         LastResult: Text;
         LastResponseBody: Text;
         LastResponseHeaders: Text;
         LastHttpStatus: Integer;
+        ImageCount: Integer;
         StopSequencesText: Text;
         Temperature: Decimal;
         UseTemperature: Boolean;
@@ -1079,6 +1314,7 @@ page 87481 "AIOS Toolkit Demo"
         SettingsKeyTok: Label 'AIToolkitDemo.Settings', Locked = true;
         ApiKeyKeyTok: Label 'AIToolkitDemo.ApiKey', Locked = true;
         ModelRequiredErr: Label 'Enter a model id.';
+        ImageModelRequiredErr: Label 'Enter an image model id (for example mock-image or dall-e-3).';
         ApiKeyRequiredErr: Label 'Enter an API key for this provider (not needed for Mock).';
         ErrorResultMsg: Label 'Failed (%1): %2', Comment = '%1 = error type, %2 = message';
         ErrorResultWithTextMsg: Label 'Failed (%1): %2\n\nModel response:\n%3', Comment = '%1 = error type, %2 = message, %3 = model text';
@@ -1087,6 +1323,13 @@ page 87481 "AIOS Toolkit Demo"
         JsonPromptRequiredErr: Label 'Enter a prompt before generate JSON.';
         ChoicePromptRequiredErr: Label 'Enter a prompt before generate choice.';
         ChoiceOptionsRequiredErr: Label 'Enter at least one choice option (comma-separated).';
+        ImagePromptRequiredErr: Label 'Enter a prompt before generating images.';
+        ImageProviderUnsupportedErr: Label 'Image generation is not available for %1. Use Mock or OpenAI.', Comment = '%1 = provider name';
+        ImageResultMsg: Label 'Generated %1 image(s). Usage images=%2. HTTP %3.', Comment = '%1 = list count, %2 = usage count, %3 = status';
+        ImageFileNameTok: Label 'aios-demo-%1.png', Locked = true, Comment = '%1 = entry no';
+        MissingGeneratedBase64Err: Label 'GenerateImage returned empty base64 for image %1.', Comment = '%1 = entry no';
+        ImportGeneratedMediaErr: Label 'Could not import generated images into history MediaSet (expected %1).', Comment = '%1 = image count';
+        ImageHistorySystemTok: Label 'Image generation (count=%1, size=%2)', Comment = '%1 = image count, %2 = size';
         MockStructuredJsonTok: Label '{"Sentiment":"positive","Score":0.9,"Urgent":false,"Summary":"Good product, pricey support.","Topics":["pricing","support"]}', Locked = true;
         MockJsonTok: Label '{"sentiment":"positive","topics":["pricing","support"]}', Locked = true;
         NoHistorySelectedErr: Label 'Select a history line first.';

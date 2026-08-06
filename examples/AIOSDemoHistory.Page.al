@@ -128,7 +128,7 @@ page 87483 "AIOS Demo History"
                 Caption = 'Show details';
                 Image = ViewDetails;
                 Scope = Repeater;
-                ToolTip = 'Open the full system message, user prompt, and result on a card page.';
+                ToolTip = 'Open the full system message, user prompt, result, and generated images on a card page.';
 
                 trigger OnAction()
                 begin

@@ -36,4 +36,8 @@ enum 87400 "AIOS Error Type"
     {
         Caption = 'Unknown';
     }
+    value(8; NoImageGenerated)
+    {
+        Caption = 'No Image Generated';
+    }
 }

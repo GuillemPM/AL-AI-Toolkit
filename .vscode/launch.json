@@ -24,7 +24,6 @@
       "environmentType": "Sandbox",
       "environmentName": "Dev",
       "tenant": "d075be7a-d309-44f4-be5c-15b534d73913",
-      "company": "CRONUS ES",
       "authentication": "AAD",
       "startupObjectId": 87481,
       "startupObjectType": "Page",

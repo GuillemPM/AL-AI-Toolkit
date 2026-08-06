@@ -338,10 +338,46 @@ codeunit 87480 "AIOS Usage Example"
         Message(StructuredMsg, Feedback.Sentiment, Feedback.Score, Feedback.Urgent, Feedback.Summary, Feedback.Topics, Result);
     end;
 
+    /// <summary>
+    /// Mock demo — GenerateImage returns a list of AIOS Generated Image codeunits plus usage.
+    /// </summary>
+    procedure RunMockImageDemo()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Request: Record "AIOS Image Request";
+        Result: Codeunit "AIOS Generate Image Result";
+        Usage: Codeunit "AIOS Image Usage";
+        ImageCU: Codeunit "AIOS Generated Image";
+        Images: List of [Codeunit "AIOS Generated Image"];
+    begin
+        Mock.SetNextImageBase64('mock-image-base64', 'image/png');
+        Request.SetPrompt('A blue triangle');
+        Request.SetSize('1024x1024');
+
+        Result := Client.GenerateImage(Mock.ImageModel('mock-image'), Request);
+        Usage := Result.GetUsage();
+        Images := Result.GetImages();
+        Images.Get(1, ImageCU);
+        Message(ImageDemoMsg, Usage.ImagesGenerated(), ImageCU.MediaType(), StrLen(ImageCU.Base64()), Result.HttpStatusCode());
+    end;
+
+    procedure RunOpenAIImageDemo()
+    var
+        Client: Codeunit "AIOS Client";
+        OpenAI: Codeunit "AIOS OpenAI";
+        Result: Codeunit "AIOS Generate Image Result";
+        ResultImage: Codeunit "AIOS Generated Image";
+    begin
+        Result := Client.GenerateImage(OpenAI.ImageModel('gpt-image-2'), 'Generate an image of a pencil');
+        ResultImage := Result.GetImage();
+    end;
+
     var
         SuccessMsg: Label '%1', Comment = '%1 = model response text';
         StructuredMsg: Label 'Sentiment=%1 Score=%2 Urgent=%3 Summary=%4 Topics=%5 | Raw=%6', Comment = '%1 sentiment, %2 score, %3 urgent, %4 summary, %5 topics, %6 raw JSON';
         SchemaObjectMsg: Label '%1', Comment = '%1 = validated JSON object text';
         SchemaChoiceMsg: Label '%1', Comment = '%1 = validated choice string';
         ResponseMetadataMsg: Label 'Text=%1 | Body=%2 | Status=%3 | Headers=%4', Comment = '%1 text, %2 raw body, %3 status, %4 headers JSON';
+        ImageDemoMsg: Label 'Generated=%1 type=%2 base64Len=%3 http=%4', Comment = '%1 count, %2 media type, %3 base64 length, %4 status';
 }

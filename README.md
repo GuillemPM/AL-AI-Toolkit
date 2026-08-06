@@ -56,7 +56,8 @@ Shipped factories: `"AIOS Anthropic"`, `"AIOS OpenAI"`, `"AIOS OpenCode Zen"`, `
 - **Result accessors:** `Result.Output()`, `Result.Body()`, `Result.Headers()`, `Result.HttpStatusCode()`, plus token / finish / provider helpers
 - **Structured output (preferred):** `Request.SetOutput(Schema.Object(Fields))` then `GenerateText(Model, Request)` — response JSON is validated; read `Result.Output()`. See [RFC 0003](docs/rfc/0003-output-schema.md)
 - **Flat record convenience:** `Request.SetOutput(RecRef)` then `GenerateText(Model, Request, RecRef)` — JSON fills bindable fields; raw JSON is on `Result.Output()`
-- **Internal** (this app only — tests / demo soft-fail): `TryGenerateText` / `TryGenerate`
+- **Image generation:** `OpenAI.ImageModel(...)` + `Client.GenerateImage` → `"AIOS Generate Image Result"` with `GetImages()`, `GetUsage()`, `GetResponseCalls()`
+- **Internal** (this app only — tests / demo soft-fail): `TryGenerateText` / `TryGenerate` / `TryGenerateImage`
 - Lifecycle Integration Events on `"AIOS Client"`: `OnBeforeGenerate`, `OnBeforeLanguageModelCall`, `OnAfterLanguageModelCall`, `OnAfterGenerate` (success only) — see [RFC 0001](docs/rfc/0001-lifecycle-callbacks.md)
 - Generate options + retries — see [RFC 0002](docs/rfc/0002-generate-options.md)
 - Interfaces remain available if you need a custom provider

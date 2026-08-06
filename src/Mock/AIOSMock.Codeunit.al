@@ -8,6 +8,8 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
 
     var
         NextContent: Text;
+        NextImageBase64: Text;
+        NextImageMediaType: Text;
         NextErrorType: Enum "AIOS Error Type";
         NextErrorMessage: Text;
         ForceFail: Boolean;
@@ -76,6 +78,40 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
         ForceFail := false;
         NextErrorType := NextErrorType::RateLimited;
         NextErrorMessage := 'simulated rate limit';
+    end;
+
+    /// <summary>
+    /// Bind a mock image model. Configure with SetNextImageBase64 before calling GenerateImage.
+    /// </summary>
+    procedure ImageModel(ModelId: Text): Interface "AIOS Image Model"
+    var
+        ImageModelInstance: Interface "AIOS Image Model";
+    begin
+        if not BindImageModel(ModelId, ImageModelInstance) then
+            Error(BindFailedErr, ModelId, GetName());
+        exit(ImageModelInstance);
+    end;
+
+    procedure BindImageModel(ModelId: Text; var BoundModel: Interface "AIOS Image Model"): Boolean
+    var
+        ImageModelCU: Codeunit "AIOS Mock Image Model";
+    begin
+        if ModelId = '' then
+            exit(false);
+
+        ImageModelCU.Initialize(ModelId, NextImageBase64, NextImageMediaType, ForceFail, NextErrorType, NextErrorMessage, FailuresBeforeSuccess);
+        BoundModel := ImageModelCU;
+        exit(true);
+    end;
+
+    procedure SetNextImageBase64(Base64: Text; MediaType: Text)
+    begin
+        NextImageBase64 := Base64;
+        NextImageMediaType := MediaType;
+        ForceFail := false;
+        FailuresBeforeSuccess := 0;
+        NextErrorType := NextErrorType::None;
+        NextErrorMessage := '';
     end;
 
     var

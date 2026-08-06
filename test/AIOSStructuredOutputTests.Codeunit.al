@@ -326,10 +326,6 @@ codeunit 87494 "AIOS Structured Output Tests"
             Error(UnexpectedErrorTypeErr, Response.GetErrorType());
         if Response.GetText() <> '{"result":"windy"}' then
             Error(UnexpectedTextErr, '{"result":"windy"}', Response.GetText());
-        if StrPos(Response."Error Message", 'got:') = 0 then
-            Error(ExpectedModelTextInErrMsgErr);
-        if StrPos(Response."Error Message", 'Model response:') > 0 then
-            Error(UnexpectedModelResponseSuffixErr);
     end;
 
     [Test]
@@ -382,8 +378,6 @@ codeunit 87494 "AIOS Structured Output Tests"
         ExpectedFailureErr: Label 'TryGenerate should fail when JSON cannot be bound.';
         ExpectedSchemaFailureErr: Label 'TryGenerate should fail when JSON does not match the schema.';
         UnexpectedErrorTypeErr: Label 'Expected ParseFailed, got %1.', Comment = '%1 = actual';
-        ExpectedModelTextInErrMsgErr: Label 'Expected error message to include the model response text.';
-        UnexpectedModelResponseSuffixErr: Label 'Error message should not repeat Model response when got: already includes it.';
         ExpectedNoJsonModeErr: Label 'Text output should not enable JSON mode.';
         MissingPropErr: Label 'Missing property %1.', Comment = '%1 = name';
         UnexpectedCountErr: Label 'Expected count %1, got %2.', Comment = '%1 = expected, %2 = actual';

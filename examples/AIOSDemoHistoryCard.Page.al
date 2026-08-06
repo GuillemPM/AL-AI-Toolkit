@@ -147,6 +147,11 @@ page 87486 "AIOS Demo History Card"
                     MultiLine = true;
                     ToolTip = 'Model output or structured summary.';
                 }
+                field(Pictures; Rec.Pictures)
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Generated images for this history entry (from response body → Tenant Media).';
+                }
                 field("HTTP Status Code"; Rec."HTTP Status Code")
                 {
                     ApplicationArea = All;
@@ -177,6 +182,14 @@ page 87486 "AIOS Demo History Card"
                     MultiLine = true;
                     ToolTip = 'Error message when the request failed.';
                 }
+            }
+        }
+        area(FactBoxes)
+        {
+            part(HistoryPicture; "AIOS Demo History Picture")
+            {
+                ApplicationArea = All;
+                SubPageLink = "Entry No." = field("Entry No.");
             }
         }
     }

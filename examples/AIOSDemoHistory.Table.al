@@ -2,6 +2,8 @@ namespace PM.Guillem.AIOpenSDK.Examples;
 
 using PM.Guillem.AIOpenSDK.Core;
 using System.Reflection;
+using System.Text;
+using System.Utilities;
 
 table 87482 "AIOS Demo History"
 {
@@ -215,6 +217,11 @@ table 87482 "AIOS Demo History"
             Caption = 'Has Max Retries';
             DataClassification = SystemMetadata;
         }
+        field(80; Pictures; MediaSet)
+        {
+            Caption = 'Pictures';
+            DataClassification = CustomerContent;
+        }
     }
 
     keys
@@ -343,7 +350,127 @@ table 87482 "AIOS Demo History"
         if Value = '' then
             exit;
         "Response Body".CreateOutStream(OutStream, TextEncoding::UTF8);
-        OutStream.WriteText(Value);
+        WriteLongText(OutStream, Value);
+    end;
+
+    /// <summary>
+    /// Decode OpenAI-style data[].b64_json from the stored response body into Pictures (Tenant Media).
+    /// </summary>
+    procedure SyncPicturesFromResponseBody(): Boolean
+    begin
+        exit(ImportPicturesFromImageJson(GetResponseBody()));
+    end;
+
+    /// <summary>
+    /// Import images from an OpenAI images.generations JSON body into Pictures.
+    /// </summary>
+    procedure ImportPicturesFromImageJson(JsonText: Text): Boolean
+    var
+        Root: JsonObject;
+        DataToken: JsonToken;
+        Data: JsonArray;
+        ItemToken: JsonToken;
+        Item: JsonObject;
+        B64Token: JsonToken;
+        FormatToken: JsonToken;
+        Base64Convert: Codeunit "Base64 Convert";
+        TempBlob: Codeunit "Temp Blob";
+        OutStream: OutStream;
+        InStream: InStream;
+        Base64: Text;
+        MimeType: Text;
+        FileName: Text;
+        Imported: Integer;
+        i: Integer;
+        ImageFileNameTok: Label 'aios-demo-%1.png', Locked = true, Comment = '%1 = image index';
+    begin
+        if JsonText = '' then
+            exit(false);
+        if not Root.ReadFrom(JsonText) then
+            exit(false);
+        if not Root.Get('data', DataToken) then
+            exit(false);
+        if not DataToken.IsArray() then
+            exit(false);
+        Data := DataToken.AsArray();
+        if Data.Count() = 0 then
+            exit(false);
+
+        MimeType := 'image/png';
+        if Root.Get('output_format', FormatToken) and FormatToken.IsValue() then
+            case LowerCase(FormatToken.AsValue().AsText()) of
+                'jpeg', 'jpg':
+                    MimeType := 'image/jpeg';
+                'webp':
+                    MimeType := 'image/webp';
+                'png':
+                    MimeType := 'image/png';
+            end;
+
+        // Only clear existing MediaSet once we know there is at least one payload.
+        Imported := 0;
+        for i := 0 to Data.Count() - 1 do begin
+            Data.Get(i, ItemToken);
+            if not ItemToken.IsObject() then
+                continue;
+            Item := ItemToken.AsObject();
+            if not Item.Get('b64_json', B64Token) then
+                continue;
+            if B64Token.AsValue().AsText() = '' then
+                continue;
+            Imported += 1;
+        end;
+        if Imported = 0 then
+            exit(false);
+
+        Clear(Pictures);
+        Imported := 0;
+        for i := 0 to Data.Count() - 1 do begin
+            Data.Get(i, ItemToken);
+            if not ItemToken.IsObject() then
+                continue;
+            Item := ItemToken.AsObject();
+            if not Item.Get('b64_json', B64Token) then
+                continue;
+            Base64 := B64Token.AsValue().AsText();
+            if Base64 = '' then
+                continue;
+
+            Clear(TempBlob);
+            TempBlob.CreateOutStream(OutStream);
+            Base64Convert.FromBase64(Base64, OutStream);
+            TempBlob.CreateInStream(InStream);
+            FileName := StrSubstNo(ImageFileNameTok, i + 1);
+            Pictures.ImportStream(InStream, FileName, MimeType);
+            Imported += 1;
+        end;
+
+        if Imported = 0 then
+            exit(false);
+        exit(Pictures.Count() > 0);
+    end;
+
+    local procedure WriteLongText(var OutStream: OutStream; Value: Text)
+    var
+        Pos: Integer;
+        Len: Integer;
+        ChunkSize: Integer;
+        Chunk: Text;
+        Written: Integer;
+        WriteBlobFailedErr: Label 'Failed to write large text into demo history blob.';
+    begin
+        Len := StrLen(Value);
+        if Len = 0 then
+            exit;
+        Pos := 1;
+        ChunkSize := 64 * 1024;
+        while Pos <= Len do begin
+            Chunk := CopyStr(Value, Pos, ChunkSize);
+            Written := OutStream.WriteText(Chunk);
+            if Written <= 0 then
+                Error(WriteBlobFailedErr);
+            Pos += Written;
+        end;
     end;
 
     procedure GetResponseHeaders(): Text
