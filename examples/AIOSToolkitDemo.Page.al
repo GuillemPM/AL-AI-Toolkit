@@ -324,6 +324,29 @@ page 87481 "AIOS Toolkit Demo"
                     MultiLine = true;
                     ToolTip = 'Last generation result or error details.';
                 }
+                field(LastHttpStatus; LastHttpStatus)
+                {
+                    ApplicationArea = All;
+                    Caption = 'HTTP status';
+                    Editable = false;
+                    ToolTip = 'HTTP status code from the provider response.';
+                }
+                field(LastResponseBody; LastResponseBody)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Response body';
+                    Editable = false;
+                    MultiLine = true;
+                    ToolTip = 'Raw HTTP response body from the provider.';
+                }
+                field(LastResponseHeaders; LastResponseHeaders)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Response headers';
+                    Editable = false;
+                    MultiLine = true;
+                    ToolTip = 'HTTP response headers from the provider as JSON.';
+                }
             }
             part(HistoryPart; "AIOS Demo History")
             {
@@ -534,10 +557,7 @@ page 87481 "AIOS Toolkit Demo"
         BuildRequest(Request);
 
         Ok := Client.TryGenerate(Model, Request, Response);
-        if Ok then
-            LastResult := Response.GetText()
-        else
-            LastResult := FormatFailedResult(Response);
+        ApplyResponseToPage(Ok, Response);
 
         LogHistory(SoftFail, Ok, Request, Response);
         CurrPage.HistoryPart.Page.Reload();
@@ -579,10 +599,7 @@ page 87481 "AIOS Toolkit Demo"
         Request.SetOutput(Schema.Object(Fields));
 
         Ok := Client.TryGenerate(Model, Request, Response);
-        if Ok then
-            LastResult := Response.GetText()
-        else
-            LastResult := FormatFailedResult(Response);
+        ApplyResponseToPage(Ok, Response);
 
         LogHistory(false, Ok, Request, Response);
         CurrPage.HistoryPart.Page.Reload();
@@ -617,10 +634,7 @@ page 87481 "AIOS Toolkit Demo"
         Request.SetOutput(Schema.Json());
 
         Ok := Client.TryGenerate(Model, Request, Response);
-        if Ok then
-            LastResult := Response.GetText()
-        else
-            LastResult := FormatFailedResult(Response);
+        ApplyResponseToPage(Ok, Response);
 
         LogHistory(false, Ok, Request, Response);
         CurrPage.HistoryPart.Page.Reload();
@@ -663,10 +677,7 @@ page 87481 "AIOS Toolkit Demo"
         Request.SetOutput(Schema.Choice(Options));
 
         Ok := Client.TryGenerate(Model, Request, Response);
-        if Ok then
-            LastResult := Response.GetText()
-        else
-            LastResult := FormatFailedResult(Response);
+        ApplyResponseToPage(Ok, Response);
 
         LogHistory(false, Ok, Request, Response);
         CurrPage.HistoryPart.Page.Reload();
@@ -674,6 +685,23 @@ page 87481 "AIOS Toolkit Demo"
 
         if not Ok then
             Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
+    end;
+
+    local procedure ApplyResponseToPage(Ok: Boolean; var Response: Record "AIOS Chat Response")
+    var
+        Headers: JsonObject;
+    begin
+        if Ok then
+            LastResult := Response.GetText()
+        else
+            LastResult := FormatFailedResult(Response);
+
+        LastHttpStatus := Response."HTTP Status Code";
+        LastResponseBody := Response.GetBody();
+        Headers := Response.GetHeaders();
+        Clear(LastResponseHeaders);
+        if Headers.Keys().Count() > 0 then
+            Headers.WriteTo(LastResponseHeaders);
     end;
 
     local procedure FormatFailedResult(var Response: Record "AIOS Chat Response"): Text
@@ -723,6 +751,9 @@ page 87481 "AIOS Toolkit Demo"
         History.SetSystemMessage(Request.GetEffectiveSystemMessage());
         History.SetPrompt(Request.GetPrompt());
         History.SetResult(LastResult);
+        History.SetResponseBody(LastResponseBody);
+        History.SetResponseHeaders(LastResponseHeaders);
+        History."HTTP Status Code" := LastHttpStatus;
         History."JSON Mode" := Request."Json Mode";
         History.Temperature := Temperature;
         History."Has Temperature" := UseTemperature;
@@ -803,6 +834,9 @@ page 87481 "AIOS Toolkit Demo"
         MaxRetries := History."Max Retries";
         UseMaxRetries := History."Has Max Retries";
         LastResult := History.GetResult();
+        LastResponseBody := History.GetResponseBody();
+        LastResponseHeaders := History.GetResponseHeaders();
+        LastHttpStatus := History."HTTP Status Code";
         SaveSettings();
         CurrPage.Update(false);
     end;
@@ -1021,6 +1055,9 @@ page 87481 "AIOS Toolkit Demo"
         UserPrompt: Text;
         ChoiceOptionsText: Text;
         LastResult: Text;
+        LastResponseBody: Text;
+        LastResponseHeaders: Text;
+        LastHttpStatus: Integer;
         StopSequencesText: Text;
         Temperature: Decimal;
         UseTemperature: Boolean;

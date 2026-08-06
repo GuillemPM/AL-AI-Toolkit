@@ -24,7 +24,7 @@ codeunit 87490 "AIOS Mock Tests"
         Request.SetPrompt('Feedback: Great product.');
         Request.SetOutput(Schema.Json());
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request).Output();
 
         if Result <> Expected then
             Error(UnexpectedResultErr, Expected, Result);
@@ -54,13 +54,53 @@ codeunit 87490 "AIOS Mock Tests"
         Result: Text;
     begin
         Mock.SetNextResponse('hello from mock');
-        Result := Client.GenerateText(Mock.Model('demo-model'), 'ping');
+        Result := Client.GenerateText(Mock.Model('demo-model'), 'ping').Output();
         if Result <> 'hello from mock' then
             Error(UnexpectedResultErr, 'hello from mock', Result);
+    end;
+
+    [Test]
+    procedure GenerateText_Result_ExposesOutputAndBody()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Result: Codeunit "AIOS Generate Result";
+    begin
+        Mock.SetNextResponse('hello from mock');
+        Result := Client.GenerateText(Mock.Model('demo-model'), 'ping');
+        if Result.Output() <> 'hello from mock' then
+            Error(UnexpectedResultErr, 'hello from mock', Result.Output());
+        if Result.Body() <> 'hello from mock' then
+            Error(UnexpectedResultErr, 'hello from mock', Result.Body());
+    end;
+
+    [Test]
+    procedure ChatResponse_BodyAndHeaders_RoundTrip()
+    var
+        Response: Record "AIOS Chat Response";
+        Headers: JsonObject;
+        Loaded: JsonObject;
+        Token: JsonToken;
+        Body: Text;
+    begin
+        Headers.Add('x-request-id', 'abc-123');
+        Response.SetBody('{"id":"resp_1"}');
+        Response.SetHeaders(Headers);
+
+        Body := Response.GetBody();
+        if Body <> '{"id":"resp_1"}' then
+            Error(UnexpectedResultErr, '{"id":"resp_1"}', Body);
+
+        Loaded := Response.GetHeaders();
+        if not Loaded.Get('x-request-id', Token) then
+            Error(MissingHeaderErr);
+        if Token.AsValue().AsText() <> 'abc-123' then
+            Error(UnexpectedResultErr, 'abc-123', Token.AsValue().AsText());
     end;
 
     var
         UnexpectedResultErr: Label 'Expected ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
         ExpectedFailureErr: Label 'TryGenerateText should return false when the mock is set to fail.';
         UnexpectedErrorTypeErr: Label 'Expected ProviderUnavailable error type, got %1.', Comment = '%1 = actual error type';
+        MissingHeaderErr: Label 'Expected x-request-id header.';
 }

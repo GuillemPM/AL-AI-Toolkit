@@ -93,7 +93,7 @@ codeunit 87462 "AIOS Schema"
 
     /// <summary>
     /// Object schema with a required result property constrained to Options.
-    /// After validation, GenerateText returns the selected option as plain text.
+    /// After validation, Result.Output() is the selected option as plain text.
     /// </summary>
     procedure Choice(Options: List of [Text]): JsonObject
     var

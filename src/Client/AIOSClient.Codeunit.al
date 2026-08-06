@@ -8,44 +8,49 @@ codeunit 87410 "AIOS Client"
     Access = Public;
 
     /// <summary>
-    /// Generates text from a prompt. Raises an error if generation fails.
+    /// Generates text from a prompt. Returns result with Output and HTTP metadata. Raises an error if generation fails.
     /// </summary>
-    procedure GenerateText(Model: Interface "AIOS Language Model"; Prompt: Text): Text
+    procedure GenerateText(Model: Interface "AIOS Language Model"; Prompt: Text): Codeunit "AIOS Generate Result"
     begin
         exit(GenerateText(Model, '', Prompt));
     end;
 
     /// <summary>
-    /// Generates text from a system message and prompt. Raises an error if generation fails.
+    /// Generates text from a system message and prompt. Returns result with Output and HTTP metadata. Raises an error if generation fails.
     /// </summary>
-    procedure GenerateText(Model: Interface "AIOS Language Model"; SystemMessage: Text; Prompt: Text): Text
+    procedure GenerateText(Model: Interface "AIOS Language Model"; SystemMessage: Text; Prompt: Text): Codeunit "AIOS Generate Result"
     var
         Response: Record "AIOS Chat Response";
+        Result: Codeunit "AIOS Generate Result";
     begin
         if not TryGenerateText(Model, SystemMessage, Prompt, Response) then
             Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
-        exit(Response.GetText());
+        Result.SetFromResponse(Response);
+        exit(Result);
     end;
 
     /// <summary>
-    /// Generates text using a fully configured request. Raises an error if generation fails.
+    /// Generates text using a fully configured request. Returns result with Output and HTTP metadata. Raises an error if generation fails.
     /// </summary>
-    procedure GenerateText(Model: Interface "AIOS Language Model"; var Request: Record "AIOS Chat Request"): Text
+    procedure GenerateText(Model: Interface "AIOS Language Model"; var Request: Record "AIOS Chat Request"): Codeunit "AIOS Generate Result"
     var
         Response: Record "AIOS Chat Response";
+        Result: Codeunit "AIOS Generate Result";
         EmptyOutput: RecordRef;
     begin
         if not TryGenerate(Model, Request, Response, EmptyOutput) then
             Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
-        exit(Response.GetText());
+        Result.SetFromResponse(Response);
+        exit(Result);
     end;
 
     /// <summary>
-    /// Generates text and binds JSON into OutputRecRef (flat structured output). Raises an error if generation or binding fails.
+    /// Generates text and binds JSON into OutputRecRef (flat structured output). Returns result with Output and HTTP metadata. Raises an error if generation or binding fails.
     /// </summary>
-    procedure GenerateText(Model: Interface "AIOS Language Model"; var Request: Record "AIOS Chat Request"; var OutputRecRef: RecordRef): Text
+    procedure GenerateText(Model: Interface "AIOS Language Model"; var Request: Record "AIOS Chat Request"; var OutputRecRef: RecordRef): Codeunit "AIOS Generate Result"
     var
         Response: Record "AIOS Chat Response";
+        Result: Codeunit "AIOS Generate Result";
     begin
         if OutputRecRef.Number() = 0 then
             Error(OutputRecordMissingErr);
@@ -53,7 +58,8 @@ codeunit 87410 "AIOS Client"
             Request.SetOutput(OutputRecRef);
         if not TryGenerate(Model, Request, Response, OutputRecRef) then
             Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
-        exit(Response.GetText());
+        Result.SetFromResponse(Response);
+        exit(Result);
     end;
 
     /// <summary>

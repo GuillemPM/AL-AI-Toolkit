@@ -50,6 +50,7 @@ codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
         else
             Response.SetText(StrSubstNo(DefaultReplyTxt, Request.GetPrompt()));
 
+        Response.SetBody(Response.GetText());
         Response.ClearError();
         Response."Input Tokens" := StrLen(Request.GetPrompt());
         Response."Output Tokens" := StrLen(Response.GetText());

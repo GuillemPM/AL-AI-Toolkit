@@ -26,8 +26,29 @@ codeunit 87480 "AIOS Usage Example"
             Client.GenerateText(
                 OpenAI.Model('gpt-5.5', ApiKey),
                 'Say hello.'
-            )
+            ).Output()
         );
+    end;
+
+    /// <summary>
+    /// Mock demo — read output, raw body, and response headers from GenerateText result.
+    /// </summary>
+    procedure RunResponseMetadataDemo()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+        Headers: JsonObject;
+        HeadersText: Text;
+    begin
+        Mock.SetNextResponse('hello from mock');
+        Request.SetPrompt('ping');
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Headers := Result.Headers();
+        Headers.WriteTo(HeadersText);
+        Message(ResponseMetadataMsg, Result.Output(), Result.Body(), Result.HttpStatusCode(), HeadersText);
     end;
 
     /// <summary>
@@ -49,7 +70,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetPrompt('Feedback: Great product, but support felt pricey.');
         Request.SetOutput(RecRef);
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request, RecRef);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, RecRef).Output();
         RecRef.SetTable(Feedback, true);
         Message(StructuredMsg, Feedback.Sentiment, Feedback.Score, Feedback.Urgent, Feedback.Summary, Feedback.Topics, Result);
     end;
@@ -77,7 +98,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetPrompt('Describe Ada Lovelace briefly as structured data.');
         Request.SetOutput(Schema.Object(Fields));
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request).Output();
         Message(SchemaObjectMsg, Result);
     end;
 
@@ -102,7 +123,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetPrompt('Is the weather sunny, rainy, or snowy today?');
         Request.SetOutput(Schema.Choice(Options));
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request).Output();
         Message(SchemaChoiceMsg, Result);
     end;
 
@@ -130,7 +151,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetMaxTokens(256);
         Request.SetTimeout(60000);
 
-        Message(SuccessMsg, Client.GenerateText(Mock.Model('demo-model'), Request));
+        Message(SuccessMsg, Client.GenerateText(Mock.Model('demo-model'), Request).Output());
     end;
 
     /// <summary>
@@ -147,7 +168,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetPrompt('Feedback: Great product, but support felt pricey.');
         Request.SetOutput(Schema.Json());
 
-        Message(SuccessMsg, Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), Request));
+        Message(SuccessMsg, Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), Request).Output());
     end;
 
     /// <summary>
@@ -171,7 +192,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetMaxTokens(1024);
         Request.SetMaxRetries(2);
 
-        Message(SuccessMsg, Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), Request));
+        Message(SuccessMsg, Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), Request).Output());
     end;
 
     /// <summary>
@@ -190,7 +211,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetMaxTokens(32000);
         Request.SetMaxRetries(1);
 
-        Message(SuccessMsg, Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), Request));
+        Message(SuccessMsg, Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), Request).Output());
     end;
 
     /// <summary>
@@ -207,7 +228,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetPrompt('Feedback: Great product, but support felt pricey.');
         Request.SetOutput(Schema.Json());
 
-        Message(SuccessMsg, Client.GenerateText(OpenAI.Model('gpt-4.1-mini', ApiKey), Request));
+        Message(SuccessMsg, Client.GenerateText(OpenAI.Model('gpt-4.1-mini', ApiKey), Request).Output());
     end;
 
     /// <summary>
@@ -234,7 +255,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetMaxTokens(512);
         Request.SetMaxRetries(2);
 
-        Message(SuccessMsg, Client.GenerateText(OpenAI.Model('gpt-4.1-mini', ApiKey), Request));
+        Message(SuccessMsg, Client.GenerateText(OpenAI.Model('gpt-4.1-mini', ApiKey), Request).Output());
     end;
 
     /// <summary>
@@ -253,7 +274,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetMaxTokens(512);
         Request.SetMaxRetries(1);
 
-        Message(SuccessMsg, Client.GenerateText(OpenAI.Model('o4-mini', ApiKey), Request));
+        Message(SuccessMsg, Client.GenerateText(OpenAI.Model('o4-mini', ApiKey), Request).Output());
     end;
 
     /// <summary>
@@ -271,7 +292,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetPrompt('Feedback: Great product, but support felt pricey.');
         Request.SetOutput(Schema.Json());
 
-        Message(SuccessMsg, Client.GenerateText(Zen.Model('big-pickle', ApiKey), Request));
+        Message(SuccessMsg, Client.GenerateText(Zen.Model('big-pickle', ApiKey), Request).Output());
     end;
 
     /// <summary>
@@ -292,7 +313,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetMaxTokens(300);
         Request.SetMaxRetries(1);
 
-        Message(SuccessMsg, Client.GenerateText(Zen.Model('big-pickle', ApiKey), Request));
+        Message(SuccessMsg, Client.GenerateText(Zen.Model('big-pickle', ApiKey), Request).Output());
     end;
 
     /// <summary>
@@ -312,7 +333,7 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetPrompt('Feedback: Great product, but support felt pricey.');
         Request.SetOutput(RecRef);
 
-        Result := Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), Request, RecRef);
+        Result := Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), Request, RecRef).Output();
         RecRef.SetTable(Feedback, true);
         Message(StructuredMsg, Feedback.Sentiment, Feedback.Score, Feedback.Urgent, Feedback.Summary, Feedback.Topics, Result);
     end;
@@ -322,4 +343,5 @@ codeunit 87480 "AIOS Usage Example"
         StructuredMsg: Label 'Sentiment=%1 Score=%2 Urgent=%3 Summary=%4 Topics=%5 | Raw=%6', Comment = '%1 sentiment, %2 score, %3 urgent, %4 summary, %5 topics, %6 raw JSON';
         SchemaObjectMsg: Label '%1', Comment = '%1 = validated JSON object text';
         SchemaChoiceMsg: Label '%1', Comment = '%1 = validated choice string';
+        ResponseMetadataMsg: Label 'Text=%1 | Body=%2 | Status=%3 | Headers=%4', Comment = '%1 text, %2 raw body, %3 status, %4 headers JSON';
 }

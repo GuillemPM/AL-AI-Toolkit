@@ -251,7 +251,7 @@ table 87401 "AIOS Chat Request"
     /// <summary>
     /// Sets the output mode from a schema document. Object/Array/Choice/Json enable JSON mode and append a system hint.
     /// Text disables JSON mode and does not append a hint (same as omitting SetOutput).
-    /// Use with GenerateText(Model, Request). For Choice, GenerateText returns the result property as plain text.
+    /// Use with GenerateText(Model, Request). For Choice, Result.Output() is the result property as plain text.
     /// </summary>
     procedure SetOutput(SchemaText: Text)
     var

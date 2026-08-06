@@ -24,7 +24,7 @@ Applies to `/// <summary>`, procedure comments, ToolTips, AboutText, and RFC/API
 
 // GOOD — behavior only
 /// Object schema with a required result property constrained to Options.
-/// After validation, GenerateText returns the selected option as plain text.
+/// After validation, Result.Output() is the selected option as plain text.
 ```
 
 Prior-art citations belong only in ADR/RFC Alternatives or Motivation when documenting a design decision.

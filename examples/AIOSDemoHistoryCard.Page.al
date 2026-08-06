@@ -147,6 +147,25 @@ page 87486 "AIOS Demo History Card"
                     MultiLine = true;
                     ToolTip = 'Model output or structured summary.';
                 }
+                field("HTTP Status Code"; Rec."HTTP Status Code")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'HTTP status code from the provider response.';
+                }
+                field(ResponseBodyText; ResponseBodyText)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Response body';
+                    MultiLine = true;
+                    ToolTip = 'Raw HTTP response body from the provider.';
+                }
+                field(ResponseHeadersText; ResponseHeadersText)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Response headers';
+                    MultiLine = true;
+                    ToolTip = 'HTTP response headers from the provider as JSON.';
+                }
                 field("Error Type"; Rec."Error Type")
                 {
                     ApplicationArea = All;
@@ -167,6 +186,8 @@ page 87486 "AIOS Demo History Card"
         SystemText := Rec.GetSystemMessage();
         PromptText := Rec.GetPrompt();
         ResultText := Rec.GetResult();
+        ResponseBodyText := Rec.GetResponseBody();
+        ResponseHeadersText := Rec.GetResponseHeaders();
         DataCaptionTxt := StrSubstNo(DataCaptionLbl, Rec.Provider, Rec.Model, Rec."Created At");
     end;
 
@@ -174,6 +195,8 @@ page 87486 "AIOS Demo History Card"
         SystemText: Text;
         PromptText: Text;
         ResultText: Text;
+        ResponseBodyText: Text;
+        ResponseHeadersText: Text;
         DataCaptionTxt: Text;
         DataCaptionLbl: Label '%1 / %2 — %3', Comment = '%1 = provider, %2 = model, %3 = created at';
 }

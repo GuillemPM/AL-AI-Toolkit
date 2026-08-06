@@ -36,31 +36,26 @@ Object IDs: provisional **87400–87499**. Replace with an AppSource-assigned ra
 2. Ensure BC symbols are in `.alpackages` (Application 28.x).
 3. Open this folder and compile with ALC / the AL extension.
 
-Happy path — same shape as Vercel AI SDK’s `generateText({ model, prompt })` (returns text, Errors on failure):
+Happy path — `GenerateText` returns `"AIOS Generate Result"` (Errors on failure):
 
 ```al
 Anthropic: Codeunit "AIOS Anthropic";
 Client: Codeunit "AIOS Client";
+Result: Codeunit "AIOS Generate Result";
 ApiKey: SecretText;
 begin
     // Prefer loading into SecretText (Isolated Storage / setup) so the debugger never shows the key
-    Message(Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), 'Hello'));
+    Result := Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), 'Hello');
+    Message(Result.Output());
 end;
-```
-
-```ts
-// AI SDK equivalent
-const { text } = await generateText({
-  model: anthropic('claude-sonnet-4-5'),
-  prompt: 'Hello',
-});
 ```
 
 Shipped factories: `"AIOS Anthropic"`, `"AIOS OpenAI"`, `"AIOS OpenCode Zen"`, `"AIOS Mock"`. API keys are `SecretText` end-to-end (hidden in the debugger; HTTP headers use the SecretText overloads).
 
-- **Public:** `Client.GenerateText` — `(Model, Prompt)`, `(Model, System, Prompt)`, or `(Model, Request)` for options; returns `Text`, Errors on failure
-- **Structured output (preferred):** `Request.SetOutput(Schema.Object(Fields))` then `GenerateText(Model, Request)` — response JSON is validated. See [RFC 0003](docs/rfc/0003-output-schema.md)
-- **Flat record convenience:** `Request.SetOutput(RecRef)` then `GenerateText(Model, Request, RecRef)` — JSON fills bindable fields; raw JSON still returned as `Text`
+- **Public:** `Client.GenerateText` — `(Model, Prompt)`, `(Model, System, Prompt)`, or `(Model, Request)` for options; returns `"AIOS Generate Result"`, Errors on failure
+- **Result accessors:** `Result.Output()`, `Result.Body()`, `Result.Headers()`, `Result.HttpStatusCode()`, plus token / finish / provider helpers
+- **Structured output (preferred):** `Request.SetOutput(Schema.Object(Fields))` then `GenerateText(Model, Request)` — response JSON is validated; read `Result.Output()`. See [RFC 0003](docs/rfc/0003-output-schema.md)
+- **Flat record convenience:** `Request.SetOutput(RecRef)` then `GenerateText(Model, Request, RecRef)` — JSON fills bindable fields; raw JSON is on `Result.Output()`
 - **Internal** (this app only — tests / demo soft-fail): `TryGenerateText` / `TryGenerate`
 - Lifecycle Integration Events on `"AIOS Client"`: `OnBeforeGenerate`, `OnBeforeLanguageModelCall`, `OnAfterLanguageModelCall`, `OnAfterGenerate` (success only) — see [RFC 0001](docs/rfc/0001-lifecycle-callbacks.md)
 - Generate options + retries — see [RFC 0002](docs/rfc/0002-generate-options.md)

@@ -59,8 +59,8 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
         end;
 
         StatusCode := HttpResponse.HttpStatusCode();
-        Response."HTTP Status Code" := StatusCode;
         HttpResponse.Content.ReadAs(ResponseText);
+        Response.CaptureHttpResponse(HttpResponse, ResponseText);
 
         if not HttpResponse.IsSuccessStatusCode() then begin
             MapHttpError(StatusCode, ResponseText, Response);

@@ -24,14 +24,15 @@ Fields.Add(Schema.Field('address', Schema.Object(AddressFields)));
 Fields.Add(Schema.Field('tags', Schema.Array(Schema.String())));
 Request.SetOutput(Schema.Object(Fields));
 Result := Client.GenerateText(Model, Request);
+JsonText := Result.Output();
 ```
 
 ```al
 Request.SetOutput(Schema.Text()); // optional; same as omitting SetOutput
-Result := Client.GenerateText(Model, Request); // plain text, no JSON validation
+Result := Client.GenerateText(Model, Request); // Result.Output() is plain text, no JSON validation
 
 Request.SetOutput(Schema.Json());
-Result := Client.GenerateText(Model, Request); // any valid JSON text
+Result := Client.GenerateText(Model, Request); // Result.Output() is any valid JSON text
 ```
 
 Choice — root classification schema:
@@ -41,7 +42,7 @@ Options.Add('sunny');
 Options.Add('rainy');
 Options.Add('snowy');
 Request.SetOutput(Schema.Choice(Options));
-Result := Client.GenerateText(Model, Request); // plain string: rainy
+Result := Client.GenerateText(Model, Request); // Result.Output() is plain string: rainy
 ```
 
 Choice schema shape:
@@ -50,7 +51,7 @@ Choice schema shape:
 { "type": "object", "properties": { "result": { "type": "string", "enum": ["sunny","rainy","snowy"] } }, "required": ["result"], "additionalProperties": false }
 ```
 
-The model must return `{ "result": "rainy" }`. `GenerateText` returns the selected option as plain text.
+The model must return `{ "result": "rainy" }`. `Result.Output()` is the selected option as plain text.
 
 Nested fixed strings use `Enum`, not `Choice`:
 
@@ -83,11 +84,12 @@ Request.SetOutput(Schema.Object(Fields));
 
 ### Client
 
-- `GenerateText(Model, Request): Text` — when `HasOutputSchema()`, applies the output mode
+- `GenerateText(Model, Request): Codeunit "AIOS Generate Result"` — when `HasOutputSchema()`, applies the output mode; read text via `Result.Output()`
 - `Text()`: no validation (default behavior)
 - `Json()`: parse-only (valid JSON); shape is not checked
-- Choice: after validation, returns the `result` property as plain text
+- Choice: after validation, `Result.Output()` is the `result` property as plain text
 - RecRef bind path unchanged when `HasOutput()`
+- Result also exposes `Body()`, `Headers()`, `HttpStatusCode()`, and usage helpers
 
 ### Validator — `"AIOS Schema Validator"` (internal)
 
@@ -96,7 +98,7 @@ Subset: `type` (object | array | string | number | integer | boolean), `properti
 ## Drawbacks
 
 - Not full JSON Schema Draft compliance
-- Callers parse `Text` into `JsonToken` when they need a tree
+- Callers parse `Result.Output()` into `JsonToken` when they need a tree
 - Schema text is prompt-injected until native provider structured-output wiring (ADR-007 M9)
 
 ## Alternatives
@@ -109,7 +111,7 @@ Subset: `type` (object | array | string | number | integer | boolean), `properti
 
 ## Adoption / migration
 
-Additive for RecRef path. Prefer `SetOutput(Schema.Object(Fields))` + `GenerateText` for nested or array-rooted payloads. Use `SetOutput(Schema.Choice(Options))` for classification; treat `GenerateText` result as plain text. Use `Schema.Enum` inside `Field` for nested enums. Use `SetOutput(Schema.Json())` when any valid JSON is enough.
+Additive for RecRef path. Prefer `SetOutput(Schema.Object(Fields))` + `GenerateText` for nested or array-rooted payloads. Use `SetOutput(Schema.Choice(Options))` for classification; treat `Result.Output()` as plain text. Use `Schema.Enum` inside `Field` for nested enums. Use `SetOutput(Schema.Json())` when any valid JSON is enough.
 
 ## Unresolved questions
 

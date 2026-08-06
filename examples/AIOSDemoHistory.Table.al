@@ -61,6 +61,21 @@ table 87482 "AIOS Demo History"
             Caption = 'Result';
             DataClassification = CustomerContent;
         }
+        field(27; "Response Body"; Blob)
+        {
+            Caption = 'Response Body';
+            DataClassification = CustomerContent;
+        }
+        field(28; "Response Headers"; Blob)
+        {
+            Caption = 'Response Headers';
+            DataClassification = SystemMetadata;
+        }
+        field(29; "HTTP Status Code"; Integer)
+        {
+            Caption = 'HTTP Status Code';
+            DataClassification = SystemMetadata;
+        }
         field(25; "System Preview"; Text[250])
         {
             Caption = 'System (sent)';
@@ -305,6 +320,52 @@ table 87482 "AIOS Demo History"
         if Value = '' then
             exit;
         Result.CreateOutStream(OutStream, TextEncoding::UTF8);
+        OutStream.WriteText(Value);
+    end;
+
+    procedure GetResponseBody(): Text
+    var
+        TypeHelper: Codeunit "Type Helper";
+        InStream: InStream;
+    begin
+        CalcFields("Response Body");
+        if not "Response Body".HasValue then
+            exit('');
+        "Response Body".CreateInStream(InStream, TextEncoding::UTF8);
+        exit(TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator()));
+    end;
+
+    procedure SetResponseBody(Value: Text)
+    var
+        OutStream: OutStream;
+    begin
+        Clear("Response Body");
+        if Value = '' then
+            exit;
+        "Response Body".CreateOutStream(OutStream, TextEncoding::UTF8);
+        OutStream.WriteText(Value);
+    end;
+
+    procedure GetResponseHeaders(): Text
+    var
+        TypeHelper: Codeunit "Type Helper";
+        InStream: InStream;
+    begin
+        CalcFields("Response Headers");
+        if not "Response Headers".HasValue then
+            exit('');
+        "Response Headers".CreateInStream(InStream, TextEncoding::UTF8);
+        exit(TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator()));
+    end;
+
+    procedure SetResponseHeaders(Value: Text)
+    var
+        OutStream: OutStream;
+    begin
+        Clear("Response Headers");
+        if Value = '' then
+            exit;
+        "Response Headers".CreateOutStream(OutStream, TextEncoding::UTF8);
         OutStream.WriteText(Value);
     end;
 }

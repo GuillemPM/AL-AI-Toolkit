@@ -24,7 +24,7 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetPrompt('feedback');
         Request.SetOutput(RecRef);
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request, RecRef);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, RecRef).Output();
         RecRef.SetTable(Feedback, true);
 
         if Feedback.Sentiment <> 'positive' then
@@ -115,7 +115,7 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetPrompt('person');
         Request.SetOutput(Schema.Object(Fields));
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request).Output();
         if Result = '' then
             Error(ExpectedRawJsonErr);
         if not Root.ReadFrom(Result) then
@@ -157,7 +157,7 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetPrompt('list');
         Request.SetOutput(Schema.Array(Schema.Object(ItemFields)));
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request).Output();
         if not Root.ReadFrom(Result) then
             Error(ExpectedRawJsonErr);
         Arr := Root.AsArray();
@@ -202,7 +202,7 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetPrompt('say hello');
         Request.SetOutput(Schema.Text());
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request).Output();
         if Result <> 'hello world' then
             Error(UnexpectedTextErr, 'hello world', Result);
         if Request."Json Mode" then
@@ -223,7 +223,7 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetPrompt('json');
         Request.SetOutput(Schema.Json());
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request).Output();
         if Result <> '{"a":1,"b":[true,"x"]}' then
             Error(UnexpectedTextErr, '{"a":1,"b":[true,"x"]}', Result);
     end;
@@ -269,7 +269,7 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetPrompt('weather');
         Request.SetOutput(Schema.Choice(Options));
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request).Output();
         if Result <> 'rainy' then
             Error(UnexpectedTextErr, 'rainy', Result);
     end;
@@ -355,7 +355,7 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetPrompt('forecast');
         Request.SetOutput(Schema.Object(Fields));
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request).Output();
         if not Root.ReadFrom(Result) then
             Error(ExpectedRawJsonErr);
         RootObj := Root.AsObject();

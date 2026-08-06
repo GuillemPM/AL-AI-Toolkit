@@ -18,6 +18,7 @@ Current provisional range in `app.json`: **87400–87499**.
 | 87402 | AIOS Chat Response |
 | 87405 | AIOS Reasoning Effort |
 | 87410 | AIOS Client |
+| 87411 | AIOS Generate Result |
 | 87413 | AIOS Request Options |
 
 ### Provider adapters (87440–87459)
