@@ -51,6 +51,7 @@ Current provisional range in `app.json`: **87400–87499**.
 | 87461 | AIOS Json Binder |
 | 87462 | AIOS Schema |
 | 87463 | AIOS Schema Validator |
+| 87464 | AIOS Http Error Mapper |
 
 ### Examples / tests (87480–87499)
 

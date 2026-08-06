@@ -61,6 +61,52 @@ codeunit 87493 "AIOS Generate Options Tests"
     end;
 
     [Test]
+    procedure HttpErrorMapper_FromHttpStatus_MapsKnownCodes()
+    var
+        HttpErrors: Codeunit "AIOS Http Error Mapper";
+    begin
+        if HttpErrors.FromHttpStatus(401) <> "AIOS Error Type"::AuthenticationFailed then
+            Error(UnexpectedErrorMapErr, 401, 'AuthenticationFailed');
+        if HttpErrors.FromHttpStatus(403) <> "AIOS Error Type"::AuthenticationFailed then
+            Error(UnexpectedErrorMapErr, 403, 'AuthenticationFailed');
+        if HttpErrors.FromHttpStatus(429) <> "AIOS Error Type"::RateLimited then
+            Error(UnexpectedErrorMapErr, 429, 'RateLimited');
+        if HttpErrors.FromHttpStatus(400) <> "AIOS Error Type"::InvalidRequest then
+            Error(UnexpectedErrorMapErr, 400, 'InvalidRequest');
+        if HttpErrors.FromHttpStatus(404) <> "AIOS Error Type"::InvalidRequest then
+            Error(UnexpectedErrorMapErr, 404, 'InvalidRequest');
+        if HttpErrors.FromHttpStatus(422) <> "AIOS Error Type"::InvalidRequest then
+            Error(UnexpectedErrorMapErr, 422, 'InvalidRequest');
+        if HttpErrors.FromHttpStatus(408) <> "AIOS Error Type"::Timeout then
+            Error(UnexpectedErrorMapErr, 408, 'Timeout');
+        if HttpErrors.FromHttpStatus(504) <> "AIOS Error Type"::Timeout then
+            Error(UnexpectedErrorMapErr, 504, 'Timeout');
+        if HttpErrors.FromHttpStatus(500) <> "AIOS Error Type"::ProviderUnavailable then
+            Error(UnexpectedErrorMapErr, 500, 'ProviderUnavailable');
+        if HttpErrors.FromHttpStatus(502) <> "AIOS Error Type"::ProviderUnavailable then
+            Error(UnexpectedErrorMapErr, 502, 'ProviderUnavailable');
+        if HttpErrors.FromHttpStatus(503) <> "AIOS Error Type"::ProviderUnavailable then
+            Error(UnexpectedErrorMapErr, 503, 'ProviderUnavailable');
+        if HttpErrors.FromHttpStatus(418) <> "AIOS Error Type"::Unknown then
+            Error(UnexpectedErrorMapErr, 418, 'Unknown');
+    end;
+
+    [Test]
+    procedure HttpErrorMapper_PreviewBody_TruncatesTo250()
+    var
+        HttpErrors: Codeunit "AIOS Http Error Mapper";
+        LongText: Text;
+        i: Integer;
+    begin
+        for i := 1 to 300 do
+            LongText += 'a';
+        if StrLen(HttpErrors.PreviewBody(LongText)) <> 250 then
+            Error(UnexpectedIntErr, 250, StrLen(HttpErrors.PreviewBody(LongText)));
+        if HttpErrors.PreviewBody('short') <> 'short' then
+            Error(UnexpectedTextErr, 'short', HttpErrors.PreviewBody('short'));
+    end;
+
+    [Test]
     procedure SetTopP_SetsHasFlag()
     var
         Request: Record "AIOS Chat Request";
@@ -303,6 +349,7 @@ codeunit 87493 "AIOS Generate Options Tests"
         ExpectedSuccessErr: Label 'TryGenerate should succeed after retries.';
         ExpectedFailureErr: Label 'TryGenerate should return false.';
         UnexpectedErrorTypeErr: Label 'Expected RateLimited, got %1.', Comment = '%1 = actual';
+        UnexpectedErrorMapErr: Label 'Status %1 should map to %2.', Comment = '%1 = HTTP status, %2 = expected error type';
         UnexpectedTraceErr: Label 'Expected event trace ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
         ExpectedNoReasoningEffortErr: Label 'reasoning_effort should be omitted for ProviderDefault.';
         ExpectedThinkingErr: Label 'thinking object expected for Anthropic Medium reasoning.';

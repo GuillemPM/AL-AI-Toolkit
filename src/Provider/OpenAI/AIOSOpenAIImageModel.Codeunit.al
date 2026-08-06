@@ -32,6 +32,7 @@ codeunit 87448 "AIOS OpenAI Image Model" implements "AIOS Image Model"
 
     procedure GenerateImage(var Request: Record "AIOS Image Request"; var Response: Record "AIOS Image Response"): Boolean
     var
+        HttpErrors: Codeunit "AIOS Http Error Mapper";
         Client: HttpClient;
         HttpRequest: HttpRequestMessage;
         HttpResponse: HttpResponseMessage;
@@ -69,7 +70,7 @@ codeunit 87448 "AIOS OpenAI Image Model" implements "AIOS Image Model"
         Response.CaptureHttpResponse(HttpResponse, ResponseText);
 
         if not HttpResponse.IsSuccessStatusCode() then begin
-            MapHttpError(HttpResponse.HttpStatusCode(), ResponseText, Response);
+            HttpErrors.Apply(HttpResponse.HttpStatusCode(), ResponseText, Response);
             exit(false);
         end;
 
@@ -215,24 +216,6 @@ codeunit 87448 "AIOS OpenAI Image Model" implements "AIOS Image Model"
         Response.SetProviderMetadata(Root);
         Response.ClearError();
         exit(true);
-    end;
-
-    local procedure MapHttpError(StatusCode: Integer; ResponseText: Text; var Response: Record "AIOS Image Response")
-    begin
-        case StatusCode of
-            401, 403:
-                Response.SetError("AIOS Error Type"::AuthenticationFailed, CopyStr(ResponseText, 1, 250));
-            429:
-                Response.SetError("AIOS Error Type"::RateLimited, CopyStr(ResponseText, 1, 250));
-            400, 404, 422:
-                Response.SetError("AIOS Error Type"::InvalidRequest, CopyStr(ResponseText, 1, 250));
-            408, 504:
-                Response.SetError("AIOS Error Type"::Timeout, CopyStr(ResponseText, 1, 250));
-            500, 502, 503:
-                Response.SetError("AIOS Error Type"::ProviderUnavailable, CopyStr(ResponseText, 1, 250));
-            else
-                Response.SetError("AIOS Error Type"::Unknown, CopyStr(ResponseText, 1, 250));
-        end;
     end;
 
     var
