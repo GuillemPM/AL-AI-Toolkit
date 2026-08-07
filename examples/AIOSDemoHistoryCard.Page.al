@@ -58,12 +58,17 @@ page 87486 "AIOS Demo History Card"
                 field("Input Tokens"; Rec."Input Tokens")
                 {
                     ApplicationArea = All;
-                    ToolTip = 'Reported input tokens, when available.';
+                    ToolTip = 'Total input tokens across all model steps, when available.';
                 }
                 field("Output Tokens"; Rec."Output Tokens")
                 {
                     ApplicationArea = All;
-                    ToolTip = 'Reported output tokens, when available.';
+                    ToolTip = 'Total output tokens across all model steps, when available.';
+                }
+                field("Step Count"; Rec."Step Count")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Number of language-model HTTP calls (tool-loop steps and retries).';
                 }
             }
             group(RequestOptions)
@@ -171,6 +176,13 @@ page 87486 "AIOS Demo History Card"
                     MultiLine = true;
                     ToolTip = 'HTTP response headers from the provider as JSON.';
                 }
+                field(ResponseCallsText; ResponseCallsText)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Model calls';
+                    MultiLine = true;
+                    ToolTip = 'JSON array of each language-model HTTP call (steps, tokens, bodies).';
+                }
                 field("Error Type"; Rec."Error Type")
                 {
                     ApplicationArea = All;
@@ -201,6 +213,7 @@ page 87486 "AIOS Demo History Card"
         ResultText := Rec.GetResult();
         ResponseBodyText := Rec.GetResponseBody();
         ResponseHeadersText := Rec.GetResponseHeaders();
+        ResponseCallsText := Rec.GetResponseCallsJson();
         DataCaptionTxt := StrSubstNo(DataCaptionLbl, Rec.Provider, Rec.Model, Rec."Created At");
     end;
 
@@ -210,6 +223,7 @@ page 87486 "AIOS Demo History Card"
         ResultText: Text;
         ResponseBodyText: Text;
         ResponseHeadersText: Text;
+        ResponseCallsText: Text;
         DataCaptionTxt: Text;
         DataCaptionLbl: Label '%1 / %2 — %3', Comment = '%1 = provider, %2 = model, %3 = created at';
 }

@@ -17,7 +17,7 @@ page 87481 "AIOS Toolkit Demo"
     UsageCategory = Tasks;
     AdditionalSearchTerms = 'AI, LLM, mock, toolkit, openai, anthropic, alaidemo, provider, image, dalle';
     AboutTitle = 'AIOS Toolkit Demo';
-    AboutText = 'Pick a provider, model, and API key, then Generate text or Generate image(s). Image generation works with Mock and OpenAI.';
+    AboutText = 'Pick a provider, model, and API key, then Generate text or Generate image(s). Generate with tools calls a live model with the get_customer_list tool (Business Central data). Image generation works with Mock and OpenAI.';
 
     layout
     {
@@ -464,6 +464,18 @@ page 87481 "AIOS Toolkit Demo"
                     RunGenerateChoice();
                 end;
             }
+            action(GenerateWithTools)
+            {
+                ApplicationArea = All;
+                Caption = 'Generate with tools';
+                Image = Setup;
+                ToolTip = 'Calls a live model with the get_customer_list tool (reads Customer table). Requires Anthropic, OpenAI, or OpenCode Zen—not Mock.';
+
+                trigger OnAction()
+                begin
+                    RunGenerateWithTools();
+                end;
+            }
             action(GenerateImage)
             {
                 ApplicationArea = All;
@@ -534,6 +546,7 @@ page 87481 "AIOS Toolkit Demo"
             actionref(GenerateStructured_Promoted; GenerateStructured) { }
             actionref(GenerateJson_Promoted; GenerateJson) { }
             actionref(GenerateChoice_Promoted; GenerateChoice) { }
+            actionref(GenerateWithTools_Promoted; GenerateWithTools) { }
             actionref(GenerateImage_Promoted; GenerateImage) { }
             actionref(GenerateImages_Promoted; GenerateImages) { }
             actionref(ReuseSelected_Promoted; ReuseSelected) { }
@@ -581,6 +594,7 @@ page 87481 "AIOS Toolkit Demo"
         TimeoutMs := 120000;
         MaxRetries := 2;
         UseMaxRetries := true;
+        ToolMaxSteps := 5;
         SaveSettings();
     end;
 
@@ -635,7 +649,7 @@ page 87481 "AIOS Toolkit Demo"
         Ok := Client.TryGenerate(Model, Request, Response);
         ApplyResponseToPage(Ok, Response);
 
-        LogHistory(SoftFail, Ok, Request, Response);
+        LogHistory(SoftFail, Ok, Client, Request, Response);
         CurrPage.HistoryPart.Page.Reload();
         CurrPage.Update(false);
 
@@ -677,7 +691,7 @@ page 87481 "AIOS Toolkit Demo"
         Ok := Client.TryGenerate(Model, Request, Response);
         ApplyResponseToPage(Ok, Response);
 
-        LogHistory(false, Ok, Request, Response);
+        LogHistory(false, Ok, Client, Request, Response);
         CurrPage.HistoryPart.Page.Reload();
         CurrPage.Update(false);
 
@@ -712,7 +726,7 @@ page 87481 "AIOS Toolkit Demo"
         Ok := Client.TryGenerate(Model, Request, Response);
         ApplyResponseToPage(Ok, Response);
 
-        LogHistory(false, Ok, Request, Response);
+        LogHistory(false, Ok, Client, Request, Response);
         CurrPage.HistoryPart.Page.Reload();
         CurrPage.Update(false);
 
@@ -755,7 +769,50 @@ page 87481 "AIOS Toolkit Demo"
         Ok := Client.TryGenerate(Model, Request, Response);
         ApplyResponseToPage(Ok, Response);
 
-        LogHistory(false, Ok, Request, Response);
+        LogHistory(false, Ok, Client, Request, Response);
+        CurrPage.HistoryPart.Page.Reload();
+        CurrPage.Update(false);
+
+        if not Ok then
+            Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
+    end;
+
+    local procedure RunGenerateWithTools()
+    var
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        GetCustomers: Codeunit "AIOS Get Customers Tool";
+        Request: Record "AIOS Chat Request";
+        Response: Record "AIOS Chat Response";
+        Model: Interface "AIOS Language Model";
+        EmptyOutput: RecordRef;
+        Ok: Boolean;
+    begin
+        if SelectedProvider = SelectedProvider::Mock then
+            Error(ToolLiveProviderRequiredErr);
+        if ModelId = '' then
+            Error(ModelRequiredErr);
+        if ApiKeyText = '' then
+            Error(ApiKeyRequiredErr);
+        if UserPrompt = '' then
+            Error(ToolPromptRequiredErr);
+
+        SaveSettings();
+
+        if ToolMaxSteps < 1 then
+            ToolMaxSteps := 5;
+
+        Model := BindSelectedModelForTools();
+        ToolSet.Register(GetCustomers.ToolName(), GetCustomers.ToolDescription(), GetCustomers.ToolInputSchema());
+        ToolSet.SetHandler(GetCustomers);
+        BuildRequest(Request);
+        if DelChr(SystemPrompt, '<>', ' ') = '' then
+            Request.SetSystemMessage(ToolDefaultSystemTok);
+
+        Ok := Client.TryGenerateWithTools(Model, Request, ToolSet, ToolMaxSteps, Response, EmptyOutput);
+        ApplyResponseToPage(Ok, Response);
+
+        LogHistory(false, Ok, Client, Request, Response);
         CurrPage.HistoryPart.Page.Reload();
         CurrPage.Update(false);
 
@@ -949,10 +1006,30 @@ page 87481 "AIOS Toolkit Demo"
         end;
     end;
 
-    local procedure LogHistory(SoftFail: Boolean; Ok: Boolean; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure LogHistory(SoftFail: Boolean; Ok: Boolean; Client: Codeunit "AIOS Client"; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
     var
         History: Record "AIOS Demo History";
+        Calls: List of [Codeunit "AIOS Chat Response Call"];
+        CallCU: Codeunit "AIOS Chat Response Call";
+        CallsArr: JsonArray;
+        CallsJson: Text;
+        TotalInput: Integer;
+        TotalOutput: Integer;
+        i: Integer;
     begin
+        Calls := Client.GetChatResponseCalls();
+        for i := 1 to Calls.Count() do begin
+            Calls.Get(i, CallCU);
+            CallsArr.Add(CallCU.ToJson());
+            TotalInput += CallCU.GetInputTokens();
+            TotalOutput += CallCU.GetOutputTokens();
+        end;
+        if Calls.Count() = 0 then begin
+            TotalInput := Response."Input Tokens";
+            TotalOutput := Response."Output Tokens";
+        end else
+            CallsArr.WriteTo(CallsJson);
+
         History.Init();
         History."Created At" := CurrentDateTime();
         History."User ID" := CopyStr(UserId(), 1, MaxStrLen(History."User ID"));
@@ -964,6 +1041,8 @@ page 87481 "AIOS Toolkit Demo"
         History.SetResult(LastResult);
         History.SetResponseBody(LastResponseBody);
         History.SetResponseHeaders(LastResponseHeaders);
+        History.SetResponseCallsJson(CallsJson);
+        History."Step Count" := Calls.Count();
         History."HTTP Status Code" := LastHttpStatus;
         History."JSON Mode" := Request."Json Mode";
         History.Temperature := Temperature;
@@ -990,8 +1069,8 @@ page 87481 "AIOS Toolkit Demo"
             History."Error Type" := Response.GetErrorType();
             History."Error Message" := Response."Error Message";
         end;
-        History."Input Tokens" := Response."Input Tokens";
-        History."Output Tokens" := Response."Output Tokens";
+        History."Input Tokens" := TotalInput;
+        History."Output Tokens" := TotalOutput;
         History.Insert(true);
         Commit();
     end;
@@ -1136,6 +1215,27 @@ page 87481 "AIOS Toolkit Demo"
         end;
     end;
 
+    local procedure BindSelectedModelForTools(): Interface "AIOS Language Model"
+    var
+        Anthropic: Codeunit "AIOS Anthropic";
+        OpenAI: Codeunit "AIOS OpenAI";
+        Zen: Codeunit "AIOS OpenCode Zen";
+        ApiKey: SecretText;
+    begin
+        ApiKey := ApiKeyText;
+
+        case SelectedProvider of
+            SelectedProvider::Mock:
+                exit(MockProvider.Model(ModelId));
+            SelectedProvider::Anthropic:
+                exit(Anthropic.Model(ModelId, ApiKey));
+            SelectedProvider::OpenAI:
+                exit(OpenAI.Model(ModelId, ApiKey));
+            SelectedProvider::"OpenCode Zen":
+                exit(Zen.Model(ModelId, ApiKey));
+        end;
+    end;
+
     local procedure SaveSettings()
     var
         Settings: JsonObject;
@@ -1265,6 +1365,8 @@ page 87481 "AIOS Toolkit Demo"
             end;
         if ImageCount < 1 then
             ImageCount := 3;
+        if ToolMaxSteps < 1 then
+            ToolMaxSteps := 5;
 
         exit(true);
     end;
@@ -1310,6 +1412,7 @@ page 87481 "AIOS Toolkit Demo"
         TimeoutMs: Integer;
         MaxRetries: Integer;
         UseMaxRetries: Boolean;
+        ToolMaxSteps: Integer;
         ApiKeyEditable: Boolean;
         SettingsKeyTok: Label 'AIToolkitDemo.Settings', Locked = true;
         ApiKeyKeyTok: Label 'AIToolkitDemo.ApiKey', Locked = true;
@@ -1323,6 +1426,9 @@ page 87481 "AIOS Toolkit Demo"
         JsonPromptRequiredErr: Label 'Enter a prompt before generate JSON.';
         ChoicePromptRequiredErr: Label 'Enter a prompt before generate choice.';
         ChoiceOptionsRequiredErr: Label 'Enter at least one choice option (comma-separated).';
+        ToolPromptRequiredErr: Label 'Enter a prompt before generate with tools (for example: List our customers and highlight the first five).';
+        ToolLiveProviderRequiredErr: Label 'Generate with tools requires a live provider (Anthropic, OpenAI, or OpenCode Zen), not Mock.';
+        ToolDefaultSystemTok: Label 'You can call get_customer_list to read customers from Business Central. Summarize tool results for the user.';
         ImagePromptRequiredErr: Label 'Enter a prompt before generating images.';
         ImageProviderUnsupportedErr: Label 'Image generation is not available for %1. Use Mock or OpenAI.', Comment = '%1 = provider name';
         ImageResultMsg: Label 'Generated %1 image(s). Usage images=%2. HTTP %3.', Comment = '%1 = list count, %2 = usage count, %3 = status';

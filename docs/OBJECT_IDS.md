@@ -22,11 +22,19 @@ Current provisional range in `app.json`: **87400–87499**.
 | 87406 | AIOS Image Model (interface) |
 | 87407 | AIOS Generated Image |
 | 87408 | AIOS Image Response Call |
+| 87409 | AIOS Chat Response Call |
 | 87410 | AIOS Client |
 | 87411 | AIOS Generate Result |
 | 87412 | AIOS Generate Image Result |
 | 87413 | AIOS Request Options |
 | 87414 | AIOS Image Usage |
+| 87415 | AIOS Tool (interface) |
+| 87416 | AIOS Tool Call |
+| 87417 | AIOS Tool Set |
+| 87418 | AIOS OpenAI Compatible Format |
+| 87419 | AIOS Anthropic Format |
+| — | AIOS Chat Format (interface) |
+| — | AIOS Tool Handler (interface) |
 
 ### Provider adapters (87440–87459)
 
@@ -64,6 +72,7 @@ Current provisional range in `app.json`: **87400–87499**.
 | 87484 | AIOS Lifecycle Example |
 | 87485 | AIOS Feedback Buffer |
 | 87486 | AIOS Demo History Card |
+| 87487 | AIOS Demo Tool Handler |
 | 87489 | AIOS Demo History Picture (factbox) |
 | 87490 | AIOS Mock Tests |
 | 87491 | AIOS Lifecycle Tests |
@@ -72,5 +81,8 @@ Current provisional range in `app.json`: **87400–87499**.
 | 87494 | AIOS Structured Output Tests |
 | 87495 | AIOS Image Tests |
 | 87496 | AIOS Test Bind Target |
+| 87497 | AIOS Tool Tests |
+| 87498 | AIOS Echo Tool |
+| 87499 | AIOS Get Customers Tool |
 
 Before AppSource publication, replace this range with an assigned ID range and update this file.

@@ -66,12 +66,17 @@ page 87483 "AIOS Demo History"
                 field("Input Tokens"; Rec."Input Tokens")
                 {
                     ApplicationArea = All;
-                    ToolTip = 'Reported input tokens, when available.';
+                    ToolTip = 'Total input tokens across all model steps, when available.';
                 }
                 field("Output Tokens"; Rec."Output Tokens")
                 {
                     ApplicationArea = All;
-                    ToolTip = 'Reported output tokens, when available.';
+                    ToolTip = 'Total output tokens across all model steps, when available.';
+                }
+                field("Step Count"; Rec."Step Count")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Number of language-model HTTP calls (tool-loop steps and retries).';
                 }
                 field("Soft Fail"; Rec."Soft Fail")
                 {

@@ -26,6 +26,17 @@ codeunit 87411 "AIOS Generate Result"
         FinishReason := Response."Finish Reason";
         ProviderName := Response."Provider Name";
         WarningsArray := Response.GetWarnings();
+        ToolCallsList := Response.GetToolCalls();
+        RecalcTotalsFromCalls();
+    end;
+
+    /// <summary>
+    /// Attaches per-step language-model HTTP calls (tool loop / retries).
+    /// </summary>
+    procedure SetResponseCalls(Calls: List of [Codeunit "AIOS Chat Response Call"])
+    begin
+        ResponseCallList := Calls;
+        RecalcTotalsFromCalls();
     end;
 
     /// <summary>
@@ -37,7 +48,39 @@ codeunit 87411 "AIOS Generate Result"
     end;
 
     /// <summary>
-    /// Raw HTTP response body from the provider.
+    /// True when the model requested one or more tool calls.
+    /// </summary>
+    procedure HasToolCalls(): Boolean
+    begin
+        exit(ToolCallsList.Count() > 0);
+    end;
+
+    /// <summary>
+    /// Tool calls from the model (empty when the response was plain text).
+    /// </summary>
+    procedure GetToolCalls(): List of [Codeunit "AIOS Tool Call"]
+    begin
+        exit(ToolCallsList);
+    end;
+
+    /// <summary>
+    /// One entry per language-model HTTP call (including retries and tool-loop steps).
+    /// </summary>
+    procedure GetResponseCalls(): List of [Codeunit "AIOS Chat Response Call"]
+    begin
+        exit(ResponseCallList);
+    end;
+
+    /// <summary>
+    /// Number of language-model HTTP calls recorded for this generation.
+    /// </summary>
+    procedure GetStepCount(): Integer
+    begin
+        exit(ResponseCallList.Count());
+    end;
+
+    /// <summary>
+    /// Raw HTTP response body from the provider (last step).
     /// </summary>
     procedure Body(): Text
     begin
@@ -45,7 +88,7 @@ codeunit 87411 "AIOS Generate Result"
     end;
 
     /// <summary>
-    /// HTTP response headers as a JSON object.
+    /// HTTP response headers as a JSON object (last step).
     /// </summary>
     procedure Headers(): JsonObject
     var
@@ -59,7 +102,7 @@ codeunit 87411 "AIOS Generate Result"
     end;
 
     /// <summary>
-    /// HTTP status code from the provider response.
+    /// HTTP status code from the provider response (last step).
     /// </summary>
     procedure HttpStatusCode(): Integer
     begin
@@ -67,7 +110,7 @@ codeunit 87411 "AIOS Generate Result"
     end;
 
     /// <summary>
-    /// Reported input token count, when available.
+    /// Input tokens for the last step (use GetTotalInputTokens for the full run).
     /// </summary>
     procedure GetInputTokens(): Integer
     begin
@@ -75,7 +118,7 @@ codeunit 87411 "AIOS Generate Result"
     end;
 
     /// <summary>
-    /// Reported output token count, when available.
+    /// Output tokens for the last step (use GetTotalOutputTokens for the full run).
     /// </summary>
     procedure GetOutputTokens(): Integer
     begin
@@ -83,7 +126,23 @@ codeunit 87411 "AIOS Generate Result"
     end;
 
     /// <summary>
-    /// Provider finish reason, when available.
+    /// Sum of input tokens across all recorded model calls.
+    /// </summary>
+    procedure GetTotalInputTokens(): Integer
+    begin
+        exit(TotalInputTokens);
+    end;
+
+    /// <summary>
+    /// Sum of output tokens across all recorded model calls.
+    /// </summary>
+    procedure GetTotalOutputTokens(): Integer
+    begin
+        exit(TotalOutputTokens);
+    end;
+
+    /// <summary>
+    /// Provider finish reason, when available (last step).
     /// </summary>
     procedure GetFinishReason(): Text
     begin
@@ -106,8 +165,29 @@ codeunit 87411 "AIOS Generate Result"
         exit(WarningsArray);
     end;
 
+    local procedure RecalcTotalsFromCalls()
+    var
+        CallCU: Codeunit "AIOS Chat Response Call";
+        i: Integer;
+    begin
+        TotalInputTokens := 0;
+        TotalOutputTokens := 0;
+        if ResponseCallList.Count() = 0 then begin
+            TotalInputTokens := InputTokens;
+            TotalOutputTokens := OutputTokens;
+            exit;
+        end;
+        for i := 1 to ResponseCallList.Count() do begin
+            ResponseCallList.Get(i, CallCU);
+            TotalInputTokens += CallCU.GetInputTokens();
+            TotalOutputTokens += CallCU.GetOutputTokens();
+        end;
+    end;
+
     var
         WarningsArray: JsonArray;
+        ToolCallsList: List of [Codeunit "AIOS Tool Call"];
+        ResponseCallList: List of [Codeunit "AIOS Chat Response Call"];
         OutputText: Text;
         BodyText: Text;
         HeadersText: Text;
@@ -116,4 +196,6 @@ codeunit 87411 "AIOS Generate Result"
         StatusCode: Integer;
         InputTokens: Integer;
         OutputTokens: Integer;
+        TotalInputTokens: Integer;
+        TotalOutputTokens: Integer;
 }

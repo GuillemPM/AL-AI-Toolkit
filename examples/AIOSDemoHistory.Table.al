@@ -217,6 +217,16 @@ table 87482 "AIOS Demo History"
             Caption = 'Has Max Retries';
             DataClassification = SystemMetadata;
         }
+        field(74; "Step Count"; Integer)
+        {
+            Caption = 'Step Count';
+            DataClassification = SystemMetadata;
+        }
+        field(75; "Response Calls"; Blob)
+        {
+            Caption = 'Response Calls';
+            DataClassification = CustomerContent;
+        }
         field(80; Pictures; MediaSet)
         {
             Caption = 'Pictures';
@@ -351,6 +361,32 @@ table 87482 "AIOS Demo History"
             exit;
         "Response Body".CreateOutStream(OutStream, TextEncoding::UTF8);
         WriteLongText(OutStream, Value);
+    end;
+
+    /// <summary>
+    /// Stores per-step model call diagnostics as a JSON array.
+    /// </summary>
+    procedure SetResponseCallsJson(CallsJson: Text)
+    var
+        OutStream: OutStream;
+    begin
+        Clear("Response Calls");
+        if CallsJson = '' then
+            exit;
+        "Response Calls".CreateOutStream(OutStream, TextEncoding::UTF8);
+        WriteLongText(OutStream, CallsJson);
+    end;
+
+    procedure GetResponseCallsJson(): Text
+    var
+        TypeHelper: Codeunit "Type Helper";
+        InStream: InStream;
+    begin
+        CalcFields("Response Calls");
+        if not "Response Calls".HasValue then
+            exit('');
+        "Response Calls".CreateInStream(InStream, TextEncoding::UTF8);
+        exit(TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator()));
     end;
 
     /// <summary>

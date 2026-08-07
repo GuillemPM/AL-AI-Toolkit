@@ -74,25 +74,31 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
     local procedure BuildRequestBody(var Request: Record "AIOS Chat Request"; var Warnings: JsonArray): Text
     var
         RequestOptions: Codeunit "AIOS Request Options";
+        FormatCU: Codeunit "AIOS OpenAI Compatible Format";
+        ChatFormat: Interface "AIOS Chat Format";
         Root: JsonObject;
         Messages: JsonArray;
         SystemMessage: JsonObject;
         UserMessage: JsonObject;
         ResponseFormat: JsonObject;
+        ToolDefs: JsonArray;
         SystemText: Text;
         Body: Text;
     begin
-        SystemText := Request.GetEffectiveSystemMessage();
-
-        if SystemText <> '' then begin
-            SystemMessage.Add('role', 'system');
-            SystemMessage.Add('content', SystemText);
-            Messages.Add(SystemMessage);
+        ChatFormat := FormatCU;
+        if Request.HasMessages() then
+            Messages := ChatFormat.MapMessages(Request.GetMessages())
+        else begin
+            SystemText := Request.GetEffectiveSystemMessage();
+            if SystemText <> '' then begin
+                SystemMessage.Add('role', 'system');
+                SystemMessage.Add('content', SystemText);
+                Messages.Add(SystemMessage);
+            end;
+            UserMessage.Add('role', 'user');
+            UserMessage.Add('content', Request.GetPrompt());
+            Messages.Add(UserMessage);
         end;
-
-        UserMessage.Add('role', 'user');
-        UserMessage.Add('content', Request.GetPrompt());
-        Messages.Add(UserMessage);
 
         Root.Add('model', BoundModelId);
         Root.Add('messages', Messages);
@@ -104,6 +110,9 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
             ResponseFormat.Add('type', 'json_object');
             Root.Add('response_format', ResponseFormat);
         end;
+        ToolDefs := Request.GetToolDefinitions();
+        if ToolDefs.Count() > 0 then
+            Root.Add('tools', ChatFormat.MapTools(ToolDefs));
         RequestOptions.ApplyOpenAICompatible(Root, Request, Warnings);
 
         Root.WriteTo(Body);
@@ -112,6 +121,8 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
 
     local procedure ParseSuccess(ResponseText: Text; var Response: Record "AIOS Chat Response"): Boolean
     var
+        FormatCU: Codeunit "AIOS OpenAI Compatible Format";
+        ChatFormat: Interface "AIOS Chat Format";
         Root: JsonObject;
         ChoicesToken: JsonToken;
         Choices: JsonArray;
@@ -125,7 +136,9 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
         FinishReasonToken: JsonToken;
         ContentText: Text;
         FinishReason: Text;
+        ToolCallsArr: JsonArray;
     begin
+        ChatFormat := FormatCU;
         if not Root.ReadFrom(ResponseText) then begin
             Response.SetError("AIOS Error Type"::ParseFailed, InvalidJsonErr);
             exit(false);
@@ -154,13 +167,17 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
         end;
 
         MessageObj := MessageToken.AsObject();
-        if not MessageObj.Get('content', ContentToken) then begin
-            Response.SetError("AIOS Error Type"::ParseFailed, MissingContentErr);
-            exit(false);
-        end;
+        if MessageObj.Get('content', ContentToken) then
+            if not ContentToken.AsValue().IsNull() then
+                ContentText := ContentToken.AsValue().AsText();
 
-        if not ContentToken.AsValue().IsNull() then
-            ContentText := ContentToken.AsValue().AsText();
+        if MessageObj.Get('reasoning_content', ContentToken) then
+            if not ContentToken.AsValue().IsNull() then
+                Response.SetReasoningContent(ContentToken.AsValue().AsText());
+
+        ToolCallsArr := ChatFormat.ParseToolCalls(MessageToken);
+        if ToolCallsArr.Count() > 0 then
+            Response.SetToolCallsJson(ToolCallsArr);
 
         if Root.Get('usage', UsageToken) then begin
             Usage := UsageToken.AsObject();
@@ -170,7 +187,7 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
                 Response."Output Tokens" := ContentToken.AsValue().AsInteger();
         end;
 
-        if ContentText = '' then begin
+        if (ContentText = '') and (not Response.HasToolCalls()) then begin
             if FinishReason = 'length' then
                 Response.SetError("AIOS Error Type"::InvalidRequest, EmptyDueToMaxTokensErr)
             else

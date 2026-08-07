@@ -75,22 +75,32 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
     local procedure BuildRequestBody(var Request: Record "AIOS Chat Request"; var Warnings: JsonArray): Text
     var
         RequestOptions: Codeunit "AIOS Request Options";
+        FormatCU: Codeunit "AIOS Anthropic Format";
+        ChatFormat: Interface "AIOS Chat Format";
         Root: JsonObject;
         Messages: JsonArray;
         UserMessage: JsonObject;
+        ToolDefs: JsonArray;
         SystemText: Text;
         Body: Text;
         MaxTokens: Integer;
     begin
+        ChatFormat := FormatCU;
         MaxTokens := Request."Max Tokens";
         if MaxTokens <= 0 then
             MaxTokens := 4096;
 
-        SystemText := Request.GetEffectiveSystemMessage();
-
-        UserMessage.Add('role', 'user');
-        UserMessage.Add('content', Request.GetPrompt());
-        Messages.Add(UserMessage);
+        if Request.HasMessages() then begin
+            Messages := ChatFormat.MapMessages(Request.GetMessages());
+            SystemText := ChatFormat.GetSystemText(Request.GetMessages());
+            if SystemText = '' then
+                SystemText := Request.GetEffectiveSystemMessage();
+        end else begin
+            SystemText := Request.GetEffectiveSystemMessage();
+            UserMessage.Add('role', 'user');
+            UserMessage.Add('content', Request.GetPrompt());
+            Messages.Add(UserMessage);
+        end;
 
         Root.Add('model', BoundModelId);
         Root.Add('max_tokens', MaxTokens);
@@ -99,6 +109,9 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
         Root.Add('messages', Messages);
         if Request."Has Temperature" then
             Root.Add('temperature', Request.Temperature);
+        ToolDefs := Request.GetToolDefinitions();
+        if ToolDefs.Count() > 0 then
+            Root.Add('tools', ChatFormat.MapTools(ToolDefs));
         RequestOptions.ApplyAnthropic(Root, Request, Warnings);
 
         Root.WriteTo(Body);
@@ -107,6 +120,8 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
 
     local procedure ParseSuccess(ResponseText: Text; var Response: Record "AIOS Chat Response"): Boolean
     var
+        FormatCU: Codeunit "AIOS Anthropic Format";
+        ChatFormat: Interface "AIOS Chat Format";
         Root: JsonObject;
         ContentToken: JsonToken;
         ContentArray: JsonArray;
@@ -115,10 +130,12 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
         TextToken: JsonToken;
         UsageToken: JsonToken;
         Usage: JsonObject;
+        ToolCalls: JsonArray;
         BlockType: Text;
         ContentText: Text;
         i: Integer;
     begin
+        ChatFormat := FormatCU;
         if not Root.ReadFrom(ResponseText) then begin
             Response.SetError("AIOS Error Type"::ParseFailed, InvalidJsonErr);
             exit(false);
@@ -142,6 +159,10 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
                     ContentText += TextToken.AsValue().AsText();
         end;
 
+        ToolCalls := ChatFormat.ParseToolCalls(ContentToken);
+        if ToolCalls.Count() > 0 then
+            Response.SetToolCallsJson(ToolCalls);
+
         if Root.Get('stop_reason', TextToken) then
             Response."Finish Reason" := CopyStr(TextToken.AsValue().AsText(), 1, MaxStrLen(Response."Finish Reason"));
 
@@ -153,7 +174,7 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
                 Response."Output Tokens" := TextToken.AsValue().AsInteger();
         end;
 
-        if ContentText = '' then begin
+        if (ContentText = '') and (not Response.HasToolCalls()) then begin
             if Response."Finish Reason" = 'max_tokens' then
                 Response.SetError("AIOS Error Type"::InvalidRequest, EmptyDueToMaxTokensErr)
             else

@@ -149,6 +149,16 @@ table 87401 "AIOS Chat Request"
             Caption = 'Has Output Schema';
             DataClassification = SystemMetadata;
         }
+        field(60; Messages; Blob)
+        {
+            Caption = 'Messages';
+            DataClassification = CustomerContent;
+        }
+        field(61; Tools; Blob)
+        {
+            Caption = 'Tools';
+            DataClassification = SystemMetadata;
+        }
     }
 
     keys
@@ -548,6 +558,235 @@ table 87401 "AIOS Chat Request"
     procedure HasStopSequences(): Boolean
     begin
         exit(GetStopSequences().Count() > 0);
+    end;
+
+    /// <summary>
+    /// Copies tool definitions from ToolSet onto this request for provider HTTP.
+    /// </summary>
+    procedure SetTools(ToolSet: Codeunit "AIOS Tool Set")
+    begin
+        SetToolDefinitions(ToolSet.GetDefinitions());
+    end;
+
+    /// <summary>
+    /// Stores neutral tool definitions JSON on the request (name, description, parameters).
+    /// </summary>
+    procedure SetToolDefinitions(Definitions: JsonArray)
+    var
+        OutStream: OutStream;
+        Text: Text;
+    begin
+        Clear(Tools);
+        if Definitions.Count() = 0 then
+            exit;
+        Definitions.WriteTo(Text);
+        Tools.CreateOutStream(OutStream, TextEncoding::UTF8);
+        OutStream.WriteText(Text);
+    end;
+
+    /// <summary>
+    /// Tool definitions sent to the provider when non-empty.
+    /// </summary>
+    procedure GetToolDefinitions(): JsonArray
+    var
+        TypeHelper: Codeunit "Type Helper";
+        InStream: InStream;
+        Definitions: JsonArray;
+        Text: Text;
+    begin
+        if not Tools.HasValue then
+            exit(Definitions);
+        Tools.CreateInStream(InStream, TextEncoding::UTF8);
+        Text := TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator());
+        if Text = '' then
+            exit(Definitions);
+        if not Definitions.ReadFrom(Text) then
+            Clear(Definitions);
+        exit(Definitions);
+    end;
+
+    /// <summary>
+    /// True when at least one tool definition is stored on the request.
+    /// </summary>
+    procedure HasTools(): Boolean
+    begin
+        exit(GetToolDefinitions().Count() > 0);
+    end;
+
+    /// <summary>
+    /// Removes stored tool definitions from the request.
+    /// </summary>
+    procedure ClearTools()
+    begin
+        Clear(Tools);
+    end;
+
+    /// <summary>
+    /// AIOS-normalized conversation history (system, user, assistant, tool roles).
+    /// </summary>
+    procedure GetMessages(): JsonArray
+    var
+        TypeHelper: Codeunit "Type Helper";
+        InStream: InStream;
+        MessagesArr: JsonArray;
+        Text: Text;
+    begin
+        if not Messages.HasValue then
+            exit(MessagesArr);
+        Messages.CreateInStream(InStream, TextEncoding::UTF8);
+        Text := TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator());
+        if Text = '' then
+            exit(MessagesArr);
+        if not MessagesArr.ReadFrom(Text) then
+            Clear(MessagesArr);
+        exit(MessagesArr);
+    end;
+
+    /// <summary>
+    /// True when the messages history blob is non-empty.
+    /// </summary>
+    procedure HasMessages(): Boolean
+    begin
+        exit(GetMessages().Count() > 0);
+    end;
+
+    /// <summary>
+    /// Clears the messages history blob.
+    /// </summary>
+    procedure ClearMessages()
+    begin
+        Clear(Messages);
+    end;
+
+    /// <summary>
+    /// Replaces the full messages history blob.
+    /// </summary>
+    procedure SetMessages(MessagesArr: JsonArray)
+    var
+        OutStream: OutStream;
+        Text: Text;
+    begin
+        Clear(Messages);
+        if MessagesArr.Count() = 0 then
+            exit;
+        MessagesArr.WriteTo(Text);
+        Messages.CreateOutStream(OutStream, TextEncoding::UTF8);
+        OutStream.WriteText(Text);
+    end;
+
+    /// <summary>
+    /// Appends a user message to the history.
+    /// </summary>
+    procedure AppendUserMessage(Content: Text)
+    var
+        MessagesArr: JsonArray;
+        Msg: JsonObject;
+    begin
+        MessagesArr := GetMessages();
+        Msg.Add('role', 'user');
+        Msg.Add('content', Content);
+        MessagesArr.Add(Msg);
+        SetMessages(MessagesArr);
+    end;
+
+    /// <summary>
+    /// Appends an assistant text message to the history.
+    /// </summary>
+    procedure AppendAssistantMessage(Content: Text)
+    var
+        MessagesArr: JsonArray;
+        Msg: JsonObject;
+    begin
+        MessagesArr := GetMessages();
+        Msg.Add('role', 'assistant');
+        Msg.Add('content', Content);
+        MessagesArr.Add(Msg);
+        SetMessages(MessagesArr);
+    end;
+
+    /// <summary>
+    /// Appends an assistant message that requested tool calls (from a generate result).
+    /// </summary>
+    procedure AppendAssistantToolCalls(Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"])
+    begin
+        AppendAssistantToolCalls(Content, ToolCalls, '');
+    end;
+
+    /// <summary>
+    /// Appends an assistant tool-call message, including reasoning_content for thinking-mode providers.
+    /// </summary>
+    procedure AppendAssistantToolCalls(Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text)
+    var
+        MessagesArr: JsonArray;
+        Msg: JsonObject;
+        CallsArr: JsonArray;
+        CallObj: JsonObject;
+        CallCU: Codeunit "AIOS Tool Call";
+        Args: JsonObject;
+        i: Integer;
+    begin
+        MessagesArr := GetMessages();
+        for i := 1 to ToolCalls.Count() do begin
+            ToolCalls.Get(i, CallCU);
+            Clear(CallObj);
+            CallObj.Add('id', CallCU.GetId());
+            CallObj.Add('name', CallCU.GetName());
+            Args := CallCU.GetArguments();
+            CallObj.Add('arguments', Args);
+            CallsArr.Add(CallObj);
+        end;
+        Msg.Add('role', 'assistant');
+        Msg.Add('content', Content);
+        Msg.Add('tool_calls', CallsArr);
+        // Always store the key so OpenAI-compatible wire mapping can echo it (empty string is OK).
+        Msg.Add('reasoning_content', ReasoningContent);
+        MessagesArr.Add(Msg);
+        SetMessages(MessagesArr);
+    end;
+
+    /// <summary>
+    /// Appends a tool result message for a prior tool call id.
+    /// </summary>
+    procedure AppendToolResult(ToolCallId: Text; ToolName: Text; Content: Text)
+    var
+        MessagesArr: JsonArray;
+        Msg: JsonObject;
+    begin
+        MessagesArr := GetMessages();
+        Msg.Add('role', 'tool');
+        Msg.Add('tool_call_id', ToolCallId);
+        Msg.Add('name', ToolName);
+        Msg.Add('content', Content);
+        MessagesArr.Add(Msg);
+        SetMessages(MessagesArr);
+    end;
+
+    /// <summary>
+    /// Ensures Messages contains at least system (effective) + user prompt when history is empty.
+    /// Call before providers that prefer a single messages array.
+    /// </summary>
+    procedure EnsureMessagesFromPrompt()
+    var
+        SystemText: Text;
+    begin
+        if HasMessages() then
+            exit;
+        SystemText := GetEffectiveSystemMessage();
+        if SystemText <> '' then
+            AppendSystemMessage(SystemText);
+        AppendUserMessage(GetPrompt());
+    end;
+
+    local procedure AppendSystemMessage(Content: Text)
+    var
+        MessagesArr: JsonArray;
+        Msg: JsonObject;
+    begin
+        MessagesArr := GetMessages();
+        Msg.Add('role', 'system');
+        Msg.Add('content', Content);
+        MessagesArr.Add(Msg);
+        SetMessages(MessagesArr);
     end;
 
     var

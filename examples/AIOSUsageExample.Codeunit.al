@@ -373,6 +373,52 @@ codeunit 87480 "AIOS Usage Example"
         ResultImage := Result.GetImage();
     end;
 
+    /// <summary>
+    /// Mock tools demo: client runs tools and continues until final text (MaxSteps).
+    /// </summary>
+    procedure RunToolsManualContinueDemo()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Echo: Codeunit "AIOS Echo Tool";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+    begin
+        ToolSet.Register(Echo.Name(), Echo.Description(), Echo.InputSchema());
+        ToolSet.SetHandler(Echo);
+
+        Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"toolkit"}', 'Echoed: toolkit');
+        Request.SetPrompt('Use the echo tool with message toolkit');
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+        Message(ToolsDemoMsg, 'toolkit', Result.Output());
+    end;
+
+    /// <summary>
+    /// Mock demo: one handler codeunit exposes several tools via Register + SetHandler.
+    /// </summary>
+    procedure RunMultiToolHandlerDemo()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Handler: Codeunit "AIOS Demo Tool Handler";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+    begin
+        Handler.RegisterAll(ToolSet);
+        ToolSet.SetHandler(Handler);
+
+        // Model may choose any registered tool; mock forces add_numbers then a final reply.
+        Mock.SetNextToolCallThenResponse('call_1', 'add_numbers', '{"a":2,"b":3}', '2 + 3 = 5');
+        Request.SetSystemMessage('You can use echo, add_numbers, and to_upper tools.');
+        Request.SetPrompt('What is 2 plus 3? Use a tool.');
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+        Message(MultiToolDemoMsg, ToolSet.Count(), Result.Output());
+    end;
+
     var
         SuccessMsg: Label '%1', Comment = '%1 = model response text';
         StructuredMsg: Label 'Sentiment=%1 Score=%2 Urgent=%3 Summary=%4 Topics=%5 | Raw=%6', Comment = '%1 sentiment, %2 score, %3 urgent, %4 summary, %5 topics, %6 raw JSON';
@@ -380,4 +426,6 @@ codeunit 87480 "AIOS Usage Example"
         SchemaChoiceMsg: Label '%1', Comment = '%1 = validated choice string';
         ResponseMetadataMsg: Label 'Text=%1 | Body=%2 | Status=%3 | Headers=%4', Comment = '%1 text, %2 raw body, %3 status, %4 headers JSON';
         ImageDemoMsg: Label 'Generated=%1 type=%2 base64Len=%3 http=%4', Comment = '%1 count, %2 media type, %3 base64 length, %4 status';
+        ToolsDemoMsg: Label 'Tool result=%1 | Final=%2', Comment = '%1 = echo result, %2 = second model output';
+        MultiToolDemoMsg: Label 'Registered tools=%1 | Final=%2', Comment = '%1 = tool count, %2 = model output';
 }

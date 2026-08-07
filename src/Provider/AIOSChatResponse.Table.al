@@ -70,6 +70,16 @@ table 87402 "AIOS Chat Response"
             Caption = 'Response Headers';
             DataClassification = SystemMetadata;
         }
+        field(90; "Tool Calls"; Blob)
+        {
+            Caption = 'Tool Calls';
+            DataClassification = CustomerContent;
+        }
+        field(91; "Reasoning Content"; Blob)
+        {
+            Caption = 'Reasoning Content';
+            DataClassification = CustomerContent;
+        }
     }
 
     keys
@@ -287,6 +297,147 @@ table 87402 "AIOS Chat Response"
     procedure ClearWarnings()
     begin
         Clear(Warnings);
+    end;
+
+    /// <summary>
+    /// Persists parsed tool calls as JSON on the response (internal wire format).
+    /// </summary>
+    procedure SetToolCallsJson(ToolCallsArr: JsonArray)
+    var
+        OutStream: OutStream;
+        Text: Text;
+    begin
+        Clear("Tool Calls");
+        if ToolCallsArr.Count() = 0 then
+            exit;
+        ToolCallsArr.WriteTo(Text);
+        "Tool Calls".CreateOutStream(OutStream, TextEncoding::UTF8);
+        OutStream.WriteText(Text);
+    end;
+
+    /// <summary>
+    /// Tool calls JSON blob stored on the response.
+    /// </summary>
+    procedure GetToolCallsJson(): JsonArray
+    var
+        TypeHelper: Codeunit "Type Helper";
+        InStream: InStream;
+        ToolCallsArr: JsonArray;
+        Text: Text;
+    begin
+        if not "Tool Calls".HasValue then
+            exit(ToolCallsArr);
+        "Tool Calls".CreateInStream(InStream, TextEncoding::UTF8);
+        Text := TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator());
+        if Text = '' then
+            exit(ToolCallsArr);
+        if not ToolCallsArr.ReadFrom(Text) then
+            Clear(ToolCallsArr);
+        exit(ToolCallsArr);
+    end;
+
+    /// <summary>
+    /// True when the model returned one or more tool calls.
+    /// </summary>
+    procedure HasToolCalls(): Boolean
+    begin
+        exit(GetToolCallsJson().Count() > 0);
+    end;
+
+    /// <summary>
+    /// Tool calls from the model as "AIOS Tool Call" instances.
+    /// </summary>
+    procedure GetToolCalls(): List of [Codeunit "AIOS Tool Call"]
+    var
+        Result: List of [Codeunit "AIOS Tool Call"];
+        ToolCallsArr: JsonArray;
+        CallToken: JsonToken;
+        CallObj: JsonObject;
+        CallCU: Codeunit "AIOS Tool Call";
+        IdToken: JsonToken;
+        NameToken: JsonToken;
+        ArgsToken: JsonToken;
+        ArgsObj: JsonObject;
+        ArgsText: Text;
+        Id: Text;
+        Name: Text;
+        i: Integer;
+    begin
+        ToolCallsArr := GetToolCallsJson();
+        for i := 0 to ToolCallsArr.Count() - 1 do begin
+            ToolCallsArr.Get(i, CallToken);
+            CallObj := CallToken.AsObject();
+            Id := '';
+            Name := '';
+            if CallObj.Get('id', IdToken) then
+                Id := IdToken.AsValue().AsText();
+            if CallObj.Get('name', NameToken) then
+                Name := NameToken.AsValue().AsText();
+            Clear(ArgsObj);
+            if CallObj.Get('arguments', ArgsToken) then
+                if ArgsToken.IsObject() then
+                    ArgsObj := ArgsToken.AsObject()
+                else begin
+                    ArgsText := ArgsToken.AsValue().AsText();
+                    if not ArgsObj.ReadFrom(ArgsText) then
+                        Clear(ArgsObj);
+                end;
+            Clear(CallCU);
+            CallCU.SetCall(Id, Name, ArgsObj);
+            Result.Add(CallCU);
+        end;
+        exit(Result);
+    end;
+
+    /// <summary>
+    /// Writes tool calls from codeunit instances into the response blob.
+    /// </summary>
+    procedure SetToolCallsFromList(ToolCalls: List of [Codeunit "AIOS Tool Call"])
+    var
+        ToolCallsArr: JsonArray;
+        CallObj: JsonObject;
+        CallCU: Codeunit "AIOS Tool Call";
+        Args: JsonObject;
+        i: Integer;
+    begin
+        for i := 1 to ToolCalls.Count() do begin
+            ToolCalls.Get(i, CallCU);
+            Clear(CallObj);
+            CallObj.Add('id', CallCU.GetId());
+            CallObj.Add('name', CallCU.GetName());
+            Args := CallCU.GetArguments();
+            CallObj.Add('arguments', Args);
+            ToolCallsArr.Add(CallObj);
+        end;
+        SetToolCallsJson(ToolCallsArr);
+    end;
+
+    /// <summary>
+    /// Thinking/reasoning text from models that return reasoning_content (must be echoed on tool-loop turns).
+    /// </summary>
+    procedure SetReasoningContent(Value: Text)
+    var
+        OutStream: OutStream;
+    begin
+        Clear("Reasoning Content");
+        if Value = '' then
+            exit;
+        "Reasoning Content".CreateOutStream(OutStream, TextEncoding::UTF8);
+        OutStream.WriteText(Value);
+    end;
+
+    /// <summary>
+    /// Reasoning content from the last assistant message, when the provider returned it.
+    /// </summary>
+    procedure GetReasoningContent(): Text
+    var
+        TypeHelper: Codeunit "Type Helper";
+        InStream: InStream;
+    begin
+        if not "Reasoning Content".HasValue then
+            exit('');
+        "Reasoning Content".CreateInStream(InStream, TextEncoding::UTF8);
+        exit(TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator()));
     end;
 
     local procedure SetWarnings(var WarningsArray: JsonArray)
