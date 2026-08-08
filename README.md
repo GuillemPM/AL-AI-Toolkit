@@ -13,7 +13,7 @@ Status: **v0.1** (usable client + providers; pre-1.0 — public APIs may still c
 - Mock provider so AI-dependent code is testable without network or API keys
 - Shared retry / backoff (`"AIOS Retry"`) for text and image generation
 - Direct HTTP to providers (OpenAI, Anthropic, OpenCode Zen, …) — not a wrapper around System.AI
-- Tools via `"AIOS Tool Set"`: prefer `Register` + `"AIOS Tool Handler"` (many tools, one codeunit); optional `"AIOS Tool"` per reusable tool
+- Tools: primary `ToolSet.Add(Tool)` (`"AIOS Tool"`); secondary `ToolSet.Use(Handler)` to pack many tools in one ID
 
 When System.AI / Copilot is already the right tool for a Microsoft-hosted capability, prefer that. Use this toolkit when you need third-party providers, self-hosted endpoints, or a testable provider abstraction.
 
@@ -60,7 +60,7 @@ Shipped factories: `"AIOS Anthropic"`, `"AIOS OpenAI"`, `"AIOS OpenCode Zen"`, `
 - **Result accessors:** `Result.Output()`, `Result.Body()`, `Result.Headers()`, `Result.HttpStatusCode()`, plus token / finish / provider helpers; `Result.HasToolCalls()` / `Result.GetToolCalls()` when the model requests tools
 - **Structured output (preferred):** `Request.SetOutput(Schema.Object(Fields))` then `GenerateText(Model, Request)` — response JSON is validated; read `Result.Output()`
 - **Flat record convenience:** `Request.SetOutput(RecRef)` then `GenerateText(Model, Request, RecRef)` — JSON fills bindable fields; raw JSON is on `Result.Output()`
-- **Tools:** prefer `ToolSet.Register(Name, Description, Schema)` + `ToolSet.SetHandler(Handler)` so many tools share one `"AIOS Tool Handler"` codeunit. Alternatively `ToolSet.Add` an `"AIOS Tool"` implementation (one object per tool). Then `GenerateText(Model, Request, ToolSet, MaxSteps)` — the client runs tools between model calls until final text or the step limit (`MaxSteps` less than 1 is treated as 1). Structured output / RecRef binding runs on the **final** non-tool-call step only. Unknown tool names fail the run; tool `Execute` failures are sent back to the model as tool result text and the loop continues. Thinking/reasoning models that return `reasoning_content` (e.g. DeepSeek via OpenCode Zen) have that field preserved and echoed on follow-up turns. The result exposes `GetResponseCalls()` / `GetStepCount()` / `GetTotalInputTokens()` / `GetTotalOutputTokens()` so every model HTTP call (tool steps and retries) is visible, not only the last response.
+- **Tools:** primary `ToolSet.Add(Tool)` (`"AIOS Tool"`). Secondary: `"AIOS Tool Handler"` + `ToolSet.Use(Handler)` (once per ToolSet). Escape hatch: `ToolSet.Add(Name, Description, Schema)` + `OnExecuteTool` (see `"AIOS Demo Tools"`). Call `GenerateText(Model, Request, ToolSet)` (default MaxSteps = 5) or pass an explicit MaxSteps — never pass a handler into GenerateText. The client runs tools between model calls until final text or the step limit (`MaxSteps` less than 1 is treated as 1). If the loop stops at `MaxSteps` while the model still requested tools, the result succeeds with `HasToolCalls()` and `StoppedAtStepLimit()` true (plus a warning). Structured output / RecRef binding runs on the **final** non-tool-call step only. Unknown tool names fail the run; tool `Execute` failures are sent back to the model as tool result text and the loop continues. Thinking/reasoning models that return `reasoning_content` (e.g. DeepSeek via OpenCode Zen) have that field preserved and echoed on follow-up turns. The result exposes `GetResponseCalls()` / `GetStepCount()` / `GetTotalInputTokens()` / `GetTotalOutputTokens()` so every model HTTP call (tool steps and retries) is visible, not only the last response.
 - **Tools (single step / manual):** `GenerateText(Model, Request)` with `Request.SetTools` returns after the first model call (including tool calls). You can still append messages and call again yourself.
 - **Image generation:** `OpenAI.ImageModel(...)` / `Mock.ImageModel(...)` + `Client.GenerateImage` → `"AIOS Generate Image Result"` with `GetImages()`, `GetUsage()`, `GetResponseCalls()`
 - **Internal** (this app only — tests / demo soft-fail): `TryGenerateText` / `TryGenerate` / `TryGenerateWithTools` / `TryGenerateImage`
@@ -69,70 +69,24 @@ Shipped factories: `"AIOS Anthropic"`, `"AIOS OpenAI"`, `"AIOS OpenCode Zen"`, `
 - Interfaces remain available if you need a custom provider (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Chat Format"`, `"AIOS Image Model"`, `"AIOS Tool"`, `"AIOS Tool Handler"`)
 - **Custom providers:** implement `"AIOS Language Model"` (and optionally `"AIOS Provider"`). For tools/messages, implement `"AIOS Chat Format"` or reuse `"AIOS OpenAI Compatible Format"` / `"AIOS Anthropic Format"` if your API matches those schemas.
 
-### Tools (automatic loop — preferred)
+### Tools — Add and Use
+
+| Priority | API | Pattern |
+|---|---|---|
+| **Primary** | `ToolSet.Add(Echo)` | `"AIOS Tool"` — one codeunit per tool |
+| **Secondary** | `ToolSet.Use(Handler)` | `"AIOS Tool Handler"` — many tools, one ID |
 
 ```al
-ToolSet: Codeunit "AIOS Tool Set";
-Handler: Codeunit "My App Tool Handler"; // implements "AIOS Tool Handler"
-Request: Record "AIOS Chat Request";
-Result: Codeunit "AIOS Generate Result";
-Schema: Codeunit "AIOS Schema";
-Fields: List of [JsonObject];
-begin
-    Fields.Add(Schema.Field('message', Schema.String()));
-    ToolSet.Register('echo', 'Echoes the message argument.', Schema.Object(Fields));
-    ToolSet.SetHandler(Handler);
-    Request.SetPrompt('Use the echo tool when helpful');
-    Result := Client.GenerateText(Model, Request, ToolSet, 5);
-end;
+ToolSet.Add(Echo);
+ToolSet.Use(Handler);   // once per ToolSet
+Result := Client.GenerateText(Model, Request, ToolSet);  // default MaxSteps = 5
 ```
 
-### Tools (automatic loop — one codeunit per tool)
+You can mix `Add(Tool)` and `Use(Handler)` on the same ToolSet if tool names do not overlap.
 
-```al
-ToolSet: Codeunit "AIOS Tool Set";
-Echo: Codeunit "AIOS Echo Tool";
-Request: Record "AIOS Chat Request";
-Result: Codeunit "AIOS Generate Result";
-begin
-    ToolSet.Add(Echo);
-    Request.SetPrompt('Use the echo tool when helpful');
-    Result := Client.GenerateText(Model, Request, ToolSet, 5);
-end;
-```
+Handlers build definitions with `"AIOS Schema".ToolDefinition`; read Execute args with `"AIOS Tool Args"`. Escape hatch: `Add(Name, …)` + `OnExecuteTool` (see `"AIOS Demo Tools"`).
 
-### Tools (manual continue)
-
-```al
-ToolSet: Codeunit "AIOS Tool Set";
-Echo: Codeunit "AIOS Echo Tool";
-Request: Record "AIOS Chat Request";
-Result: Codeunit "AIOS Generate Result";
-ToolCalls: List of [Codeunit "AIOS Tool Call"];
-Call: Codeunit "AIOS Tool Call";
-ResultText: Text;
-i: Integer;
-begin
-    ToolSet.Add(Echo);
-    Request.SetPrompt('Use the echo tool');
-    Request.SetTools(ToolSet);
-    Request.EnsureMessagesFromPrompt();
-
-    Result := Client.GenerateText(Model, Request);
-    if Result.HasToolCalls() then begin
-        ToolCalls := Result.GetToolCalls();
-        Request.AppendAssistantToolCalls(Result.Output(), ToolCalls);
-        for i := 1 to ToolCalls.Count() do begin
-            ToolCalls.Get(i, Call);
-            ToolSet.Execute(Call.GetName(), Call.GetArguments(), ResultText);
-            Request.AppendToolResult(Call.GetId(), Call.GetName(), ResultText);
-        end;
-        Result := Client.GenerateText(Model, Request);
-    end;
-end;
-```
-
-See [`examples/AIOSUsageExample.Codeunit.al`](examples/AIOSUsageExample.Codeunit.al) for demos starting with `RunBasicDemo`, plus structured output, options, image, tools (`RunToolsManualContinueDemo`, `RunMultiToolHandlerDemo`), and provider samples. Interactive UI: page `"AIOS Toolkit Demo"`.
+See [`examples/AIOSUsageExample.Codeunit.al`](examples/AIOSUsageExample.Codeunit.al). Interactive UI: page `"AIOS Toolkit Demo"`.
 
 ## License
 

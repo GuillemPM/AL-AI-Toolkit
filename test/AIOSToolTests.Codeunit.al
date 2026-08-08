@@ -153,23 +153,22 @@ codeunit 87497 "AIOS Tool Tests"
     end;
 
     [Test]
-    procedure ToolSet_Register_GetDefinitions_IncludesRegisteredTool()
+    procedure ToolSet_AddNamed_LoadsDefinition()
     var
         ToolSet: Codeunit "AIOS Tool Set";
-        Echo: Codeunit "AIOS Echo Tool";
+        Schema: Codeunit "AIOS Schema";
         Definitions: JsonArray;
         DefToken: JsonToken;
         NameToken: JsonToken;
+        Fields: List of [JsonObject];
     begin
-        ToolSet.Register(Echo.Name(), Echo.Description(), Echo.InputSchema());
-        ToolSet.SetHandler(Echo);
+        Fields.Add(Schema.Field('message', Schema.String()));
+        ToolSet.Add('echo', 'Echoes the message.', Schema.Object(Fields));
         if ToolSet.Count() <> 1 then
             Error(UnexpectedCountErr, 1, ToolSet.Count());
         if not ToolSet.HasTool('echo') then
             Error(ExpectedHasToolsErr);
         Definitions := ToolSet.GetDefinitions();
-        if Definitions.Count() <> 1 then
-            Error(UnexpectedCountErr, 1, Definitions.Count());
         Definitions.Get(0, DefToken);
         if not DefToken.AsObject().Get('name', NameToken) then
             Error(MissingFieldErr, 'name');
@@ -178,31 +177,125 @@ codeunit 87497 "AIOS Tool Tests"
     end;
 
     [Test]
-    procedure GenerateText_RegisterHandler_AutoExecutesToolAndReturnsFinalText()
+    procedure GenerateText_NamedTools_OnExecuteTool_AutoExecutes()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         ToolSet: Codeunit "AIOS Tool Set";
-        Echo: Codeunit "AIOS Echo Tool";
         Request: Record "AIOS Chat Request";
         Result: Codeunit "AIOS Generate Result";
     begin
-        ToolSet.Register(Echo.Name(), Echo.Description(), Echo.InputSchema());
-        ToolSet.SetHandler(Echo);
-        Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"via-handler"}', 'done via handler');
+        AddDemoNamedTools(ToolSet);
+        Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"via-event"}', 'done via event');
         Request.SetPrompt('use echo');
 
         Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
         if Result.HasToolCalls() then
             Error(UnexpectedToolCallsErr);
-        if Result.Output() <> 'done via handler' then
-            Error(UnexpectedTextErr, 'done via handler', Result.Output());
+        if Result.Output() <> 'done via event' then
+            Error(UnexpectedTextErr, 'done via event', Result.Output());
         if Result.GetStepCount() < 2 then
             Error(UnexpectedCountErr, 2, Result.GetStepCount());
     end;
 
     [Test]
-    procedure ToolSet_Register_DuplicateName_Errors()
+    procedure ToolSet_Use_Twice_Errors()
+    var
+        ToolSet: Codeunit "AIOS Tool Set";
+        Handler: Codeunit "AIOS Sample Tool Handler";
+    begin
+        ToolSet.Use(Handler);
+        asserterror ToolSet.Use(Handler);
+    end;
+
+    [Test]
+    procedure ToolSet_ClearTools_AllowsReuse()
+    var
+        ToolSet: Codeunit "AIOS Tool Set";
+        Echo: Codeunit "AIOS Echo Tool";
+        Handler: Codeunit "AIOS Sample Tool Handler";
+    begin
+        ToolSet.Add(Echo);
+        if ToolSet.Count() <> 1 then
+            Error(UnexpectedCountErr, 1, ToolSet.Count());
+        ToolSet.ClearTools();
+        if ToolSet.Count() <> 0 then
+            Error(UnexpectedCountErr, 0, ToolSet.Count());
+        if ToolSet.HasTool(Echo.Name()) then
+            Error(ExpectedClearedToolErr);
+        ToolSet.Use(Handler);
+        if ToolSet.Count() <> 3 then
+            Error(UnexpectedCountErr, 3, ToolSet.Count());
+        ToolSet.ClearTools();
+        ToolSet.Use(Handler);
+        if ToolSet.Count() <> 3 then
+            Error(UnexpectedCountErr, 3, ToolSet.Count());
+    end;
+
+    [Test]
+    procedure ToolArgs_RequireText_Missing_ReturnsFalse()
+    var
+        Args: Codeunit "AIOS Tool Args";
+        Arguments: JsonObject;
+        Value: Text;
+        ErrorText: Text;
+    begin
+        if Args.RequireText(Arguments, 'message', Value, ErrorText) then
+            Error(ExpectedRequireFailErr);
+        if ErrorText = '' then
+            Error(ExpectedErrorTextErr);
+    end;
+
+    [Test]
+    procedure ToolArgs_RequireDecimal_AndTryGetInteger()
+    var
+        Args: Codeunit "AIOS Tool Args";
+        Arguments: JsonObject;
+        A: Decimal;
+        Count: Integer;
+        ErrorText: Text;
+    begin
+        Arguments.Add('a', 2.5);
+        Arguments.Add('maxCount', 10);
+        if not Args.RequireDecimal(Arguments, 'a', A, ErrorText) then
+            Error(UnexpectedRequireFailErr, ErrorText);
+        if A <> 2.5 then
+            Error(UnexpectedDecimalErr, 2.5, A);
+        if not Args.TryGetInteger(Arguments, 'maxCount', Count) then
+            Error(ExpectedTryGetErr);
+        if Count <> 10 then
+            Error(UnexpectedCountErr, 10, Count);
+    end;
+
+    [Test]
+    procedure ToolSet_MixAddAndUse_DefinitionsAndExecute()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        GetCustomers: Codeunit "AIOS Get Customers Tool";
+        Handler: Codeunit "AIOS Sample Tool Handler";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+    begin
+        ToolSet.Add(GetCustomers);
+        ToolSet.Use(Handler);
+        if ToolSet.Count() <> 4 then
+            Error(UnexpectedCountErr, 4, ToolSet.Count());
+        if not ToolSet.HasTool(GetCustomers.Name()) then
+            Error(ExpectedHasToolsErr);
+        if not ToolSet.HasTool('add_numbers') then
+            Error(ExpectedHasToolsErr);
+
+        Mock.SetNextToolCallThenResponse('call_1', 'to_upper', '{"text":"ab"}', 'AB');
+        Request.SetPrompt('upper');
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet);
+        if Result.Output() <> 'AB' then
+            Error(UnexpectedTextErr, 'AB', Result.Output());
+    end;
+
+    [Test]
+    procedure ToolSet_Add_DuplicateName_Errors()
     var
         ToolSet: Codeunit "AIOS Tool Set";
         Echo: Codeunit "AIOS Echo Tool";
@@ -210,7 +303,44 @@ codeunit 87497 "AIOS Tool Tests"
     begin
         Tool := Echo;
         ToolSet.Add(Tool);
-        asserterror ToolSet.Register(Echo.Name(), Echo.Description(), Echo.InputSchema());
+        asserterror ToolSet.Add(Echo.Name(), Echo.Description(), Echo.InputSchema());
+    end;
+
+    [Test]
+    procedure GenerateText_NamedTool_WithoutSubscriber_Errors()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Fields: List of [JsonObject];
+    begin
+        Fields.Add(Schema.Field('x', Schema.String()));
+        ToolSet.Add('orphan_tool_no_subscriber', 'Unused', Schema.Object(Fields));
+        Mock.SetNextToolCall('orphan_tool_no_subscriber', '{}');
+        Request.SetPrompt('x');
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+    end;
+
+    [Test]
+    procedure GenerateText_MultiTool_ToolSetAdd_ExecutesAddNumbers()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+    begin
+        AddDemoNamedTools(ToolSet);
+        Mock.SetNextToolCallThenResponse('call_1', 'add_numbers', '{"a":2,"b":3}', 'sum is 5');
+        Request.SetPrompt('add');
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+        if Result.Output() <> 'sum is 5' then
+            Error(UnexpectedTextErr, 'sum is 5', Result.Output());
+        if ToolSet.Count() <> 3 then
+            Error(UnexpectedCountErr, 3, ToolSet.Count());
     end;
 
     [Test]
@@ -331,6 +461,8 @@ codeunit 87497 "AIOS Tool Tests"
             Error(UnexpectedTextErr, 'done after echo', Result.Output());
         if Result.GetStepCount() < 2 then
             Error(UnexpectedCountErr, 2, Result.GetStepCount());
+        if Result.StoppedAtStepLimit() then
+            Error(UnexpectedStoppedAtStepLimitErr);
         AssertTotalsMatchCalls(Result);
     end;
 
@@ -354,6 +486,8 @@ codeunit 87497 "AIOS Tool Tests"
         Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 1);
         if not Result.HasToolCalls() then
             Error(ExpectedToolCallsErr);
+        if not Result.StoppedAtStepLimit() then
+            Error(ExpectedStoppedAtStepLimitErr);
         Messages := Request.GetMessages();
         if Messages.Count() <> 1 then
             Error(UnexpectedCountErr, 1, Messages.Count());
@@ -486,6 +620,28 @@ codeunit 87497 "AIOS Tool Tests"
             Error(UnexpectedCountErr, SumOut, Result.GetTotalOutputTokens());
     end;
 
+    /// <summary>
+    /// Test helper: registers demo tools only through ToolSet.Add (same as production call sites).
+    /// </summary>
+    local procedure AddDemoNamedTools(var ToolSet: Codeunit "AIOS Tool Set")
+    var
+        Schema: Codeunit "AIOS Schema";
+        Fields: List of [JsonObject];
+    begin
+        Clear(Fields);
+        Fields.Add(Schema.Field('message', Schema.String()));
+        ToolSet.Add('echo', 'Echoes the message argument back unchanged.', Schema.Object(Fields));
+
+        Clear(Fields);
+        Fields.Add(Schema.Field('a', Schema.Number()));
+        Fields.Add(Schema.Field('b', Schema.Number()));
+        ToolSet.Add('add_numbers', 'Adds two numbers (a and b) and returns the sum as text.', Schema.Object(Fields));
+
+        Clear(Fields);
+        Fields.Add(Schema.Field('text', Schema.String()));
+        ToolSet.Add('to_upper', 'Converts the text argument to uppercase.', Schema.Object(Fields));
+    end;
+
     var
         UnexpectedTextErr: Label 'Expected ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
         UnexpectedCountErr: Label 'Expected count %1, got %2.', Comment = '%1 = expected, %2 = actual';
@@ -495,10 +651,18 @@ codeunit 87497 "AIOS Tool Tests"
         ExpectedHasToolsErr: Label 'Expected request to have tools.';
         ExpectedToolCallsErr: Label 'Expected tool calls on the result.';
         UnexpectedToolCallsErr: Label 'Did not expect tool calls on the final result.';
+        ExpectedStoppedAtStepLimitErr: Label 'Expected StoppedAtStepLimit when MaxSteps ends on tool calls.';
+        UnexpectedStoppedAtStepLimitErr: Label 'Did not expect StoppedAtStepLimit on a completed text result.';
         UnexpectedRoleErr: Label 'Expected role %1.', Comment = '%1 = role';
         UnknownToolErr: Label 'Unknown tool %1.', Comment = '%1 = tool name';
         ToolExecuteFailedErr: Label 'Tool %1 failed: %2', Comment = '%1 = tool name, %2 = result';
         ExpectedFailureErr: Label 'Expected TryGenerateWithTools to fail.';
         UnexpectedErrorTypeErr: Label 'Expected InvalidRequest, got %1.', Comment = '%1 = error type';
         ExpectedToolErrorContentErr: Label 'Expected non-empty tool result after execute failure.';
+        ExpectedRequireFailErr: Label 'Expected RequireText to return false for a missing argument.';
+        ExpectedErrorTextErr: Label 'Expected a non-empty error text from RequireText.';
+        UnexpectedRequireFailErr: Label 'RequireDecimal failed unexpectedly: %1', Comment = '%1 = error text';
+        UnexpectedDecimalErr: Label 'Expected decimal %1, got %2.', Comment = '%1 = expected, %2 = actual';
+        ExpectedTryGetErr: Label 'Expected TryGetInteger to succeed.';
+        ExpectedClearedToolErr: Label 'Expected tool to be removed after ClearTools.';
 }

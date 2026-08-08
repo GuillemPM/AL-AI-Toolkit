@@ -33,6 +33,7 @@ Current provisional range in `app.json`: **87400–87499**.
 | 87417 | AIOS Tool Set |
 | 87418 | AIOS OpenAI Compatible Format |
 | 87419 | AIOS Anthropic Format |
+| 87420 | AIOS Tool Args |
 | — | AIOS Chat Format (interface) |
 | — | AIOS Tool Handler (interface) |
 
@@ -72,7 +73,8 @@ Current provisional range in `app.json`: **87400–87499**.
 | 87484 | AIOS Lifecycle Example |
 | 87485 | AIOS Feedback Buffer |
 | 87486 | AIOS Demo History Card |
-| 87487 | AIOS Demo Tool Handler |
+| 87487 | AIOS Demo Tools |
+| 87488 | AIOS Sample Tool Handler |
 | 87489 | AIOS Demo History Picture (factbox) |
 | 87490 | AIOS Mock Tests |
 | 87491 | AIOS Lifecycle Tests |

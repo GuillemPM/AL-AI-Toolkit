@@ -1,9 +1,8 @@
 namespace PM.Guillem.AIOpenSDK.Core;
 
 /// <summary>
-/// A callable tool the model may invoke (name, schema, and Execute).
-/// Prefer "AIOS Tool Handler" + ToolSet.Register for app tools (one codeunit, many tools).
-/// Use this interface for reusable single-tool codeunits via ToolSet.Add.
+/// A callable tool (name, schema, Execute). Primary pattern: ToolSet.Add(Tool).
+/// For many tools without burning object IDs, use "AIOS Tool Handler" + ToolSet.Use.
 /// </summary>
 interface "AIOS Tool"
 {

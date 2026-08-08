@@ -202,6 +202,22 @@ codeunit 87462 "AIOS Schema"
         exit(Text);
     end;
 
+    /// <summary>
+    /// Builds { name, description, parameters } for Handler.GetDefinitions or ToolSet.Add(Definition).
+    /// </summary>
+    procedure ToolDefinition(Name: Text; Description: Text; Parameters: JsonObject): JsonObject
+    var
+        Definition: JsonObject;
+    begin
+        if Name = '' then
+            Error(ToolNameEmptyErr);
+        Clear(Definition);
+        Definition.Add('name', Name);
+        Definition.Add('description', Description);
+        Definition.Add('parameters', Parameters);
+        exit(Definition);
+    end;
+
     local procedure BuildEnumArray(Options: List of [Text]; var EnumArr: JsonArray)
     var
         Option: Text;
@@ -286,4 +302,5 @@ codeunit 87462 "AIOS Schema"
         ChoiceEmptyErr: Label 'Choice options cannot be empty.';
         ChoiceEmptyOptionErr: Label 'Choice option cannot be an empty string.';
         ChoiceDuplicateErr: Label 'Duplicate choice option ''%1''.', Comment = '%1 = option value';
+        ToolNameEmptyErr: Label 'Tool name cannot be empty.';
 }

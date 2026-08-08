@@ -57,6 +57,14 @@ codeunit 87410 "AIOS Client"
     end;
 
     /// <summary>
+    /// Generates text with tools using the default step limit (5). Prefer this overload for the common case.
+    /// </summary>
+    procedure GenerateText(Model: Interface "AIOS Language Model"; var Request: Record "AIOS Chat Request"; ToolSet: Codeunit "AIOS Tool Set"): Codeunit "AIOS Generate Result"
+    begin
+        exit(GenerateText(Model, Request, ToolSet, DefaultToolMaxSteps()));
+    end;
+
+    /// <summary>
     /// Generates text with tools: runs the model up to MaxSteps times, executing tools between steps until final text or the step limit.
     /// </summary>
     procedure GenerateText(Model: Interface "AIOS Language Model"; var Request: Record "AIOS Chat Request"; ToolSet: Codeunit "AIOS Tool Set"; MaxSteps: Integer): Codeunit "AIOS Generate Result"
@@ -67,6 +75,14 @@ codeunit 87410 "AIOS Client"
         if not TryGenerateWithTools(Model, Request, ToolSet, MaxSteps, Response, EmptyOutput) then
             Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
         exit(BuildGenerateResult(Response));
+    end;
+
+    /// <summary>
+    /// Generates text with tools (default MaxSteps) and binds JSON into OutputRecRef on the final non-tool-call response.
+    /// </summary>
+    procedure GenerateText(Model: Interface "AIOS Language Model"; var Request: Record "AIOS Chat Request"; ToolSet: Codeunit "AIOS Tool Set"; var OutputRecRef: RecordRef): Codeunit "AIOS Generate Result"
+    begin
+        exit(GenerateText(Model, Request, ToolSet, DefaultToolMaxSteps(), OutputRecRef));
     end;
 
     /// <summary>
@@ -271,6 +287,7 @@ codeunit 87410 "AIOS Client"
     begin
         Clear(Response);
         ClearChatResponseCalls();
+        LastStoppedAtStepLimit := false;
         if MaxSteps < 1 then
             EffectiveMaxSteps := 1
         else
@@ -293,6 +310,7 @@ codeunit 87410 "AIOS Client"
             end;
 
             if Step = EffectiveMaxSteps then begin
+                LastStoppedAtStepLimit := true;
                 OnAfterGenerate(ModelId, Request, Response);
                 exit(true);
             end;
@@ -356,6 +374,7 @@ codeunit 87410 "AIOS Client"
     begin
         Clear(ChatResponseCallList);
         NextChatCallStep := 0;
+        LastStoppedAtStepLimit := false;
     end;
 
     local procedure AppendChatResponseCall(var Response: Record "AIOS Chat Response")
@@ -373,6 +392,8 @@ codeunit 87410 "AIOS Client"
     begin
         Result.SetFromResponse(Response);
         Result.SetResponseCalls(ChatResponseCallList);
+        if LastStoppedAtStepLimit then
+            Result.SetStoppedAtStepLimit(true);
         exit(Result);
     end;
 
@@ -486,6 +507,11 @@ codeunit 87410 "AIOS Client"
         exit(TryGenerate(Model, Request, Response, EmptyOutput));
     end;
 
+    local procedure DefaultToolMaxSteps(): Integer
+    begin
+        exit(5);
+    end;
+
     /// <summary>
     /// Raised once when generation starts, before any model call.
     /// </summary>
@@ -523,6 +549,7 @@ codeunit 87410 "AIOS Client"
         ChatResponseCallList: List of [Codeunit "AIOS Chat Response Call"];
         AggregateUsage: Codeunit "AIOS Image Usage";
         NextChatCallStep: Integer;
+        LastStoppedAtStepLimit: Boolean;
         GenerationFailedErr: Label 'Generation failed (%1): %2', Comment = '%1 = error type, %2 = message';
         ImageGenerationFailedErr: Label 'Image generation failed (%1): %2', Comment = '%1 = error type, %2 = message';
         NoImageGeneratedErr: Label 'The model returned no images.';

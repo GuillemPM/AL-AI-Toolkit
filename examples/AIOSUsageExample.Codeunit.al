@@ -374,9 +374,9 @@ codeunit 87480 "AIOS Usage Example"
     end;
 
     /// <summary>
-    /// Mock tools demo: client runs tools and continues until final text (MaxSteps).
+    /// Primary: ToolSet.Add(Tool) — one codeunit implements "AIOS Tool".
     /// </summary>
-    procedure RunToolsManualContinueDemo()
+    procedure RunTools_AddInterfaceTool()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
@@ -385,38 +385,98 @@ codeunit 87480 "AIOS Usage Example"
         Request: Record "AIOS Chat Request";
         Result: Codeunit "AIOS Generate Result";
     begin
-        ToolSet.Register(Echo.Name(), Echo.Description(), Echo.InputSchema());
-        ToolSet.SetHandler(Echo);
+        ToolSet.Add(Echo);
 
-        Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"toolkit"}', 'Echoed: toolkit');
-        Request.SetPrompt('Use the echo tool with message toolkit');
+        Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"from-interface"}', 'done');
+        Request.SetPrompt('Use echo');
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
-        Message(ToolsDemoMsg, 'toolkit', Result.Output());
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet);
+        Message(ToolsPrimaryMsg, Result.Output());
     end;
 
     /// <summary>
-    /// Mock demo: one handler codeunit exposes several tools via Register + SetHandler.
+    /// Secondary (save IDs): ToolSet.Use(Handler) — many tools in one "AIOS Tool Handler" codeunit.
+    /// Always pass ToolSet to GenerateText.
     /// </summary>
-    procedure RunMultiToolHandlerDemo()
+    procedure RunTools_UseHandler()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         ToolSet: Codeunit "AIOS Tool Set";
-        Handler: Codeunit "AIOS Demo Tool Handler";
+        Handler: Codeunit "AIOS Sample Tool Handler";
         Request: Record "AIOS Chat Request";
         Result: Codeunit "AIOS Generate Result";
     begin
-        Handler.RegisterAll(ToolSet);
-        ToolSet.SetHandler(Handler);
+        ToolSet.Use(Handler);
 
-        // Model may choose any registered tool; mock forces add_numbers then a final reply.
         Mock.SetNextToolCallThenResponse('call_1', 'add_numbers', '{"a":2,"b":3}', '2 + 3 = 5');
-        Request.SetSystemMessage('You can use echo, add_numbers, and to_upper tools.');
-        Request.SetPrompt('What is 2 plus 3? Use a tool.');
+        Request.SetPrompt('What is 2 plus 3?');
 
-        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
-        Message(MultiToolDemoMsg, ToolSet.Count(), Result.Output());
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet);
+        Message(ToolsHandlerMsg, ToolSet.Count(), Result.Output());
+    end;
+
+    /// <summary>
+    /// Mix primary Add(Tool) with secondary Use(Handler) on one ToolSet (names must not overlap).
+    /// </summary>
+    procedure RunTools_MixAddAndUse()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        GetCustomers: Codeunit "AIOS Get Customers Tool";
+        Handler: Codeunit "AIOS Sample Tool Handler";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+    begin
+        ToolSet.Add(GetCustomers);
+        ToolSet.Use(Handler);
+
+        Mock.SetNextToolCallThenResponse('call_1', 'add_numbers', '{"a":4,"b":5}', '9');
+        Request.SetPrompt('What is 4 plus 5?');
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet);
+        Message(ToolsMixMsg, ToolSet.Count(), Result.Output());
+    end;
+
+    /// <summary>
+    /// Manual tool loop — GenerateText without ToolSet MaxSteps overload, then ToolSet.Execute yourself.
+    /// Prefer GenerateText(..., ToolSet) for the automatic loop.
+    /// </summary>
+    procedure RunTools_ManualContinue()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Echo: Codeunit "AIOS Echo Tool";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+        ToolCalls: List of [Codeunit "AIOS Tool Call"];
+        Call: Codeunit "AIOS Tool Call";
+        ResultText: Text;
+        i: Integer;
+    begin
+        ToolSet.Add(Echo);
+        Request.SetPrompt('Use the echo tool');
+        Request.SetTools(ToolSet);
+        Request.EnsureMessagesFromPrompt();
+
+        Mock.SetNextToolCall('call_1', 'echo', '{"message":"manual"}');
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        if not Result.HasToolCalls() then
+            Error(ToolsManualExpectedCallsErr);
+
+        ToolCalls := Result.GetToolCalls();
+        Request.AppendAssistantToolCalls(Result.Output(), ToolCalls);
+        for i := 1 to ToolCalls.Count() do begin
+            ToolCalls.Get(i, Call);
+            ToolSet.Execute(Call.GetName(), Call.GetArguments(), ResultText);
+            Request.AppendToolResult(Call.GetId(), Call.GetName(), ResultText);
+        end;
+
+        Mock.SetNextResponse('manual done');
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Message(ToolsManualMsg, ResultText, Result.Output());
     end;
 
     var
@@ -426,6 +486,9 @@ codeunit 87480 "AIOS Usage Example"
         SchemaChoiceMsg: Label '%1', Comment = '%1 = validated choice string';
         ResponseMetadataMsg: Label 'Text=%1 | Body=%2 | Status=%3 | Headers=%4', Comment = '%1 text, %2 raw body, %3 status, %4 headers JSON';
         ImageDemoMsg: Label 'Generated=%1 type=%2 base64Len=%3 http=%4', Comment = '%1 count, %2 media type, %3 base64 length, %4 status';
-        ToolsDemoMsg: Label 'Tool result=%1 | Final=%2', Comment = '%1 = echo result, %2 = second model output';
-        MultiToolDemoMsg: Label 'Registered tools=%1 | Final=%2', Comment = '%1 = tool count, %2 = model output';
+        ToolsPrimaryMsg: Label 'Primary Add(AIOS Tool) | Final=%1', Comment = '%1 = output';
+        ToolsHandlerMsg: Label 'Secondary Use(Handler) | Count=%1 Final=%2', Comment = '%1 = count, %2 = output';
+        ToolsMixMsg: Label 'Mix Add(Tool)+Use(Handler) | Count=%1 Final=%2', Comment = '%1 = count, %2 = output';
+        ToolsManualMsg: Label 'Manual continue | Tool=%1 Final=%2', Comment = '%1 = tool result, %2 = output';
+        ToolsManualExpectedCallsErr: Label 'Expected tool calls on the first GenerateText.';
 }

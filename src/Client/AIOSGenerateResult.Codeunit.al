@@ -165,6 +165,30 @@ codeunit 87411 "AIOS Generate Result"
         exit(WarningsArray);
     end;
 
+    /// <summary>
+    /// True when the tool loop stopped because MaxSteps was reached while the model still requested tool calls.
+    /// </summary>
+    procedure StoppedAtStepLimit(): Boolean
+    begin
+        exit(StoppedAtLimit);
+    end;
+
+    /// <summary>
+    /// Marks that generation ended at MaxSteps with pending tool calls (not a final text answer).
+    /// </summary>
+    procedure SetStoppedAtStepLimit(Value: Boolean)
+    var
+        WarningObj: JsonObject;
+    begin
+        StoppedAtLimit := Value;
+        if not Value then
+            exit;
+        Clear(WarningObj);
+        WarningObj.Add('type', 'tool_loop_step_limit');
+        WarningObj.Add('message', StepLimitWarningTok);
+        WarningsArray.Add(WarningObj);
+    end;
+
     local procedure RecalcTotalsFromCalls()
     var
         CallCU: Codeunit "AIOS Chat Response Call";
@@ -198,4 +222,6 @@ codeunit 87411 "AIOS Generate Result"
         OutputTokens: Integer;
         TotalInputTokens: Integer;
         TotalOutputTokens: Integer;
+        StoppedAtLimit: Boolean;
+        StepLimitWarningTok: Label 'Tool loop stopped at MaxSteps while the model still requested tool calls.', Locked = true;
 }

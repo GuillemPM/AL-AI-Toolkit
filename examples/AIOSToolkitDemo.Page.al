@@ -456,7 +456,7 @@ page 87481 "AIOS Toolkit Demo"
             {
                 ApplicationArea = All;
                 Caption = 'Generate choice';
-                Image = SelectLine;
+                Image = SelectEntries;
                 ToolTip = 'GenerateText with Request.SetOutput(Schema.Choice). Result is one plain option string from Choice options.';
 
                 trigger OnAction()
@@ -803,8 +803,8 @@ page 87481 "AIOS Toolkit Demo"
             ToolMaxSteps := 5;
 
         Model := BindSelectedModelForTools();
-        ToolSet.Register(GetCustomers.ToolName(), GetCustomers.ToolDescription(), GetCustomers.ToolInputSchema());
-        ToolSet.SetHandler(GetCustomers);
+        ToolSet.Add(GetCustomers);
+
         BuildRequest(Request);
         if DelChr(SystemPrompt, '<>', ' ') = '' then
             Request.SetSystemMessage(ToolDefaultSystemTok);

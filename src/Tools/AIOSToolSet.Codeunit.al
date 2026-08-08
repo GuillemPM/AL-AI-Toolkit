@@ -1,16 +1,16 @@
 namespace PM.Guillem.AIOpenSDK.Core;
 
 /// <summary>
-/// Collection of tools to register on a chat request and to Execute by name.
-/// Prefer Register + SetHandler for app tools (one codeunit for many tools).
-/// Use Add for reusable first-class "AIOS Tool" implementations.
+/// Collection of tools for a chat request. Always pass this into GenerateText.
+/// Add(Tool) — primary. Use(Handler) — secondary (once per ToolSet).
+/// Add(Name, …) — escape hatch; execute via OnExecuteTool when no handler.
 /// </summary>
 codeunit 87417 "AIOS Tool Set"
 {
     Access = Public;
 
     /// <summary>
-    /// Registers a reusable "AIOS Tool" codeunit (one object per tool).
+    /// Primary: add one "AIOS Tool" (name, schema, and Execute on that codeunit).
     /// </summary>
     procedure Add(Tool: Interface "AIOS Tool")
     begin
@@ -22,42 +22,87 @@ codeunit 87417 "AIOS Tool Set"
     end;
 
     /// <summary>
-    /// Registers a tool definition handled by SetHandler (no extra object ID per tool).
+    /// Secondary: use a handler pack — registers GetDefinitions() and binds Execute (once per ToolSet).
     /// </summary>
-    procedure Register(Name: Text; Description: Text; Parameters: JsonObject)
+    procedure Use(NewHandler: Interface "AIOS Tool Handler")
     var
+        Definitions: JsonArray;
+        DefToken: JsonToken;
         Definition: JsonObject;
+        NameToken: JsonToken;
+        DescToken: JsonToken;
+        ParamsToken: JsonToken;
+        Description: Text;
+        Parameters: JsonObject;
+        i: Integer;
     begin
-        if Name = '' then
-            Error(ToolNameEmptyErr);
-        if HasTool(Name) then
-            Error(DuplicateToolErr, Name);
-        Clear(Definition);
-        Definition.Add('name', Name);
-        Definition.Add('description', Description);
-        Definition.Add('parameters', Parameters);
-        RegisteredDefinitions.Add(Definition);
+        if HandlerIsSet then
+            Error(HandlerAlreadySetErr);
+        SetHandler(NewHandler);
+        Definitions := NewHandler.GetDefinitions();
+        for i := 0 to Definitions.Count() - 1 do begin
+            Definitions.Get(i, DefToken);
+            Definition := DefToken.AsObject();
+            if not Definition.Get('name', NameToken) then
+                Error(DefinitionMissingNameErr);
+            Description := '';
+            if Definition.Get('description', DescToken) then
+                if DescToken.IsValue() then
+                    Description := DescToken.AsValue().AsText();
+            Clear(Parameters);
+            if Definition.Get('parameters', ParamsToken) then
+                if ParamsToken.IsObject() then
+                    Parameters := ParamsToken.AsObject();
+            AddNamedDefinition(NameToken.AsValue().AsText(), Description, Parameters);
+        end;
     end;
 
     /// <summary>
-    /// Sets the handler used for tools added via Register.
+    /// Escape hatch: named definition without an "AIOS Tool" codeunit. Prefer Add(Tool) or Use(Handler).
+    /// Execute via Use handler if set, otherwise OnExecuteTool.
     /// </summary>
-    procedure SetHandler(NewHandler: Interface "AIOS Tool Handler")
+    procedure Add(Name: Text; Description: Text; Parameters: JsonObject)
     begin
-        Handler := NewHandler;
-        HandlerIsSet := true;
+        AddNamedDefinition(Name, Description, Parameters);
     end;
 
     /// <summary>
-    /// True when SetHandler was called.
+    /// Escape hatch: add from Schema.ToolDefinition (sugar for Add(Name, Description, Parameters)).
     /// </summary>
-    procedure HasHandler(): Boolean
+    procedure Add(Definition: JsonObject)
+    var
+        NameToken: JsonToken;
+        DescToken: JsonToken;
+        ParamsToken: JsonToken;
+        Description: Text;
+        Parameters: JsonObject;
     begin
-        exit(HandlerIsSet);
+        if not Definition.Get('name', NameToken) then
+            Error(DefinitionMissingNameErr);
+        Description := '';
+        if Definition.Get('description', DescToken) then
+            if DescToken.IsValue() then
+                Description := DescToken.AsValue().AsText();
+        Clear(Parameters);
+        if Definition.Get('parameters', ParamsToken) then
+            if ParamsToken.IsObject() then
+                Parameters := ParamsToken.AsObject();
+        AddNamedDefinition(NameToken.AsValue().AsText(), Description, Parameters);
     end;
 
     /// <summary>
-    /// Number of registered tools (Add + Register).
+    /// Removes all tools and any handler so the ToolSet can be rebuilt.
+    /// </summary>
+    procedure ClearTools()
+    begin
+        Clear(Tools);
+        Clear(RegisteredDefinitions);
+        Clear(Handler);
+        HandlerIsSet := false;
+    end;
+
+    /// <summary>
+    /// Number of tools (Add(Tool) + named Add/Use).
     /// </summary>
     procedure Count(): Integer
     begin
@@ -65,32 +110,93 @@ codeunit 87417 "AIOS Tool Set"
     end;
 
     /// <summary>
-    /// True when a tool with this name was added or registered.
+    /// True when a tool with this name was added.
     /// </summary>
     procedure HasTool(Name: Text): Boolean
     var
         Tool: Interface "AIOS Tool";
     begin
-        if FindByName(Name, Tool) then
+        if FindInterfaceTool(Name, Tool) then
             exit(true);
-        exit(FindRegisteredIndex(Name) >= 0);
+        exit(FindNamedIndex(Name) >= 0);
     end;
 
     /// <summary>
-    /// Returns an Add()'d tool at the given 1-based index (interface tools only).
+    /// Runs a tool by name. Add(Tool) first; then handler from Use; otherwise OnExecuteTool.
     /// </summary>
-    procedure Get(Index: Integer; var Tool: Interface "AIOS Tool"): Boolean
+    procedure Execute(Name: Text; Arguments: JsonObject; var ResultText: Text): Boolean
+    var
+        Tool: Interface "AIOS Tool";
+        Handled: Boolean;
+        Succeeded: Boolean;
     begin
-        if (Index < 1) or (Index > Tools.Count()) then
-            exit(false);
-        Tools.Get(Index, Tool);
-        exit(true);
+        if FindInterfaceTool(Name, Tool) then
+            exit(Tool.Execute(Arguments, ResultText));
+
+        if FindNamedIndex(Name) < 0 then
+            Error(UnknownToolErr, Name);
+
+        if HandlerIsSet then
+            exit(Handler.Execute(Name, Arguments, ResultText));
+
+        Clear(ResultText);
+        Succeeded := false;
+        Handled := false;
+        OnExecuteTool(Name, Arguments, ResultText, Succeeded, Handled);
+        if not Handled then
+            Error(NoExecutorErr, Name);
+        exit(Succeeded);
     end;
 
     /// <summary>
-    /// Looks up an Add()'d "AIOS Tool" by Name() (does not resolve Register()'d names).
+    /// Neutral tool definitions: name, description, parameters (JSON Schema).
     /// </summary>
-    procedure FindByName(Name: Text; var Tool: Interface "AIOS Tool"): Boolean
+    procedure GetDefinitions(): JsonArray
+    var
+        Schema: Codeunit "AIOS Schema";
+        Definitions: JsonArray;
+        DefToken: JsonToken;
+        Tool: Interface "AIOS Tool";
+        i: Integer;
+    begin
+        for i := 1 to Tools.Count() do begin
+            Tools.Get(i, Tool);
+            Definitions.Add(Schema.ToolDefinition(Tool.Name(), Tool.Description(), Tool.InputSchema()));
+        end;
+        for i := 0 to RegisteredDefinitions.Count() - 1 do begin
+            RegisteredDefinitions.Get(i, DefToken);
+            Definitions.Add(DefToken.AsObject());
+        end;
+        exit(Definitions);
+    end;
+
+    /// <summary>
+    /// Raised when a named tool is executed and no handler was set via Use.
+    /// Escape hatch only — prefer Add(Tool) or Use(Handler). Set Handled := true after handling.
+    /// </summary>
+    [IntegrationEvent(false, false)]
+    local procedure OnExecuteTool(Name: Text; Arguments: JsonObject; var ResultText: Text; var Succeeded: Boolean; var Handled: Boolean)
+    begin
+    end;
+
+    local procedure SetHandler(NewHandler: Interface "AIOS Tool Handler")
+    begin
+        Handler := NewHandler;
+        HandlerIsSet := true;
+    end;
+
+    local procedure AddNamedDefinition(Name: Text; Description: Text; Parameters: JsonObject)
+    var
+        Schema: Codeunit "AIOS Schema";
+    begin
+        if Name = '' then
+            Error(ToolNameEmptyErr);
+        if HasTool(Name) then
+            Error(DuplicateToolErr, Name);
+        RegisteredDefinitions.Add(Schema.ToolDefinition(Name, Description, Parameters));
+    end;
+
+    local procedure FindInterfaceTool(Name: Text; var Tool: Interface "AIOS Tool"): Boolean
     var
         Index: Integer;
     begin
@@ -99,52 +205,6 @@ codeunit 87417 "AIOS Tool Set"
             exit(false);
         Tools.Get(Index, Tool);
         exit(true);
-    end;
-
-    /// <summary>
-    /// Runs a tool by name (Add or Register). Returns false when Execute reports failure.
-    /// Raises an error when the name is unknown or a registered tool has no handler.
-    /// </summary>
-    procedure Execute(Name: Text; Arguments: JsonObject; var ResultText: Text): Boolean
-    var
-        Tool: Interface "AIOS Tool";
-    begin
-        if FindByName(Name, Tool) then
-            exit(Tool.Execute(Arguments, ResultText));
-
-        if FindRegisteredIndex(Name) < 0 then
-            Error(UnknownToolErr, Name);
-
-        if not HandlerIsSet then
-            Error(NoHandlerErr, Name);
-
-        exit(Handler.Execute(Name, Arguments, ResultText));
-    end;
-
-    /// <summary>
-    /// Neutral tool definitions: name, description, parameters (JSON Schema).
-    /// </summary>
-    procedure GetDefinitions(): JsonArray
-    var
-        Definitions: JsonArray;
-        Definition: JsonObject;
-        DefToken: JsonToken;
-        Tool: Interface "AIOS Tool";
-        i: Integer;
-    begin
-        for i := 1 to Tools.Count() do begin
-            Tools.Get(i, Tool);
-            Clear(Definition);
-            Definition.Add('name', Tool.Name());
-            Definition.Add('description', Tool.Description());
-            Definition.Add('parameters', Tool.InputSchema());
-            Definitions.Add(Definition);
-        end;
-        for i := 0 to RegisteredDefinitions.Count() - 1 do begin
-            RegisteredDefinitions.Get(i, DefToken);
-            Definitions.Add(DefToken.AsObject());
-        end;
-        exit(Definitions);
     end;
 
     local procedure FindInterfaceIndex(Name: Text): Integer
@@ -160,7 +220,7 @@ codeunit 87417 "AIOS Tool Set"
         exit(-1);
     end;
 
-    local procedure FindRegisteredIndex(Name: Text): Integer
+    local procedure FindNamedIndex(Name: Text): Integer
     var
         DefToken: JsonToken;
         NameToken: JsonToken;
@@ -181,7 +241,9 @@ codeunit 87417 "AIOS Tool Set"
         Handler: Interface "AIOS Tool Handler";
         HandlerIsSet: Boolean;
         ToolNameEmptyErr: Label 'Tool name cannot be empty.';
-        DuplicateToolErr: Label 'Tool ''%1'' is already registered.', Comment = '%1 = tool name';
+        DuplicateToolErr: Label 'Tool ''%1'' is already added.', Comment = '%1 = tool name';
         UnknownToolErr: Label 'Unknown tool ''%1''.', Comment = '%1 = tool name';
-        NoHandlerErr: Label 'Tool ''%1'' was registered but no tool handler was set. Call SetHandler before GenerateText.', Comment = '%1 = tool name';
+        NoExecutorErr: Label 'Tool ''%1'' has no executor. Call Use(Handler) or subscribe to OnExecuteTool.', Comment = '%1 = tool name';
+        DefinitionMissingNameErr: Label 'Tool definition is missing a name.';
+        HandlerAlreadySetErr: Label 'ToolSet.Use can only be called once. Combine tools in one handler, or use Add(Tool) / Add(Name, …).';
 }

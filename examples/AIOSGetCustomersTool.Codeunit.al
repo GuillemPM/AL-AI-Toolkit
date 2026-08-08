@@ -1,34 +1,26 @@
 namespace PM.Guillem.AIOpenSDK.Examples;
 
 using PM.Guillem.AIOpenSDK.Core;
+using Microsoft.Sales.Customer;
 
 /// <summary>
-/// Demo tool handler: get_customer_list (and room for more tools without new object IDs).
+/// Primary pattern: one codeunit implements "AIOS Tool", register with ToolSet.Add(Tool).
 /// </summary>
-codeunit 87499 "AIOS Get Customers Tool" implements "AIOS Tool Handler"
+codeunit 87499 "AIOS Get Customers Tool" implements "AIOS Tool"
 {
     Access = Public;
 
-    /// <summary>
-    /// Stable name for Register / model tool calls.
-    /// </summary>
-    procedure ToolName(): Text
+    procedure Name(): Text
     begin
         exit('get_customer_list');
     end;
 
-    /// <summary>
-    /// Description for Register (model tool selection).
-    /// </summary>
-    procedure ToolDescription(): Text
+    procedure Description(): Text
     begin
         exit('Returns a JSON array of customers from Business Central (number and name). Use when the user asks about customers or accounts.');
     end;
 
-    /// <summary>
-    /// Optional maxCount (1–100) and searchName filter on Customer.Name.
-    /// </summary>
-    procedure ToolInputSchema(): JsonObject
+    procedure InputSchema(): JsonObject
     var
         Schema: Codeunit "AIOS Schema";
         MaxCountSchema: JsonObject;
@@ -42,28 +34,13 @@ codeunit 87499 "AIOS Get Customers Tool" implements "AIOS Tool Handler"
         exit(Schema.Object(Fields));
     end;
 
-    /// <summary>
-    /// Dispatches registered demo tools by name.
-    /// </summary>
-    procedure Execute(Name: Text; Arguments: JsonObject; var ResultText: Text): Boolean
-    begin
-        case Name of
-            'get_customer_list':
-                exit(GetCustomerList(Arguments, ResultText));
-            else begin
-                ResultText := StrSubstNo(UnknownToolErr, Name);
-                exit(false);
-            end;
-        end;
-    end;
-
-    local procedure GetCustomerList(Arguments: JsonObject; var ResultText: Text): Boolean
+    procedure Execute(Arguments: JsonObject; var ResultText: Text): Boolean
     var
+        Args: Codeunit "AIOS Tool Args";
         CustomerRef: RecordRef;
         NameFieldRef: FieldRef;
         Customers: JsonArray;
         Entry: JsonObject;
-        Token: JsonToken;
         SearchName: Text;
         MaxCount: Integer;
         Taken: Integer;
@@ -71,20 +48,18 @@ codeunit 87499 "AIOS Get Customers Tool" implements "AIOS Tool Handler"
         CustomerName: Text[100];
     begin
         MaxCount := 25;
-        if Arguments.Get('maxCount', Token) then
-            if Token.IsValue() then
-                MaxCount := Token.AsValue().AsInteger();
-        if MaxCount < 1 then
+        if Args.TryGetInteger(Arguments, 'maxCount', MaxCount) then begin
+            if MaxCount < 1 then
+                MaxCount := 25;
+            if MaxCount > 100 then
+                MaxCount := 100;
+        end else
             MaxCount := 25;
-        if MaxCount > 100 then
-            MaxCount := 100;
 
-        if Arguments.Get('searchName', Token) then
-            if Token.IsValue() then
-                SearchName := Token.AsValue().AsText();
+        SearchName := '';
+        Args.TryGetText(Arguments, 'searchName', SearchName);
 
-        // Customer table / No. / Name field ids (standard BC).
-        CustomerRef.Open(18);
+        CustomerRef.Open(Database::Customer);
         if SearchName <> '' then begin
             NameFieldRef := CustomerRef.Field(2);
             NameFieldRef.SetFilter('@*' + SearchName + '*');
@@ -106,7 +81,4 @@ codeunit 87499 "AIOS Get Customers Tool" implements "AIOS Tool Handler"
         Customers.WriteTo(ResultText);
         exit(true);
     end;
-
-    var
-        UnknownToolErr: Label 'Unknown tool %1.', Comment = '%1 = tool name';
 }
