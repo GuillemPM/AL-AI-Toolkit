@@ -328,7 +328,7 @@ codeunit 87410 "AIOS Client"
     /// Language-model HTTP calls from the last GenerateText / TryGenerate / TryGenerateWithTools
     /// (one entry per attempt, including retries and tool-loop steps).
     /// </summary>
-    procedure GetChatResponseCalls(): List of [Codeunit "AIOS Chat Response Call"]
+    internal procedure GetChatResponseCalls(): List of [Codeunit "AIOS Chat Response Call"]
     begin
         exit(ChatResponseCallList);
     end;

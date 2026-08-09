@@ -65,12 +65,11 @@ codeunit 87494 "AIOS Structured Output Tests"
     end;
 
     [Test]
-    procedure TryGenerate_SetOutput_InvalidJson_ReturnsParseFailed()
+    procedure GenerateText_SetOutput_InvalidJson_Errors()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
         Feedback: Record "AIOS Test Bind Target";
         RecRef: RecordRef;
     begin
@@ -81,10 +80,9 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetMaxRetries(0);
         Request.SetOutput(RecRef);
 
-        if Client.TryGenerate(Mock.Model('demo-model'), Request, Response, RecRef) then
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request, RecRef);
+        if GetLastErrorText() = '' then
             Error(ExpectedFailureErr);
-        if Response.GetErrorType() <> "AIOS Error Type"::ParseFailed then
-            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
     end;
 
     [Test]
@@ -167,13 +165,12 @@ codeunit 87494 "AIOS Structured Output Tests"
     end;
 
     [Test]
-    procedure TryGenerate_SchemaTypeMismatch_ReturnsParseFailed()
+    procedure GenerateText_SchemaTypeMismatch_Errors()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
         Fields: List of [JsonObject];
     begin
         Mock.SetNextResponse('{"name":123}');
@@ -183,10 +180,9 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetMaxRetries(0);
         Request.SetOutput(Schema.Object(Fields));
 
-        if Client.TryGenerate(Mock.Model('demo-model'), Request, Response) then
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request);
+        if GetLastErrorText() = '' then
             Error(ExpectedSchemaFailureErr);
-        if Response.GetErrorType() <> "AIOS Error Type"::ParseFailed then
-            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
     end;
 
     [Test]
@@ -230,13 +226,12 @@ codeunit 87494 "AIOS Structured Output Tests"
     end;
 
     [Test]
-    procedure TryGenerate_JsonOutput_InvalidJson_ReturnsParseFailed()
+    procedure GenerateText_JsonOutput_InvalidJson_Errors()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
     begin
         Mock.SetNextResponse('not-json');
 
@@ -244,12 +239,9 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetMaxRetries(0);
         Request.SetOutput(Schema.Json());
 
-        if Client.TryGenerate(Mock.Model('demo-model'), Request, Response) then
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request);
+        if GetLastErrorText() = '' then
             Error(ExpectedSchemaFailureErr);
-        if Response.GetErrorType() <> "AIOS Error Type"::ParseFailed then
-            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
-        if Response.GetText() <> 'not-json' then
-            Error(UnexpectedTextErr, 'not-json', Response.GetText());
     end;
 
     [Test]
@@ -276,13 +268,12 @@ codeunit 87494 "AIOS Structured Output Tests"
     end;
 
     [Test]
-    procedure GenerateText_Choice_BareText_ReturnsParseFailed()
+    procedure GenerateText_Choice_BareText_Errors()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
         Options: List of [Text];
     begin
         Mock.SetNextResponse('sunny');
@@ -294,22 +285,18 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetMaxRetries(0);
         Request.SetOutput(Schema.Choice(Options));
 
-        if Client.TryGenerate(Mock.Model('demo-model'), Request, Response) then
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request);
+        if GetLastErrorText() = '' then
             Error(ExpectedSchemaFailureErr);
-        if Response.GetErrorType() <> "AIOS Error Type"::ParseFailed then
-            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
-        if Response.GetText() <> 'sunny' then
-            Error(UnexpectedTextErr, 'sunny', Response.GetText());
     end;
 
     [Test]
-    procedure TryGenerate_Choice_InvalidOption_ReturnsParseFailed()
+    procedure GenerateText_Choice_InvalidOption_Errors()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
         Options: List of [Text];
     begin
         Mock.SetNextResponse('{"result":"windy"}');
@@ -321,12 +308,9 @@ codeunit 87494 "AIOS Structured Output Tests"
         Request.SetMaxRetries(0);
         Request.SetOutput(Schema.Choice(Options));
 
-        if Client.TryGenerate(Mock.Model('demo-model'), Request, Response) then
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request);
+        if GetLastErrorText() = '' then
             Error(ExpectedSchemaFailureErr);
-        if Response.GetErrorType() <> "AIOS Error Type"::ParseFailed then
-            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
-        if Response.GetText() <> '{"result":"windy"}' then
-            Error(UnexpectedTextErr, '{"result":"windy"}', Response.GetText());
     end;
 
     [Test]

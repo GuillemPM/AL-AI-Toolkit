@@ -10,19 +10,15 @@ codeunit 87490 "AIOS Mock Tests"
     Subtype = Test;
 
     [Test]
-    procedure TryGenerateText_ReturnsFalseOnMockError()
+    procedure GenerateText_ErrorsOnMockFailure()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
-        Response: Record "AIOS Chat Response";
     begin
         Mock.SetNextError("AIOS Error Type"::ProviderUnavailable, 'simulated failure');
-
-        if Client.TryGenerateText(Mock.Model('demo-model'), 'hello', Response) then
+        asserterror Client.GenerateText(Mock.Model('demo-model'), 'hello');
+        if StrPos(GetLastErrorText(), 'simulated failure') = 0 then
             Error(ExpectedFailureErr);
-
-        if Response.GetErrorType() <> "AIOS Error Type"::ProviderUnavailable then
-            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
     end;
 
     [Test]
@@ -66,7 +62,6 @@ codeunit 87490 "AIOS Mock Tests"
 
     var
         UnexpectedResultErr: Label 'Expected ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
-        ExpectedFailureErr: Label 'TryGenerateText should return false when the mock is set to fail.';
-        UnexpectedErrorTypeErr: Label 'Expected ProviderUnavailable error type, got %1.', Comment = '%1 = actual error type';
+        ExpectedFailureErr: Label 'GenerateText should error with the mock failure message.';
         MissingHeaderErr: Label 'Expected x-request-id header.';
 }

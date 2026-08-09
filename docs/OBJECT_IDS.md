@@ -35,6 +35,7 @@ Interfaces (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"
 | 87412 | AIOS Generate Image Result |
 | 87413 | AIOS Request Options |
 | 87414 | AIOS Image Usage |
+| 87415 | AIOS Retry Tests |
 | 87416 | AIOS Tool Call |
 | 87417 | AIOS Tool Set |
 | 87420 | AIOS Tool Args |

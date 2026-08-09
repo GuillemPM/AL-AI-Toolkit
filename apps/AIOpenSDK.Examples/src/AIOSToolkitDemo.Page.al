@@ -633,7 +633,7 @@ page 87481 "AIOS Toolkit Demo"
     var
         Client: Codeunit "AIOS Client";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
+        Result: Codeunit "AIOS Generate Result";
         Model: Interface "AIOS Language Model";
         Ok: Boolean;
     begin
@@ -646,15 +646,23 @@ page 87481 "AIOS Toolkit Demo"
         Model := BindSelectedModel();
         BuildRequest(Request);
 
-        Ok := Client.TryGenerate(Model, Request, Response);
-        ApplyResponseToPage(Ok, Response);
+        if SoftFail then begin
+            Ok := TryClientGenerateText(Client, Model, Request, Result);
+            if Ok then
+                ApplyResultToPage(Result)
+            else
+                ApplySoftFailToPage();
+            LogHistoryFromResult(SoftFail, Ok, Request, Result);
+            CurrPage.HistoryPart.Page.Reload();
+            CurrPage.Update(false);
+            exit;
+        end;
 
-        LogHistory(SoftFail, Ok, Client, Request, Response);
+        Result := Client.GenerateText(Model, Request);
+        ApplyResultToPage(Result);
+        LogHistoryFromResult(false, true, Request, Result);
         CurrPage.HistoryPart.Page.Reload();
         CurrPage.Update(false);
-
-        if (not SoftFail) and (not Ok) then
-            Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
     end;
 
     local procedure RunGenerateStructured()
@@ -662,10 +670,9 @@ page 87481 "AIOS Toolkit Demo"
         Client: Codeunit "AIOS Client";
         Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
+        Result: Codeunit "AIOS Generate Result";
         Fields: List of [JsonObject];
         Model: Interface "AIOS Language Model";
-        Ok: Boolean;
     begin
         if ModelId = '' then
             Error(ModelRequiredErr);
@@ -688,15 +695,11 @@ page 87481 "AIOS Toolkit Demo"
         BuildRequest(Request);
         Request.SetOutput(Schema.Object(Fields));
 
-        Ok := Client.TryGenerate(Model, Request, Response);
-        ApplyResponseToPage(Ok, Response);
-
-        LogHistory(false, Ok, Client, Request, Response);
+        Result := Client.GenerateText(Model, Request);
+        ApplyResultToPage(Result);
+        LogHistoryFromResult(false, true, Request, Result);
         CurrPage.HistoryPart.Page.Reload();
         CurrPage.Update(false);
-
-        if not Ok then
-            Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
     end;
 
     local procedure RunGenerateJson()
@@ -704,9 +707,8 @@ page 87481 "AIOS Toolkit Demo"
         Client: Codeunit "AIOS Client";
         Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
+        Result: Codeunit "AIOS Generate Result";
         Model: Interface "AIOS Language Model";
-        Ok: Boolean;
     begin
         if ModelId = '' then
             Error(ModelRequiredErr);
@@ -723,15 +725,11 @@ page 87481 "AIOS Toolkit Demo"
         BuildRequest(Request);
         Request.SetOutput(Schema.Json());
 
-        Ok := Client.TryGenerate(Model, Request, Response);
-        ApplyResponseToPage(Ok, Response);
-
-        LogHistory(false, Ok, Client, Request, Response);
+        Result := Client.GenerateText(Model, Request);
+        ApplyResultToPage(Result);
+        LogHistoryFromResult(false, true, Request, Result);
         CurrPage.HistoryPart.Page.Reload();
         CurrPage.Update(false);
-
-        if not Ok then
-            Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
     end;
 
     local procedure RunGenerateChoice()
@@ -739,11 +737,10 @@ page 87481 "AIOS Toolkit Demo"
         Client: Codeunit "AIOS Client";
         Schema: Codeunit "AIOS Schema";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
+        Result: Codeunit "AIOS Generate Result";
         Options: List of [Text];
         Model: Interface "AIOS Language Model";
         FirstOption: Text;
-        Ok: Boolean;
     begin
         if ModelId = '' then
             Error(ModelRequiredErr);
@@ -766,15 +763,11 @@ page 87481 "AIOS Toolkit Demo"
         BuildRequest(Request);
         Request.SetOutput(Schema.Choice(Options));
 
-        Ok := Client.TryGenerate(Model, Request, Response);
-        ApplyResponseToPage(Ok, Response);
-
-        LogHistory(false, Ok, Client, Request, Response);
+        Result := Client.GenerateText(Model, Request);
+        ApplyResultToPage(Result);
+        LogHistoryFromResult(false, true, Request, Result);
         CurrPage.HistoryPart.Page.Reload();
         CurrPage.Update(false);
-
-        if not Ok then
-            Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
     end;
 
     local procedure RunGenerateWithTools()
@@ -783,10 +776,8 @@ page 87481 "AIOS Toolkit Demo"
         ToolSet: Codeunit "AIOS Tool Set";
         GetCustomers: Codeunit "AIOS Get Customers Tool";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
+        Result: Codeunit "AIOS Generate Result";
         Model: Interface "AIOS Language Model";
-        EmptyOutput: RecordRef;
-        Ok: Boolean;
     begin
         if SelectedProvider = SelectedProvider::Mock then
             Error(ToolLiveProviderRequiredErr);
@@ -809,15 +800,17 @@ page 87481 "AIOS Toolkit Demo"
         if DelChr(SystemPrompt, '<>', ' ') = '' then
             Request.SetSystemMessage(ToolDefaultSystemTok);
 
-        Ok := Client.TryGenerateWithTools(Model, Request, ToolSet, ToolMaxSteps, Response, EmptyOutput);
-        ApplyResponseToPage(Ok, Response);
-
-        LogHistory(false, Ok, Client, Request, Response);
+        Result := Client.GenerateText(Model, Request, ToolSet, ToolMaxSteps);
+        ApplyResultToPage(Result);
+        LogHistoryFromResult(false, true, Request, Result);
         CurrPage.HistoryPart.Page.Reload();
         CurrPage.Update(false);
+    end;
 
-        if not Ok then
-            Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
+    [TryFunction]
+    local procedure TryClientGenerateText(var Client: Codeunit "AIOS Client"; Model: Interface "AIOS Language Model"; var Request: Record "AIOS Chat Request"; var Result: Codeunit "AIOS Generate Result")
+    begin
+        Result := Client.GenerateText(Model, Request);
     end;
 
     local procedure RunGenerateImages(RequestedCount: Integer)
@@ -955,33 +948,25 @@ page 87481 "AIOS Toolkit Demo"
         Commit();
     end;
 
-    local procedure ApplyResponseToPage(Ok: Boolean; var Response: Record "AIOS Chat Response")
+    local procedure ApplyResultToPage(Result: Codeunit "AIOS Generate Result")
     var
         Headers: JsonObject;
     begin
-        if Ok then
-            LastResult := Response.GetText()
-        else
-            LastResult := FormatFailedResult(Response);
-
-        LastHttpStatus := Response."HTTP Status Code";
-        LastResponseBody := Response.GetBody();
-        Headers := Response.GetHeaders();
+        LastResult := Result.Output();
+        LastHttpStatus := Result.HttpStatusCode();
+        LastResponseBody := Result.Body();
+        Headers := Result.Headers();
         Clear(LastResponseHeaders);
         if Headers.Keys().Count() > 0 then
             Headers.WriteTo(LastResponseHeaders);
     end;
 
-    local procedure FormatFailedResult(var Response: Record "AIOS Chat Response"): Text
-    var
-        ModelText: Text;
-        ErrMsg: Text;
+    local procedure ApplySoftFailToPage()
     begin
-        ErrMsg := Response."Error Message";
-        ModelText := Response.GetText();
-        if (ModelText = '') or (StrPos(ErrMsg, ModelText) > 0) then
-            exit(StrSubstNo(ErrorResultMsg, Response.GetErrorType(), ErrMsg));
-        exit(StrSubstNo(ErrorResultWithTextMsg, Response.GetErrorType(), ErrMsg, ModelText));
+        LastResult := GetLastErrorText();
+        LastHttpStatus := 0;
+        LastResponseBody := '';
+        Clear(LastResponseHeaders);
     end;
 
     local procedure ParseChoiceOptions(OptionsText: Text; var Options: List of [Text])
@@ -1006,7 +991,7 @@ page 87481 "AIOS Toolkit Demo"
         end;
     end;
 
-    local procedure LogHistory(SoftFail: Boolean; Ok: Boolean; Client: Codeunit "AIOS Client"; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure LogHistoryFromResult(SoftFail: Boolean; Ok: Boolean; var Request: Record "AIOS Chat Request"; Result: Codeunit "AIOS Generate Result")
     var
         History: Record "AIOS Demo History";
         Calls: List of [Codeunit "AIOS Chat Response Call"];
@@ -1017,18 +1002,17 @@ page 87481 "AIOS Toolkit Demo"
         TotalOutput: Integer;
         i: Integer;
     begin
-        Calls := Client.GetChatResponseCalls();
-        for i := 1 to Calls.Count() do begin
-            Calls.Get(i, CallCU);
-            CallsArr.Add(CallCU.ToJson());
-            TotalInput += CallCU.GetInputTokens();
-            TotalOutput += CallCU.GetOutputTokens();
+        if Ok then begin
+            Calls := Result.GetResponseCalls();
+            for i := 1 to Calls.Count() do begin
+                Calls.Get(i, CallCU);
+                CallsArr.Add(CallCU.ToJson());
+            end;
+            if Calls.Count() > 0 then
+                CallsArr.WriteTo(CallsJson);
+            TotalInput := Result.GetTotalInputTokens();
+            TotalOutput := Result.GetTotalOutputTokens();
         end;
-        if Calls.Count() = 0 then begin
-            TotalInput := Response."Input Tokens";
-            TotalOutput := Response."Output Tokens";
-        end else
-            CallsArr.WriteTo(CallsJson);
 
         History.Init();
         History."Created At" := CurrentDateTime();
@@ -1065,10 +1049,8 @@ page 87481 "AIOS Toolkit Demo"
         History."Has Max Retries" := UseMaxRetries;
         History.Success := Ok;
         History."Soft Fail" := SoftFail;
-        if not Ok then begin
-            History."Error Type" := Response.GetErrorType();
-            History."Error Message" := Response."Error Message";
-        end;
+        if not Ok then
+            History."Error Message" := CopyStr(LastResult, 1, MaxStrLen(History."Error Message"));
         History."Input Tokens" := TotalInput;
         History."Output Tokens" := TotalOutput;
         History.Insert(true);
@@ -1419,9 +1401,6 @@ page 87481 "AIOS Toolkit Demo"
         ModelRequiredErr: Label 'Enter a model id.';
         ImageModelRequiredErr: Label 'Enter an image model id (for example mock-image or dall-e-3).';
         ApiKeyRequiredErr: Label 'Enter an API key for this provider (not needed for Mock).';
-        ErrorResultMsg: Label 'Failed (%1): %2', Comment = '%1 = error type, %2 = message';
-        ErrorResultWithTextMsg: Label 'Failed (%1): %2\n\nModel response:\n%3', Comment = '%1 = error type, %2 = message, %3 = model text';
-        GenerationFailedErr: Label 'Generation failed (%1): %2', Comment = '%1 = error type, %2 = message';
         PromptRequiredErr: Label 'Enter a prompt before structured generate.';
         JsonPromptRequiredErr: Label 'Enter a prompt before generate JSON.';
         ChoicePromptRequiredErr: Label 'Enter a prompt before generate choice.';

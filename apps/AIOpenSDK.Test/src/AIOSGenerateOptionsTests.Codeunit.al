@@ -32,37 +32,7 @@ codeunit 87493 "AIOS Generate Options Tests"
             Error(UnexpectedIntErr, 0, Request.GetMaxRetries());
     end;
 
-    [Test]
-    procedure Retry_IsRetriable_RateLimitedTimeoutUnavailable()
-    var
-        Retry: Codeunit "AIOS Retry";
-    begin
-        if not Retry.IsRetriable("AIOS Error Type"::RateLimited) then
-            Error(ExpectedRetriableErr, 'RateLimited');
-        if not Retry.IsRetriable("AIOS Error Type"::Timeout) then
-            Error(ExpectedRetriableErr, 'Timeout');
-        if not Retry.IsRetriable("AIOS Error Type"::ProviderUnavailable) then
-            Error(ExpectedRetriableErr, 'ProviderUnavailable');
-        if Retry.IsRetriable("AIOS Error Type"::ParseFailed) then
-            Error(ExpectedNotRetriableErr, 'ParseFailed');
-        if Retry.IsRetriable("AIOS Error Type"::InvalidRequest) then
-            Error(ExpectedNotRetriableErr, 'InvalidRequest');
-    end;
 
-    [Test]
-    procedure Retry_BackoffMs_LinearThenCapped()
-    var
-        Retry: Codeunit "AIOS Retry";
-    begin
-        if Retry.BackoffMs(0) <> 200 then
-            Error(UnexpectedIntErr, 200, Retry.BackoffMs(0));
-        if Retry.BackoffMs(1) <> 400 then
-            Error(UnexpectedIntErr, 400, Retry.BackoffMs(1));
-        if Retry.BackoffMs(9) <> 2000 then
-            Error(UnexpectedIntErr, 2000, Retry.BackoffMs(9));
-        if Retry.BackoffMs(20) <> 2000 then
-            Error(UnexpectedIntErr, 2000, Retry.BackoffMs(20));
-    end;
 
     [Test]
     procedure HttpErrorMapper_FromHttpStatus_MapsKnownCodes()
@@ -142,74 +112,60 @@ codeunit 87493 "AIOS Generate Options Tests"
     end;
 
     [Test]
-    procedure TryGenerate_RetriesThenSucceeds()
+    procedure GenerateText_RetriesThenSucceeds()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
-        Retry: Codeunit "AIOS Retry";
         Spy: Codeunit "AIOS Lifecycle Spy";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
+        Result: Codeunit "AIOS Generate Result";
         ExpectedTrace: Text;
     begin
-        Retry.SetSkipSleep(true);
         Spy.StartRecording();
         Mock.SetNextResponse('recovered');
         Mock.SetFailuresBeforeSuccess(2);
         Clear(Request);
         Request.SetPrompt('ping');
         Request.SetMaxRetries(2);
-        // 3 model calls: fail, fail, succeed
         ExpectedTrace := 'OnBeforeGenerate|OnBeforeLanguageModelCall|OnAfterLanguageModelCall|OnBeforeLanguageModelCall|OnAfterLanguageModelCall|OnBeforeLanguageModelCall|OnAfterLanguageModelCall|OnAfterGenerate';
 
-        if not Client.TryGenerate(Mock.Model('demo-model'), Request, Response) then
-            Error(ExpectedSuccessErr);
-        if Response.GetText() <> 'recovered' then
-            Error(UnexpectedTextErr, 'recovered', Response.GetText());
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        if Result.Output() <> 'recovered' then
+            Error(UnexpectedTextErr, 'recovered', Result.Output());
         if Spy.GetEventTrace() <> ExpectedTrace then
             Error(UnexpectedTraceErr, ExpectedTrace, Spy.GetEventTrace());
         Spy.StopRecording();
-        Retry.SetSkipSleep(false);
     end;
 
     [Test]
-    procedure TryGenerate_ExhaustsRetries()
+    procedure GenerateText_ExhaustsRetries()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
-        Retry: Codeunit "AIOS Retry";
         Spy: Codeunit "AIOS Lifecycle Spy";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
         ExpectedTrace: Text;
     begin
-        Retry.SetSkipSleep(true);
         Spy.StartRecording();
         Mock.SetNextResponse('should-not-appear');
         Mock.SetFailuresBeforeSuccess(3);
         Clear(Request);
         Request.SetPrompt('ping');
         Request.SetMaxRetries(2);
-        // 3 attempts, all fail — no OnAfterGenerate
         ExpectedTrace := 'OnBeforeGenerate|OnBeforeLanguageModelCall|OnAfterLanguageModelCall|OnBeforeLanguageModelCall|OnAfterLanguageModelCall|OnBeforeLanguageModelCall|OnAfterLanguageModelCall';
 
-        if Client.TryGenerate(Mock.Model('demo-model'), Request, Response) then
-            Error(ExpectedFailureErr);
-        if Response.GetErrorType() <> "AIOS Error Type"::RateLimited then
-            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request);
         if Spy.GetEventTrace() <> ExpectedTrace then
             Error(UnexpectedTraceErr, ExpectedTrace, Spy.GetEventTrace());
         Spy.StopRecording();
-        Retry.SetSkipSleep(false);
     end;
 
     [Test]
-    procedure TryGenerate_MaxRetriesZero_NoRetry()
+    procedure GenerateText_MaxRetriesZero_NoRetry()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
         Spy: Codeunit "AIOS Lifecycle Spy";
         ExpectedTrace: Text;
     begin
@@ -220,8 +176,7 @@ codeunit 87493 "AIOS Generate Options Tests"
         Request.SetMaxRetries(0);
         ExpectedTrace := 'OnBeforeGenerate|OnBeforeLanguageModelCall|OnAfterLanguageModelCall';
 
-        if Client.TryGenerate(Mock.Model('demo-model'), Request, Response) then
-            Error(ExpectedFailureErr);
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request);
         if Spy.GetEventTrace() <> ExpectedTrace then
             Error(UnexpectedTraceErr, ExpectedTrace, Spy.GetEventTrace());
         Spy.StopRecording();

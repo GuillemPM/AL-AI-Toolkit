@@ -504,9 +504,7 @@ codeunit 87497 "AIOS Tool Tests"
         ToolSet: Codeunit "AIOS Tool Set";
         Echo: Codeunit "AIOS Echo Tool";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
         Tool: Interface "AIOS Tool";
-        EmptyOutput: RecordRef;
     begin
         Tool := Echo;
         ToolSet.Add(Tool);
@@ -514,10 +512,9 @@ codeunit 87497 "AIOS Tool Tests"
         Request.SetPrompt('x');
         Request.SetMaxRetries(0);
 
-        if Client.TryGenerateWithTools(Mock.Model('demo-model'), Request, ToolSet, 5, Response, EmptyOutput) then
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+        if StrPos(GetLastErrorText(), 'missing_tool') = 0 then
             Error(ExpectedFailureErr);
-        if Response.GetErrorType() <> "AIOS Error Type"::InvalidRequest then
-            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
     end;
 
     [Test]
@@ -578,7 +575,7 @@ codeunit 87497 "AIOS Tool Tests"
     end;
 
     [Test]
-    procedure TryGenerateWithTools_RetriesThenToolThenText()
+    procedure GenerateText_RetriesThenToolThenText()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
@@ -659,7 +656,7 @@ codeunit 87497 "AIOS Tool Tests"
         UnexpectedRoleErr: Label 'Expected role %1.', Comment = '%1 = role';
         UnknownToolErr: Label 'Unknown tool %1.', Comment = '%1 = tool name';
         ToolExecuteFailedErr: Label 'Tool %1 failed: %2', Comment = '%1 = tool name, %2 = result';
-        ExpectedFailureErr: Label 'Expected TryGenerateWithTools to fail.';
+        ExpectedFailureErr: Label 'Expected GenerateText with tools to fail for unknown tool.';
         UnexpectedErrorTypeErr: Label 'Expected InvalidRequest, got %1.', Comment = '%1 = error type';
         ExpectedToolErrorContentErr: Label 'Expected non-empty tool result after execute failure.';
         ExpectedRequireFailErr: Label 'Expected RequireText to return false for a missing argument.';

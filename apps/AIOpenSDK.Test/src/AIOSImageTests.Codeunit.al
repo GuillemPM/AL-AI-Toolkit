@@ -79,25 +79,21 @@ codeunit 87495 "AIOS Image Tests"
     end;
 
     [Test]
-    procedure TryGenerateImage_Failure_ReturnsFalse()
+    procedure GenerateImage_ErrorsOnMockFailure()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         Request: Record "AIOS Image Request";
-        Response: Record "AIOS Image Response";
     begin
         Mock.SetNextError("AIOS Error Type"::ProviderUnavailable, 'simulated');
         Request.SetPrompt('fail');
-
-        if Client.TryGenerateImage(Mock.ImageModel('mock-image'), Request, Response) then
+        asserterror Client.GenerateImage(Mock.ImageModel('mock-image'), Request);
+        if StrPos(GetLastErrorText(), 'simulated') = 0 then
             Error(ExpectedFailureErr);
-        if Response.GetErrorType() <> "AIOS Error Type"::ProviderUnavailable then
-            Error(UnexpectedErrorTypeErr, Response.GetErrorType());
     end;
 
     var
         UnexpectedCountErr: Label 'Expected count %1, got %2.', Comment = '%1 = expected, %2 = actual';
         UnexpectedTextErr: Label 'Expected ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
-        ExpectedFailureErr: Label 'TryGenerateImage should return false when the mock is set to fail.';
-        UnexpectedErrorTypeErr: Label 'Expected ProviderUnavailable, got %1.', Comment = '%1 = actual error type';
+        ExpectedFailureErr: Label 'GenerateImage should error with the mock failure message.';
 }

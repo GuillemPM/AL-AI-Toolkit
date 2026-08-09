@@ -4,12 +4,16 @@ Supported surface for application developers. Prefer these objects; treat anythi
 
 ## Core (`AL AI Open SDK`)
 
-- `"AIOS Client"` — `GenerateText` / `GenerateImage` (+ lifecycle events)
-- `"AIOS Generate Result"` / `"AIOS Generate Image Result"` and related result helpers
+- `"AIOS Client"` — `GenerateText` / `GenerateImage` (raise on failure) + lifecycle events
+- `"AIOS Generate Result"` / `"AIOS Generate Image Result"` and related result helpers (`Output`, `GetResponseCalls`, …)
 - `"AIOS Chat Request"` / `"AIOS Chat Response"` (and image request/response tables)
 - `"AIOS Schema"`, `"AIOS Tool Set"`, `"AIOS Tool"` / `"AIOS Tool Handler"` interfaces
 - `"AIOS Mock"` — unit tests without network
+- `"AIOS Http Error Mapper"` — shared HTTP status → error type mapping (provider authors)
+- `"AIOS Request Options"` — reasoning helpers
 - Interfaces: `"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"AIOS Chat Format"`
+
+Soft-fail UI: wrap `GenerateText` / `GenerateImage` in a `[TryFunction]` in your app (see Examples demo). Do **not** call Core `TryGenerate*` — those are Internal.
 
 ## Provider apps (install only what you need)
 
@@ -30,6 +34,8 @@ OpenAI / OpenAI Compatible / OpenCode Zen depend on ProviderUtils; Anthropic dep
 
 ## Not public for consumers
 
-- Test app and Examples app objects
+- `TryGenerate*` / `TryGenerateImage` / `GetChatResponseCalls` on `"AIOS Client"` (`internal`)
+- `"AIOS Retry"` (`Access = Internal`)
 - `* Model` codeunits (`Access = Internal`)
-- `"AIOS Retry"`, `"AIOS Json Binder"`, `"AIOS Schema Validator"` (Internal)
+- `"AIOS Json Binder"`, `"AIOS Schema Validator"` (`Access = Internal`)
+- Test app and Examples app objects

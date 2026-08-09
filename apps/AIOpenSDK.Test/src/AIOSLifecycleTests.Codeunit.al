@@ -5,25 +5,25 @@ using PM.Guillem.AIOpenSDK.Provider.Mock;
 
 codeunit 87491 "AIOS Lifecycle Tests"
 {
-
     Access = Internal;
     Subtype = Test;
 
     [Test]
-    procedure TryGenerate_Success_RaisesLifecycleEventsInOrder()
+    procedure GenerateText_Success_RaisesLifecycleEventsInOrder()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         Spy: Codeunit "AIOS Lifecycle Spy";
-        Response: Record "AIOS Chat Response";
+        Result: Codeunit "AIOS Generate Result";
         ExpectedTrace: Text;
     begin
         Spy.StartRecording();
         Mock.SetNextResponse('ok');
         ExpectedTrace := 'OnBeforeGenerate|OnBeforeLanguageModelCall|OnAfterLanguageModelCall|OnAfterGenerate';
 
-        if not Client.TryGenerateText(Mock.Model('demo-model'), 'ping', Response) then
-            Error(ExpectedSuccessErr);
+        Result := Client.GenerateText(Mock.Model('demo-model'), 'ping');
+        if Result.Output() <> 'ok' then
+            Error(UnexpectedOutputErr, 'ok', Result.Output());
 
         if Spy.GetEventTrace() <> ExpectedTrace then
             Error(UnexpectedTraceErr, ExpectedTrace, Spy.GetEventTrace());
@@ -35,13 +35,12 @@ codeunit 87491 "AIOS Lifecycle Tests"
     end;
 
     [Test]
-    procedure TryGenerate_SoftFail_DoesNotRaiseOnAfterGenerate()
+    procedure GenerateText_Failure_DoesNotRaiseOnAfterGenerate()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
         Spy: Codeunit "AIOS Lifecycle Spy";
         Request: Record "AIOS Chat Request";
-        Response: Record "AIOS Chat Response";
         ExpectedTrace: Text;
     begin
         Spy.StartRecording();
@@ -51,8 +50,7 @@ codeunit 87491 "AIOS Lifecycle Tests"
         Request.SetMaxRetries(0);
         ExpectedTrace := 'OnBeforeGenerate|OnBeforeLanguageModelCall|OnAfterLanguageModelCall';
 
-        if Client.TryGenerate(Mock.Model('demo-model'), Request, Response) then
-            Error(ExpectedFailureErr);
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request);
 
         if Spy.GetEventTrace() <> ExpectedTrace then
             Error(UnexpectedTraceErr, ExpectedTrace, Spy.GetEventTrace());
@@ -62,10 +60,9 @@ codeunit 87491 "AIOS Lifecycle Tests"
     end;
 
     var
-        ExpectedSuccessErr: Label 'TryGenerateText should succeed with the mock.';
-        ExpectedFailureErr: Label 'TryGenerateText should return false when the mock is set to fail.';
+        UnexpectedOutputErr: Label 'Expected output ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
         UnexpectedTraceErr: Label 'Expected event trace ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
         UnexpectedModelIdErr: Label 'Expected model id ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
         ExpectedAfterGenerateErr: Label 'OnAfterGenerate should be raised on success.';
-        UnexpectedAfterGenerateErr: Label 'OnAfterGenerate must not be raised on soft-fail.';
+        UnexpectedAfterGenerateErr: Label 'OnAfterGenerate must not be raised on failure.';
 }
