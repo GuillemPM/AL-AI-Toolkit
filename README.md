@@ -1,4 +1,4 @@
-# AL AI Open SDK
+# AI Open SDK for Business Central
 
 Provider-agnostic AI integration library for Microsoft Dynamics 365 Business Central, written in AL.
 
@@ -10,7 +10,7 @@ Status: **v0.1** (usable client + providers; pre-1.0 — public APIs may still c
 
 | Need | Apps |
 |------|------|
-| Client + Mock tests | **AL AI Open SDK** (Core) |
+| Client + Mock tests | **AI Open SDK** (Core) |
 | OpenAI chat/image | Core + **OpenAI** (+ Provider Utils, pulled in) |
 | Anthropic | Core + **Anthropic** |
 | Any Chat Completions URL | Core + **OpenAI Compatible** (+ Provider Utils) |
@@ -60,6 +60,8 @@ docs/PUBLIC_API.md
 docs/DEVELOPMENT.md                  How to work on Core / one provider / consumers
 scripts/prepare-deps.ps1             Package Core+Utils (Windows)
 scripts/prepare-deps.sh              Package Core+Utils (Linux/macOS)
+scripts/publish-apps.ps1             Package + publish stack (Windows)
+scripts/publish-apps.sh              Package + publish stack (Linux/macOS)
 ```
 
 Object IDs: provisional — see [docs/OBJECT_IDS.md](docs/OBJECT_IDS.md). Replace with AppSource-assigned ranges before publishing.
@@ -80,7 +82,17 @@ Full workflows (including **provider-only** work): **[docs/DEVELOPMENT.md](docs/
    ./scripts/prepare-deps.sh     # Linux / macOS
    ```
 
-4. Open the app you care about (e.g. one provider) and Package/Publish — or use [`AL-AI-Toolkit.code-workspace`](AL-AI-Toolkit.code-workspace) for the full stack.
+4. To publish Core + Utils + providers to your BC (dev endpoint), set credentials and run:
+
+   ```powershell
+   $env:BC_USERNAME = 'YOUR_USER'
+   $env:BC_PASSWORD = 'YOUR_PASSWORD'
+   .\scripts\publish-apps.ps1
+   ```
+
+   Target comes from `apps/AIOpenSDK.Core/.vscode/launch.json` unless you override with `BC_SERVER` / `-Server`. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
+5. Or open a single app and Package/Publish — or use [`AL-AI-Toolkit.code-workspace`](AL-AI-Toolkit.code-workspace) for the full stack.
 
 Happy path — `GenerateText` returns `"AIOS Generate Result"` (Errors on failure):
 

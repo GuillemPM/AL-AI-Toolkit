@@ -1,10 +1,10 @@
 {
   "id": "508e5bc0-6081-4aad-8a82-d48352aede0c",
-  "name": "AL AI Open SDK Provider Utils",
+  "name": "AI Open SDK Provider Utils",
   "publisher": "Guillermo Padilla",
   "version": "0.1.0.0",
   "brief": "Shared helpers for AIOS provider apps (Chat Completions)",
-  "description": "Provider-utils for AL AI Open SDK: shared Chat Completions format, options, and HTTP client. Provider apps depend on this; application code usually depends on Core + a provider only.",
+  "description": "Provider-utils for AI Open SDK for Business Central: shared Chat Completions format, options, and HTTP client. Provider apps depend on this; application code usually depends on Core + a provider only.",
   "privacyStatement": "",
   "EULA": "",
   "help": "",
@@ -13,7 +13,7 @@
   "dependencies": [
     {
       "id": "f624c4ac-75e8-4ce4-9a31-c2d6ff2a05a1",
-      "name": "AL AI Open SDK",
+      "name": "AI Open SDK",
       "publisher": "Guillermo Padilla",
       "version": "0.1.0.0"
     }

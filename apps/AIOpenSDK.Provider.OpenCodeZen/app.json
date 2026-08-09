@@ -1,10 +1,10 @@
 {
   "id": "f332a4a0-db18-4e20-aaa1-c25179684453",
-  "name": "AL AI Open SDK OpenCode Zen",
+  "name": "AI Open SDK OpenCode Zen",
   "publisher": "Guillermo Padilla",
   "version": "0.1.0.0",
-  "brief": "OpenCode Zen provider for AL AI Open SDK",
-  "description": "OpenCode Zen chat completions provider for AL AI Open SDK. Sibling provider app (Core + Provider Utils); you can also use OpenAI Compatible with Zen base URL.",
+  "brief": "OpenCode Zen provider for AI Open SDK for Business Central",
+  "description": "OpenCode Zen chat completions provider for AI Open SDK for Business Central. Sibling provider app (Core + Provider Utils); you can also use OpenAI Compatible with Zen base URL.",
   "privacyStatement": "",
   "EULA": "",
   "help": "",
@@ -13,13 +13,13 @@
   "dependencies": [
     {
       "id": "f624c4ac-75e8-4ce4-9a31-c2d6ff2a05a1",
-      "name": "AL AI Open SDK",
+      "name": "AI Open SDK",
       "publisher": "Guillermo Padilla",
       "version": "0.1.0.0"
     },
     {
       "id": "508e5bc0-6081-4aad-8a82-d48352aede0c",
-      "name": "AL AI Open SDK Provider Utils",
+      "name": "AI Open SDK Provider Utils",
       "publisher": "Guillermo Padilla",
       "version": "0.1.0.0"
     }

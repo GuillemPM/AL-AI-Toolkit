@@ -2,7 +2,7 @@
 
 Supported surface for application developers. Prefer these objects; treat anything else as subject to change.
 
-## Core (`AL AI Open SDK`)
+## Core (`AI Open SDK`)
 
 - `"AIOS Client"` — `GenerateText` / `GenerateImage` (raise on failure) + lifecycle events
 - `"AIOS Generate Result"` / `"AIOS Generate Image Result"` and related result helpers (`Output`, `GetResponseCalls`, …)

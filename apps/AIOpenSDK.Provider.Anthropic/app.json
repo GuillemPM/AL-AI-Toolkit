@@ -1,10 +1,10 @@
 {
   "id": "b6caa435-9837-4155-9932-0b591bdeb4d1",
-  "name": "AL AI Open SDK Anthropic",
+  "name": "AI Open SDK Anthropic",
   "publisher": "Guillermo Padilla",
   "version": "0.1.0.0",
-  "brief": "Anthropic provider for AL AI Open SDK",
-  "description": "Anthropic Messages API provider for AL AI Open SDK. Depends on Core only (does not pull other vendor providers).",
+  "brief": "Anthropic provider for AI Open SDK for Business Central",
+  "description": "Anthropic Messages API provider for AI Open SDK for Business Central. Depends on Core only (does not pull other vendor providers).",
   "privacyStatement": "",
   "EULA": "",
   "help": "",
@@ -13,7 +13,7 @@
   "dependencies": [
     {
       "id": "f624c4ac-75e8-4ce4-9a31-c2d6ff2a05a1",
-      "name": "AL AI Open SDK",
+      "name": "AI Open SDK",
       "publisher": "Guillermo Padilla",
       "version": "0.1.0.0"
     }

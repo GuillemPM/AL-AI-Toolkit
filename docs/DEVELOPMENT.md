@@ -37,6 +37,28 @@ You do not need this monorepo open unless you are changing the SDK.
 4. Package/publish in order when something depends on a change:
    - Core → ProviderUtils → providers → Examples → Test
 
+Or from the repo root, publish the runtime stack (Core + Utils + providers) via the BC **dev endpoint** (same path as VS Code Publish):
+
+```powershell
+# Windows — reads apps\AIOpenSDK.Core\.vscode\launch.json by default
+$env:BC_USERNAME = 'YOUR_USER'
+$env:BC_PASSWORD = 'YOUR_PASSWORD'
+.\scripts\publish-apps.ps1              # runtime apps
+.\scripts\publish-apps.ps1 -Set all     # + Examples + Test
+.\scripts\publish-apps.ps1 -PackageOnly # alc package only, no publish
+```
+
+```bash
+# Linux / macOS
+export BC_USERNAME='YOUR_USER'
+export BC_PASSWORD='YOUR_PASSWORD'
+./scripts/publish-apps.sh
+./scripts/publish-apps.sh --set all
+./scripts/publish-apps.sh --package-only
+```
+
+Override target with `-Server` / `BC_SERVER` (etc.), or `--apps AIOpenSDK.Core,AIOpenSDK.Provider.OpenAI`. SaaS/AAD needs `BC_ACCESS_TOKEN` (interactive AAD login stays in VS Code).
+
 ---
 
 ## Path C — Work only on a provider (or add a new one)
@@ -74,8 +96,8 @@ If PowerShell blocks the script:
 1. Copy an existing sibling (e.g. Anthropic for a custom HTTP API, or OpenAICompatible for Chat Completions).
 2. New folder: `apps/AIOpenSDK.Provider.<Name>/` with its own `app.json`, `src/`, `.vscode/` (settings already use `../../.alpackages`).
 3. Dependencies:
-   - Always: **AL AI Open SDK** (Core)
-   - Chat Completions wire format: also **AL AI Open SDK Provider Utils**
+   - Always: **AI Open SDK** (Core)
+   - Chat Completions wire format: also **AI Open SDK Provider Utils**
    - Never: another vendor provider app
 4. Pick free object IDs in the provider band (see [OBJECT_IDS.md](OBJECT_IDS.md)); update that doc.
 5. Implement `"AIOS Language Model"` (and Format/Options if needed). Prefer Utils’ `"AIOS Chat Completions Client"` when the API is Chat Completions.
@@ -101,6 +123,8 @@ If PowerShell blocks the script:
 | Weird folder `apps/.../${workspaceFolder:repo}/.alpackages` | Delete it; open the **workspace** or use per-app `../../.alpackages` only |
 | Only changed Core but provider still sees old API | Re-run `prepare-deps` (stale Core.app in cache) |
 | `alc.exe` / `alc` not found | Install AL Language extension, or set `$env:ALC` / `ALC` to the compiler path |
+| Publish auth failed (401/403) | Set `BC_USERNAME`/`BC_PASSWORD`, or `BC_ACCESS_TOKEN` for bearer; check launch.json server/instance/port |
+| Publish 422 / dependency errors | Publish in order (`publish-apps` default), or use `-Set runtime` before Examples/Test |
 
 ---
 

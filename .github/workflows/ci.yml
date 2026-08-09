@@ -43,10 +43,10 @@ jobs:
               # provider→provider ban (except via Utils/Core)
               deps = {d['name'] for d in data.get('dependencies', [])}
               provider_names = {
-                  'AL AI Open SDK OpenAI',
-                  'AL AI Open SDK Anthropic',
-                  'AL AI Open SDK OpenAI Compatible',
-                  'AL AI Open SDK OpenCode Zen',
+                  'AI Open SDK OpenAI',
+                  'AI Open SDK Anthropic',
+                  'AI Open SDK OpenAI Compatible',
+                  'AI Open SDK OpenCode Zen',
               }
               if name in provider_names:
                   bad = deps & (provider_names - {name})

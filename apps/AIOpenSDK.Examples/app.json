@@ -1,10 +1,10 @@
 {
   "id": "aa2ebf49-d38d-4f14-8dde-6f235d55fb4d",
-  "name": "AL AI Open SDK Examples",
+  "name": "AI Open SDK Examples",
   "publisher": "Guillermo Padilla",
   "version": "0.1.0.0",
-  "brief": "Demo page and samples for AL AI Open SDK",
-  "description": "Examples and interactive demo for AL AI Open SDK. Not required for production apps.",
+  "brief": "Demo page and samples for AI Open SDK for Business Central",
+  "description": "Examples and interactive demo for AI Open SDK for Business Central. Not required for production apps.",
   "privacyStatement": "",
   "EULA": "",
   "help": "",
@@ -13,25 +13,25 @@
   "dependencies": [
     {
       "id": "f624c4ac-75e8-4ce4-9a31-c2d6ff2a05a1",
-      "name": "AL AI Open SDK",
+      "name": "AI Open SDK",
       "publisher": "Guillermo Padilla",
       "version": "0.1.0.0"
     },
     {
       "id": "0398a2c3-d5c5-4446-95c2-692a816ecc52",
-      "name": "AL AI Open SDK OpenAI",
+      "name": "AI Open SDK OpenAI",
       "publisher": "Guillermo Padilla",
       "version": "0.1.0.0"
     },
     {
       "id": "b6caa435-9837-4155-9932-0b591bdeb4d1",
-      "name": "AL AI Open SDK Anthropic",
+      "name": "AI Open SDK Anthropic",
       "publisher": "Guillermo Padilla",
       "version": "0.1.0.0"
     },
     {
       "id": "f332a4a0-db18-4e20-aaa1-c25179684453",
-      "name": "AL AI Open SDK OpenCode Zen",
+      "name": "AI Open SDK OpenCode Zen",
       "publisher": "Guillermo Padilla",
       "version": "0.1.0.0"
     }

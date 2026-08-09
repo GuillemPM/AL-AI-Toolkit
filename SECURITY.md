@@ -8,7 +8,7 @@ This project is pre-1.0. Security fixes are applied on `main` for the latest `0.
 
 Do **not** open a public GitHub issue for security-sensitive reports.
 
-Email the maintainer via the address on the GitHub profile for [GuillemPM](https://github.com/GuillemPM), with subject `AL AI Open SDK security`, and include:
+Email the maintainer via the address on the GitHub profile for [GuillemPM](https://github.com/GuillemPM), with subject `AI Open SDK for Business Central security`, and include:
 
 - Affected app(s) and version
 - Description and impact

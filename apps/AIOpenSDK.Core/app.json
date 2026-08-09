@@ -1,6 +1,6 @@
 {
   "id": "f624c4ac-75e8-4ce4-9a31-c2d6ff2a05a1",
-  "name": "AL AI Open SDK",
+  "name": "AI Open SDK",
   "publisher": "Guillermo Padilla",
   "version": "0.1.0.0",
   "brief": "Provider-agnostic AI client for Business Central (Core)",

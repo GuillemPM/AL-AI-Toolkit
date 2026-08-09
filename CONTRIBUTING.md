@@ -1,4 +1,4 @@
-# Contributing to AL AI Open SDK
+# Contributing to AI Open SDK for Business Central
 
 Thanks for contributing. This project is a **client library** for AL — not a Copilot platform or hosted AI service. Keep PRs focused and testable without live API keys.
 

@@ -1,6 +1,6 @@
 # Governance
 
-AL AI Open SDK is open-source infrastructure. Governance exists so downstream AL
+AI Open SDK for Business Central is open-source infrastructure. Governance exists so downstream AL
 extensions that depend on this library are not left without a clear succession
 path.
 
