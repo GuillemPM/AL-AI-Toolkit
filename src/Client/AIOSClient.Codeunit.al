@@ -267,6 +267,7 @@ codeunit 87410 "AIOS Client"
     begin
         Clear(Response);
         ClearChatResponseCalls();
+        Request.EnsureMessagesFromPrompt();
         ModelId := Model.GetModelId();
         OnBeforeGenerate(ModelId, Request, Response);
         if not TryGenerateCore(Model, Request, Response, OutputRecRef) then
@@ -295,8 +296,7 @@ codeunit 87410 "AIOS Client"
 
         ModelId := Model.GetModelId();
         Request.SetTools(ToolSet);
-        if not Request.HasMessages() then
-            Request.EnsureMessagesFromPrompt();
+        Request.EnsureMessagesFromPrompt();
 
         OnBeforeGenerate(ModelId, Request, Response);
 

@@ -1,6 +1,7 @@
 namespace PM.Guillem.AIOpenSDK.Core;
 
-using System.Reflection;
+using System.Environment;
+using System.Utilities;
 
 table 87401 "AIOS Chat Request"
 {
@@ -159,6 +160,21 @@ table 87401 "AIOS Chat Request"
             Caption = 'Tools';
             DataClassification = SystemMetadata;
         }
+        field(62; "Pending Attachments"; Blob)
+        {
+            Caption = 'Pending Attachments';
+            DataClassification = CustomerContent;
+        }
+        field(63; "Attachment Payloads"; Blob)
+        {
+            Caption = 'Attachment Payloads';
+            DataClassification = CustomerContent;
+        }
+        field(64; "Attachment Binaries"; Blob)
+        {
+            Caption = 'Attachment Binaries';
+            DataClassification = CustomerContent;
+        }
     }
 
     keys
@@ -171,46 +187,30 @@ table 87401 "AIOS Chat Request"
 
     procedure SetPrompt(Value: Text)
     var
-        OutStream: OutStream;
+        ChatPrompt: Codeunit "AIOS Chat Prompt";
     begin
-        Clear(Prompt);
-        if Value = '' then
-            exit;
-        Prompt.CreateOutStream(OutStream, TextEncoding::UTF8);
-        OutStream.WriteText(Value);
+        ChatPrompt.SetPrompt(Rec, Value);
     end;
 
     procedure GetPrompt(): Text
     var
-        TypeHelper: Codeunit "Type Helper";
-        InStream: InStream;
+        ChatPrompt: Codeunit "AIOS Chat Prompt";
     begin
-        if not Prompt.HasValue then
-            exit('');
-        Prompt.CreateInStream(InStream, TextEncoding::UTF8);
-        exit(TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator()));
+        exit(ChatPrompt.GetPrompt(Rec));
     end;
 
     procedure SetSystemMessage(Value: Text)
     var
-        OutStream: OutStream;
+        ChatPrompt: Codeunit "AIOS Chat Prompt";
     begin
-        Clear("System Message");
-        if Value = '' then
-            exit;
-        "System Message".CreateOutStream(OutStream, TextEncoding::UTF8);
-        OutStream.WriteText(Value);
+        ChatPrompt.SetSystemMessage(Rec, Value);
     end;
 
     procedure GetSystemMessage(): Text
     var
-        TypeHelper: Codeunit "Type Helper";
-        InStream: InStream;
+        ChatPrompt: Codeunit "AIOS Chat Prompt";
     begin
-        if not "System Message".HasValue then
-            exit('');
-        "System Message".CreateInStream(InStream, TextEncoding::UTF8);
-        exit(TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator()));
+        exit(ChatPrompt.GetSystemMessage(Rec));
     end;
 
     /// <summary>
@@ -219,18 +219,9 @@ table 87401 "AIOS Chat Request"
     /// </summary>
     procedure GetEffectiveSystemMessage(): Text
     var
-        SystemText: Text;
+        ChatPrompt: Codeunit "AIOS Chat Prompt";
     begin
-        SystemText := GetSystemMessage();
-        if not "Json Mode" then
-            exit(SystemText);
-        if HasOutputSchema() then
-            exit(SystemText);
-        if SystemText = '' then
-            exit(JsonModeInstructionTxt);
-        if StrPos(LowerCase(SystemText + ' ' + GetPrompt()), 'json') = 0 then
-            exit(SystemText + ' ' + JsonModeInstructionTxt);
-        exit(SystemText);
+        exit(ChatPrompt.GetEffectiveSystemMessage(Rec));
     end;
 
     /// <summary>
@@ -239,23 +230,9 @@ table 87401 "AIOS Chat Request"
     /// </summary>
     procedure SetOutput(RecRef: RecordRef)
     var
-        JsonBinder: Codeunit "AIOS Json Binder";
-        Hint: Text;
-        SystemText: Text;
+        ChatOutput: Codeunit "AIOS Chat Output";
     begin
-        if RecRef.Number() = 0 then
-            Error(OutputRecordMissingErr);
-
-        ClearOutput();
-        "Has Output" := true;
-        "Json Mode" := true;
-
-        Hint := JsonBinder.BuildSchemaHint(RecRef);
-        SystemText := GetSystemMessage();
-        if SystemText = '' then
-            SetSystemMessage(Hint)
-        else
-            SetSystemMessage(SystemText + ' ' + Hint);
+        ChatOutput.SetOutput(Rec, RecRef);
     end;
 
     /// <summary>
@@ -265,46 +242,9 @@ table 87401 "AIOS Chat Request"
     /// </summary>
     procedure SetOutput(SchemaText: Text)
     var
-        SchemaCodeunit: Codeunit "AIOS Schema";
-        SchemaObj: JsonObject;
-        OutStream: OutStream;
-        SystemText: Text;
-        Hint: Text;
-        IsText: Boolean;
-        IsJson: Boolean;
+        ChatOutput: Codeunit "AIOS Chat Output";
     begin
-        if DelChr(SchemaText, '<>', ' ') = '' then
-            Error(OutputSchemaMissingErr);
-
-        ClearOutput();
-        "Output Schema".CreateOutStream(OutStream, TextEncoding::UTF8);
-        OutStream.WriteText(SchemaText);
-        "Has Output Schema" := true;
-
-        IsText := false;
-        IsJson := false;
-        if SchemaObj.ReadFrom(SchemaText) then begin
-            IsText := SchemaCodeunit.IsTextSchema(SchemaObj);
-            IsJson := SchemaCodeunit.IsJsonSchema(SchemaObj);
-        end;
-        "Json Mode" := not IsText;
-
-        if IsText then
-            Hint := ''
-        else
-            if IsJson then
-                Hint := JsonModeInstructionTxt
-            else
-                Hint := StrSubstNo(OutputSchemaHintTxt, SchemaText);
-
-        if Hint = '' then
-            exit;
-
-        SystemText := GetSystemMessage();
-        if SystemText = '' then
-            SetSystemMessage(Hint)
-        else
-            SetSystemMessage(SystemText + ' ' + Hint);
+        ChatOutput.SetOutput(Rec, SchemaText);
     end;
 
     /// <summary>
@@ -312,260 +252,262 @@ table 87401 "AIOS Chat Request"
     /// </summary>
     procedure SetOutput(Schema: JsonObject)
     var
-        SchemaCodeunit: Codeunit "AIOS Schema";
+        ChatOutput: Codeunit "AIOS Chat Output";
     begin
-        SetOutput(SchemaCodeunit.ToText(Schema));
+        ChatOutput.SetOutput(Rec, Schema);
     end;
 
     procedure HasOutput(): Boolean
+    var
+        ChatOutput: Codeunit "AIOS Chat Output";
     begin
-        exit("Has Output");
+        exit(ChatOutput.HasOutput(Rec));
     end;
 
     procedure HasOutputSchema(): Boolean
+    var
+        ChatOutput: Codeunit "AIOS Chat Output";
     begin
-        exit("Has Output Schema");
+        exit(ChatOutput.HasOutputSchema(Rec));
     end;
 
     procedure GetOutputSchema(): Text
     var
-        TypeHelper: Codeunit "Type Helper";
-        InStream: InStream;
+        ChatOutput: Codeunit "AIOS Chat Output";
     begin
-        if not "Output Schema".HasValue then
-            exit('');
-        "Output Schema".CreateInStream(InStream, TextEncoding::UTF8);
-        exit(TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator()));
+        exit(ChatOutput.GetOutputSchema(Rec));
     end;
 
     procedure ClearOutput()
+    var
+        ChatOutput: Codeunit "AIOS Chat Output";
     begin
-        "Has Output" := false;
-        Clear("Output Schema");
-        "Has Output Schema" := false;
+        ChatOutput.ClearOutput(Rec);
     end;
 
     /// <summary>
     /// Sets sampling temperature (0–2 typical). Marks the value as specified so providers send it even when 0.
     /// </summary>
     procedure SetTemperature(Value: Decimal)
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        Temperature := Value;
-        "Has Temperature" := true;
+        ChatParameters.SetTemperature(Rec, Value);
     end;
 
     procedure ClearTemperature()
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        Temperature := 0;
-        "Has Temperature" := false;
+        ChatParameters.ClearTemperature(Rec);
     end;
 
     /// <summary>
     /// Maximum tokens to generate. Ignored when &lt;= 0.
     /// </summary>
     procedure SetMaxTokens(Value: Integer)
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        if Value < 0 then
-            Error(MaxTokensNegativeErr);
-        "Max Tokens" := Value;
+        ChatParameters.SetMaxTokens(Rec, Value);
     end;
 
     procedure ClearMaxTokens()
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        "Max Tokens" := 0;
+        ChatParameters.ClearMaxTokens(Rec);
     end;
 
     /// <summary>
     /// HTTP client timeout in milliseconds. Default is 120000 when unset.
     /// </summary>
     procedure SetTimeout(TimeoutMs: Integer)
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        if TimeoutMs <= 0 then
-            Error(TimeoutInvalidErr);
-        "Timeout Ms" := TimeoutMs;
-        "Has Timeout" := true;
+        ChatParameters.SetTimeout(Rec, TimeoutMs);
     end;
 
     procedure ClearTimeout()
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        "Timeout Ms" := 0;
-        "Has Timeout" := false;
+        ChatParameters.ClearTimeout(Rec);
     end;
 
     /// <summary>
     /// Timeout to apply on HttpClient (default 120s).
     /// </summary>
     procedure GetHttpTimeout(): Integer
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        if "Has Timeout" then
-            exit("Timeout Ms");
-        exit(120000);
+        exit(ChatParameters.GetHttpTimeout(Rec));
     end;
 
     /// <summary>
     /// Nucleus sampling (top-P).
     /// </summary>
     procedure SetTopP(Value: Decimal)
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        "Top P" := Value;
-        "Has Top P" := true;
+        ChatParameters.SetTopP(Rec, Value);
     end;
 
     procedure ClearTopP()
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        "Top P" := 0;
-        "Has Top P" := false;
+        ChatParameters.ClearTopP(Rec);
     end;
 
     /// <summary>
     /// Sample from the top K tokens.
     /// </summary>
     procedure SetTopK(Value: Integer)
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        if Value < 0 then
-            Error(TopKNegativeErr);
-        "Top K" := Value;
-        "Has Top K" := true;
+        ChatParameters.SetTopK(Rec, Value);
     end;
 
     procedure ClearTopK()
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        "Top K" := 0;
-        "Has Top K" := false;
+        ChatParameters.ClearTopK(Rec);
     end;
 
     /// <summary>
     /// Presence penalty for token sampling.
     /// </summary>
     procedure SetPresencePenalty(Value: Decimal)
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        "Presence Penalty" := Value;
-        "Has Presence Penalty" := true;
+        ChatParameters.SetPresencePenalty(Rec, Value);
     end;
 
     procedure ClearPresencePenalty()
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        "Presence Penalty" := 0;
-        "Has Presence Penalty" := false;
+        ChatParameters.ClearPresencePenalty(Rec);
     end;
 
     /// <summary>
     /// Frequency penalty for token sampling.
     /// </summary>
     procedure SetFrequencyPenalty(Value: Decimal)
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        "Frequency Penalty" := Value;
-        "Has Frequency Penalty" := true;
+        ChatParameters.SetFrequencyPenalty(Rec, Value);
     end;
 
     procedure ClearFrequencyPenalty()
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        "Frequency Penalty" := 0;
-        "Has Frequency Penalty" := false;
+        ChatParameters.ClearFrequencyPenalty(Rec);
     end;
 
     /// <summary>
     /// Seed for deterministic sampling when the provider supports it.
     /// </summary>
     procedure SetSeed(Value: Integer)
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        Seed := Value;
-        "Has Seed" := true;
+        ChatParameters.SetSeed(Rec, Value);
     end;
 
     procedure ClearSeed()
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        Seed := 0;
-        "Has Seed" := false;
+        ChatParameters.ClearSeed(Rec);
     end;
 
     /// <summary>
     /// Reasoning effort for models that support it.
     /// </summary>
     procedure SetReasoning(Value: Enum "AIOS Reasoning Effort")
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        Reasoning := Value;
+        ChatParameters.SetReasoning(Rec, Value);
     end;
 
     procedure ClearReasoning()
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        Reasoning := Reasoning::ProviderDefault;
+        ChatParameters.ClearReasoning(Rec);
     end;
 
     /// <summary>
     /// Max generation retries. 0 disables retries. Default when unset is 2.
     /// </summary>
     procedure SetMaxRetries(Value: Integer)
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        if Value < 0 then
-            Error(MaxRetriesNegativeErr);
-        "Max Retries" := Value;
-        "Has Max Retries" := true;
+        ChatParameters.SetMaxRetries(Rec, Value);
     end;
 
     procedure ClearMaxRetries()
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        "Max Retries" := 0;
-        "Has Max Retries" := false;
+        ChatParameters.ClearMaxRetries(Rec);
     end;
 
     procedure GetMaxRetries(): Integer
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        if "Has Max Retries" then
-            exit("Max Retries");
-        exit(2);
+        exit(ChatParameters.GetMaxRetries(Rec));
     end;
 
     procedure AddStopSequence(Value: Text)
     var
-        Sequences: JsonArray;
-        OutStream: OutStream;
-        Text: Text;
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        if Value = '' then
-            exit;
-        Sequences := GetStopSequences();
-        Sequences.Add(Value);
-        Sequences.WriteTo(Text);
-        Clear("Stop Sequences");
-        "Stop Sequences".CreateOutStream(OutStream, TextEncoding::UTF8);
-        OutStream.WriteText(Text);
+        ChatParameters.AddStopSequence(Rec, Value);
     end;
 
     procedure ClearStopSequences()
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        Clear("Stop Sequences");
+        ChatParameters.ClearStopSequences(Rec);
     end;
 
     procedure GetStopSequences(): JsonArray
     var
-        TypeHelper: Codeunit "Type Helper";
-        InStream: InStream;
-        Sequences: JsonArray;
-        Text: Text;
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        if not "Stop Sequences".HasValue then
-            exit(Sequences);
-        "Stop Sequences".CreateInStream(InStream, TextEncoding::UTF8);
-        Text := TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator());
-        if Text = '' then
-            exit(Sequences);
-        if not Sequences.ReadFrom(Text) then
-            Clear(Sequences);
-        exit(Sequences);
+        exit(ChatParameters.GetStopSequences(Rec));
     end;
 
     procedure HasStopSequences(): Boolean
+    var
+        ChatParameters: Codeunit "AIOS Chat Parameters";
     begin
-        exit(GetStopSequences().Count() > 0);
+        exit(ChatParameters.HasStopSequences(Rec));
     end;
 
     /// <summary>
     /// Copies tool definitions from ToolSet onto this request for provider HTTP.
     /// </summary>
     procedure SetTools(ToolSet: Codeunit "AIOS Tool Set")
+    var
+        ChatRequestTools: Codeunit "AIOS Chat Request Tools";
     begin
-        SetToolDefinitions(ToolSet.GetDefinitions());
+        ChatRequestTools.SetTools(Rec, ToolSet);
     end;
 
     /// <summary>
@@ -573,15 +515,9 @@ table 87401 "AIOS Chat Request"
     /// </summary>
     procedure SetToolDefinitions(Definitions: JsonArray)
     var
-        OutStream: OutStream;
-        Text: Text;
+        ChatRequestTools: Codeunit "AIOS Chat Request Tools";
     begin
-        Clear(Tools);
-        if Definitions.Count() = 0 then
-            exit;
-        Definitions.WriteTo(Text);
-        Tools.CreateOutStream(OutStream, TextEncoding::UTF8);
-        OutStream.WriteText(Text);
+        ChatRequestTools.SetToolDefinitions(Rec, Definitions);
     end;
 
     /// <summary>
@@ -589,36 +525,29 @@ table 87401 "AIOS Chat Request"
     /// </summary>
     procedure GetToolDefinitions(): JsonArray
     var
-        TypeHelper: Codeunit "Type Helper";
-        InStream: InStream;
-        Definitions: JsonArray;
-        Text: Text;
+        ChatRequestTools: Codeunit "AIOS Chat Request Tools";
     begin
-        if not Tools.HasValue then
-            exit(Definitions);
-        Tools.CreateInStream(InStream, TextEncoding::UTF8);
-        Text := TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator());
-        if Text = '' then
-            exit(Definitions);
-        if not Definitions.ReadFrom(Text) then
-            Clear(Definitions);
-        exit(Definitions);
+        exit(ChatRequestTools.GetToolDefinitions(Rec));
     end;
 
     /// <summary>
     /// True when at least one tool definition is stored on the request.
     /// </summary>
     procedure HasTools(): Boolean
+    var
+        ChatRequestTools: Codeunit "AIOS Chat Request Tools";
     begin
-        exit(GetToolDefinitions().Count() > 0);
+        exit(ChatRequestTools.HasTools(Rec));
     end;
 
     /// <summary>
     /// Removes stored tool definitions from the request.
     /// </summary>
     procedure ClearTools()
+    var
+        ChatRequestTools: Codeunit "AIOS Chat Request Tools";
     begin
-        Clear(Tools);
+        ChatRequestTools.ClearTools(Rec);
     end;
 
     /// <summary>
@@ -626,52 +555,43 @@ table 87401 "AIOS Chat Request"
     /// </summary>
     procedure GetMessages(): JsonArray
     var
-        TypeHelper: Codeunit "Type Helper";
-        InStream: InStream;
-        MessagesArr: JsonArray;
-        Text: Text;
+        ChatMessages: Codeunit "AIOS Chat Messages";
     begin
-        if not Messages.HasValue then
-            exit(MessagesArr);
-        Messages.CreateInStream(InStream, TextEncoding::UTF8);
-        Text := TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator());
-        if Text = '' then
-            exit(MessagesArr);
-        if not MessagesArr.ReadFrom(Text) then
-            Clear(MessagesArr);
-        exit(MessagesArr);
+        exit(ChatMessages.GetMessages(Rec));
     end;
 
     /// <summary>
     /// True when the messages history blob is non-empty.
     /// </summary>
     procedure HasMessages(): Boolean
+    var
+        ChatMessages: Codeunit "AIOS Chat Messages";
     begin
-        exit(GetMessages().Count() > 0);
+        exit(ChatMessages.HasMessages(Rec));
     end;
 
     /// <summary>
-    /// Clears the messages history blob.
+    /// Clears the messages history and prunes Attachment Payloads that are no longer referenced.
     /// </summary>
     procedure ClearMessages()
+    var
+        ChatMessages: Codeunit "AIOS Chat Messages";
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
     begin
-        Clear(Messages);
+        ChatMessages.ClearMessages(Rec);
+        ChatAttachments.PruneUnreferencedPayloads(Rec);
     end;
 
     /// <summary>
-    /// Replaces the full messages history blob.
+    /// Replaces the full messages history and prunes Attachment Payloads that are no longer referenced.
     /// </summary>
     procedure SetMessages(MessagesArr: JsonArray)
     var
-        OutStream: OutStream;
-        Text: Text;
+        ChatMessages: Codeunit "AIOS Chat Messages";
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
     begin
-        Clear(Messages);
-        if MessagesArr.Count() = 0 then
-            exit;
-        MessagesArr.WriteTo(Text);
-        Messages.CreateOutStream(OutStream, TextEncoding::UTF8);
-        OutStream.WriteText(Text);
+        ChatMessages.SetMessages(Rec, MessagesArr);
+        ChatAttachments.PruneUnreferencedPayloads(Rec);
     end;
 
     /// <summary>
@@ -679,14 +599,9 @@ table 87401 "AIOS Chat Request"
     /// </summary>
     procedure AppendUserMessage(Content: Text)
     var
-        MessagesArr: JsonArray;
-        Msg: JsonObject;
+        ChatMessages: Codeunit "AIOS Chat Messages";
     begin
-        MessagesArr := GetMessages();
-        Msg.Add('role', 'user');
-        Msg.Add('content', Content);
-        MessagesArr.Add(Msg);
-        SetMessages(MessagesArr);
+        ChatMessages.AppendUserMessage(Rec, Content);
     end;
 
     /// <summary>
@@ -694,22 +609,19 @@ table 87401 "AIOS Chat Request"
     /// </summary>
     procedure AppendAssistantMessage(Content: Text)
     var
-        MessagesArr: JsonArray;
-        Msg: JsonObject;
+        ChatMessages: Codeunit "AIOS Chat Messages";
     begin
-        MessagesArr := GetMessages();
-        Msg.Add('role', 'assistant');
-        Msg.Add('content', Content);
-        MessagesArr.Add(Msg);
-        SetMessages(MessagesArr);
+        ChatMessages.AppendAssistantMessage(Rec, Content);
     end;
 
     /// <summary>
     /// Appends an assistant message that requested tool calls (from a generate result).
     /// </summary>
     procedure AppendAssistantToolCalls(Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"])
+    var
+        ChatMessages: Codeunit "AIOS Chat Messages";
     begin
-        AppendAssistantToolCalls(Content, ToolCalls, '');
+        ChatMessages.AppendAssistantToolCalls(Rec, Content, ToolCalls);
     end;
 
     /// <summary>
@@ -717,31 +629,9 @@ table 87401 "AIOS Chat Request"
     /// </summary>
     procedure AppendAssistantToolCalls(Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text)
     var
-        MessagesArr: JsonArray;
-        Msg: JsonObject;
-        CallsArr: JsonArray;
-        CallObj: JsonObject;
-        CallCU: Codeunit "AIOS Tool Call";
-        Args: JsonObject;
-        i: Integer;
+        ChatMessages: Codeunit "AIOS Chat Messages";
     begin
-        MessagesArr := GetMessages();
-        for i := 1 to ToolCalls.Count() do begin
-            ToolCalls.Get(i, CallCU);
-            Clear(CallObj);
-            CallObj.Add('id', CallCU.GetId());
-            CallObj.Add('name', CallCU.GetName());
-            Args := CallCU.GetArguments();
-            CallObj.Add('arguments', Args);
-            CallsArr.Add(CallObj);
-        end;
-        Msg.Add('role', 'assistant');
-        Msg.Add('content', Content);
-        Msg.Add('tool_calls', CallsArr);
-        // Always store the key so OpenAI-compatible wire mapping can echo it (empty string is OK).
-        Msg.Add('reasoning_content', ReasoningContent);
-        MessagesArr.Add(Msg);
-        SetMessages(MessagesArr);
+        ChatMessages.AppendAssistantToolCalls(Rec, Content, ToolCalls, ReasoningContent);
     end;
 
     /// <summary>
@@ -749,53 +639,133 @@ table 87401 "AIOS Chat Request"
     /// </summary>
     procedure AppendToolResult(ToolCallId: Text; ToolName: Text; Content: Text)
     var
-        MessagesArr: JsonArray;
-        Msg: JsonObject;
+        ChatMessages: Codeunit "AIOS Chat Messages";
     begin
-        MessagesArr := GetMessages();
-        Msg.Add('role', 'tool');
-        Msg.Add('tool_call_id', ToolCallId);
-        Msg.Add('name', ToolName);
-        Msg.Add('content', Content);
-        MessagesArr.Add(Msg);
-        SetMessages(MessagesArr);
+        ChatMessages.AppendToolResult(Rec, ToolCallId, ToolName, Content);
     end;
 
     /// <summary>
-    /// Ensures Messages contains at least system (effective) + user prompt when history is empty.
-    /// Call before providers that prefer a single messages array.
+    /// Ensures Messages includes the prompt and any pending Attach parts.
+    /// When history is empty: system (effective) + user turn.
+    /// When history exists and Attachments are pending: merge into the last user message, or append a new user turn.
     /// </summary>
     procedure EnsureMessagesFromPrompt()
     var
-        SystemText: Text;
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
     begin
-        if HasMessages() then
-            exit;
-        SystemText := GetEffectiveSystemMessage();
-        if SystemText <> '' then
-            AppendSystemMessage(SystemText);
-        AppendUserMessage(GetPrompt());
+        ChatAttachments.EnsureMessagesFromPrompt(Rec);
     end;
 
-    local procedure AppendSystemMessage(Content: Text)
+    /// <summary>
+    /// Attaches content to the next user turn (AI SDK–style file part). mediaType is IANA (e.g. image/png, application/pdf).
+    /// Binary bytes are stored raw in Attachment Binaries; message history stores an id ref. Base64 is produced only in GetProviderMessages.
+    /// Applied in EnsureMessagesFromPrompt / Generate: into a new user turn when history is empty or last turn is not user;
+    /// otherwise merged into the last user message.
+    /// </summary>
+    procedure Attach(var ContentInStream: InStream; MediaType: Text; Filename: Text)
     var
-        MessagesArr: JsonArray;
-        Msg: JsonObject;
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
     begin
-        MessagesArr := GetMessages();
-        Msg.Add('role', 'system');
-        Msg.Add('content', Content);
-        MessagesArr.Add(Msg);
-        SetMessages(MessagesArr);
+        ChatAttachments.Attach(Rec, ContentInStream, MediaType, Filename);
     end;
 
+    /// <summary>
+    /// Attaches raw base64 bytes (no data: URL prefix). Decoded to binary storage; history keeps an id ref.
+    /// </summary>
+    procedure Attach(Base64Data: Text; MediaType: Text; Filename: Text)
     var
-        MaxTokensNegativeErr: Label 'Max tokens cannot be negative.';
-        TimeoutInvalidErr: Label 'Timeout must be greater than 0 milliseconds.';
-        TopKNegativeErr: Label 'Top K cannot be negative.';
-        MaxRetriesNegativeErr: Label 'Max retries cannot be negative.';
-        OutputRecordMissingErr: Label 'Structured output requires an open record.';
-        OutputSchemaMissingErr: Label 'Output schema text cannot be empty.';
-        OutputSchemaHintTxt: Label 'Respond with JSON only (no markdown) that conforms to this JSON Schema: %1', Comment = '%1 = JSON Schema';
-        JsonModeInstructionTxt: Label 'Respond with valid JSON only, no markdown fences.';
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
+    begin
+        ChatAttachments.Attach(Rec, Base64Data, MediaType, Filename);
+    end;
+
+    /// <summary>
+    /// Attaches bytes from a Temp Blob.
+    /// </summary>
+    procedure Attach(var TempBlob: Codeunit "Temp Blob"; MediaType: Text; Filename: Text)
+    var
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
+    begin
+        ChatAttachments.Attach(Rec, TempBlob, MediaType, Filename);
+    end;
+
+    /// <summary>
+    /// Attaches Tenant Media (MIME from the record). Filename defaults from Description or 'attachment'.
+    /// </summary>
+    procedure Attach(var TenantMedia: Record "Tenant Media")
+    var
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
+    begin
+        ChatAttachments.Attach(Rec, TenantMedia);
+    end;
+
+    /// <summary>
+    /// Attaches Tenant Media with an explicit filename.
+    /// </summary>
+    procedure Attach(var TenantMedia: Record "Tenant Media"; Filename: Text)
+    var
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
+    begin
+        ChatAttachments.Attach(Rec, TenantMedia, Filename);
+    end;
+
+    /// <summary>
+    /// Attaches Tenant Media by MediaId — e.g. Request.Attach(Item.Picture.Item(1)).
+    /// </summary>
+    procedure Attach(MediaId: Guid)
+    var
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
+    begin
+        ChatAttachments.Attach(Rec, MediaId);
+    end;
+
+    /// <summary>
+    /// Attaches Tenant Media by MediaId with an explicit filename.
+    /// </summary>
+    procedure Attach(MediaId: Guid; Filename: Text)
+    var
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
+    begin
+        ChatAttachments.Attach(Rec, MediaId, Filename);
+    end;
+
+    /// <summary>
+    /// True when one or more parts were attached for the next user turn.
+    /// </summary>
+    procedure HasAttachments(): Boolean
+    var
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
+    begin
+        exit(ChatAttachments.HasAttachments(Rec));
+    end;
+
+    /// <summary>
+    /// Pending attachment refs: { type: "file", mediaType, id, filename? }. Binary bytes live in Attachment Binaries until GetProviderMessages.
+    /// </summary>
+    procedure GetAttachments(): JsonArray
+    var
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
+    begin
+        exit(ChatAttachments.GetAttachments(Rec));
+    end;
+
+    /// <summary>
+    /// Clears pending attachment refs and drops payloads that are not referenced by message history.
+    /// </summary>
+    procedure ClearAttachments()
+    var
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
+    begin
+        ChatAttachments.ClearAttachments(Rec);
+    end;
+
+    /// <summary>
+    /// Message history with file refs expanded (text or base64 data) for provider MapMessages. Does not mutate stored Messages.
+    /// </summary>
+    procedure GetProviderMessages(): JsonArray
+    var
+        ChatAttachments: Codeunit "AIOS Chat Attachments";
+    begin
+        exit(ChatAttachments.GetProviderMessages(Rec));
+    end;
 }

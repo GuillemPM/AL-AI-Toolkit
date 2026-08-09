@@ -5,6 +5,9 @@ using PM.Guillem.AIOpenSDK.Provider.Anthropic;
 using PM.Guillem.AIOpenSDK.Provider.Mock;
 using PM.Guillem.AIOpenSDK.Provider.OpenAI;
 using PM.Guillem.AIOpenSDK.Provider.OpenCodeZen;
+using Microsoft.Inventory.Item;
+using System.Environment;
+using System.Text;
 
 /// <summary>
 /// Consumer-facing samples — copy these patterns into your app.
@@ -49,6 +52,90 @@ codeunit 87480 "AIOS Usage Example"
         Headers := Result.Headers();
         Headers.WriteTo(HeadersText);
         Message(ResponseMetadataMsg, Result.Output(), Result.Body(), Result.HttpStatusCode(), HeadersText);
+    end;
+
+    /// <summary>
+    /// Mock demo — attach a text file (FilePart) and generate.
+    /// </summary>
+    procedure RunFilePartDemo()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Request: Record "AIOS Chat Request";
+        Base64Convert: Codeunit "Base64 Convert";
+        Result: Codeunit "AIOS Generate Result";
+    begin
+        Mock.SetNextResponse('Summary: short note about shipping.');
+        Request.SetPrompt('Summarize the attached file.');
+        Request.Attach(Base64Convert.ToBase64('Ship by Friday. PO-1042.'), 'text/plain', 'note.txt');
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request);
+        Message(FilePartMsg, Result.Output());
+    end;
+
+    /// <summary>
+    /// Item.Picture → Attach(MediaId) → GenerateText description.
+    /// Uses Mock so it runs without a vision API key; for production use RunItemPictureDescriptionOpenAI.
+    /// </summary>
+    procedure RunItemPictureDescriptionDemo()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+        Item: Record Item;
+        ItemNo: Code[20];
+        Description: Text;
+        UsedSampleImage: Boolean;
+    begin
+        UsedSampleImage := false;
+        if not TryAddFirstItemPicture(Request, Item, ItemNo) then begin
+            Request.Attach(MinimalPngBase64Tok, 'image/png', 'sample-item.png');
+            UsedSampleImage := true;
+            ItemNo := '';
+        end;
+
+        Mock.SetNextResponse(
+            'Durable canvas tote with reinforced handles and a front pocket. Ideal for everyday carry.');
+
+        Request.SetPrompt(
+            'Write a concise webshop product description (2–3 sentences) for this item image. ' +
+            'Focus on visible materials, color, and use. Do not invent a brand name.');
+        Request.SetSystemMessage('You write product copy for Business Central item cards.');
+
+        Result := Client.GenerateText(Mock.Model('demo-vision'), Request);
+        Description := Result.Output();
+
+        // Production: Item.Validate(Description, CopyStr(Description, 1, MaxStrLen(Item.Description))); Item.Modify(true);
+        if UsedSampleImage then
+            Message(ItemPictureSampleMsg, Description)
+        else
+            Message(ItemPictureMsg, ItemNo, Item.Description, Description);
+    end;
+
+    /// <summary>
+    /// Live vision model: Request.Attach(Item.Picture.Item(1)) then GenerateText.
+    /// </summary>
+    procedure RunItemPictureDescriptionOpenAI(ApiKey: SecretText)
+    var
+        OpenAI: Codeunit "AIOS OpenAI";
+        Client: Codeunit "AIOS Client";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+        Item: Record Item;
+        ItemNo: Code[20];
+        Description: Text;
+    begin
+        if not TryAddFirstItemPicture(Request, Item, ItemNo) then
+            Error(ItemPictureMissingErr);
+
+        Request.SetPrompt(
+            'Write a concise webshop product description (2–3 sentences) for this item image. ' +
+            'Focus on visible materials, color, and use. Do not invent a brand name.');
+        Request.SetSystemMessage('You write product copy for Business Central item cards.');
+
+        Result := Client.GenerateText(OpenAI.Model('gpt-4.1', ApiKey), Request);
+        Description := Result.Output();
+        Message(ItemPictureMsg, ItemNo, Item.Description, Description);
     end;
 
     /// <summary>
@@ -479,6 +566,25 @@ codeunit 87480 "AIOS Usage Example"
         Message(ToolsManualMsg, ResultText, Result.Output());
     end;
 
+    /// <summary>
+    /// Finds the first Item with a Picture and attaches it via Attach(MediaId).
+    /// </summary>
+    local procedure TryAddFirstItemPicture(var Request: Record "AIOS Chat Request"; var Item: Record Item; var ItemNo: Code[20]): Boolean
+    begin
+        Item.Reset();
+        Item.SetLoadFields("No.", Description, Picture);
+        if not Item.FindSet() then
+            exit(false);
+        repeat
+            if Item.Picture.Count = 0 then
+                continue;
+            Request.Attach(Item.Picture.Item(1), StrSubstNo(ItemPictureFileNameTok, Item."No."));
+            ItemNo := Item."No.";
+            exit(true);
+        until Item.Next() = 0;
+        exit(false);
+    end;
+
     var
         SuccessMsg: Label '%1', Comment = '%1 = model response text';
         StructuredMsg: Label 'Sentiment=%1 Score=%2 Urgent=%3 Summary=%4 Topics=%5 | Raw=%6', Comment = '%1 sentiment, %2 score, %3 urgent, %4 summary, %5 topics, %6 raw JSON';
@@ -486,6 +592,12 @@ codeunit 87480 "AIOS Usage Example"
         SchemaChoiceMsg: Label '%1', Comment = '%1 = validated choice string';
         ResponseMetadataMsg: Label 'Text=%1 | Body=%2 | Status=%3 | Headers=%4', Comment = '%1 text, %2 raw body, %3 status, %4 headers JSON';
         ImageDemoMsg: Label 'Generated=%1 type=%2 base64Len=%3 http=%4', Comment = '%1 count, %2 media type, %3 base64 length, %4 status';
+        FilePartMsg: Label 'FilePart | Final=%1', Comment = '%1 = output';
+        ItemPictureMsg: Label 'Item %1 (%2)| Description=%3', Comment = '%1 = item no, %2 = item description, %3 = generated text';
+        ItemPictureSampleMsg: Label 'No item picture found — used sample PNG.| Description=%1', Comment = '%1 = generated text';
+        ItemPictureMissingErr: Label 'No item with a Picture was found. Add a picture on an Item card and try again.';
+        ItemPictureFileNameTok: Label 'item-%1.jpg', Locked = true;
+        MinimalPngBase64Tok: Label 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', Locked = true;
         ToolsPrimaryMsg: Label 'Primary Add(AIOS Tool) | Final=%1', Comment = '%1 = output';
         ToolsHandlerMsg: Label 'Secondary Use(Handler) | Count=%1 Final=%2', Comment = '%1 = count, %2 = output';
         ToolsMixMsg: Label 'Mix Add(Tool)+Use(Handler) | Count=%1 Final=%2', Comment = '%1 = count, %2 = output';

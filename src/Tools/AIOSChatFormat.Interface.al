@@ -2,7 +2,7 @@ namespace PM.Guillem.AIOpenSDK.Core;
 
 /// <summary>
 /// Maps AIOS-neutral messages and tool definitions to a provider wire format, and parses tool calls back.
-/// Implement this when adding a custom provider (or reuse a shipped format such as OpenAI-compatible).
+/// Implement this in a provider app/layer. Core has no provider wire shapes.
 /// </summary>
 interface "AIOS Chat Format"
 {
@@ -17,8 +17,8 @@ interface "AIOS Chat Format"
     procedure MapMessages(AiosMessages: JsonArray): JsonArray
 
     /// <summary>
-    /// System text for providers that use a top-level system field (e.g. Anthropic).
-    /// Return '' when system stays inside MapMessages (e.g. OpenAI-compatible).
+    /// System text for providers that use a top-level system field.
+    /// Return '' when system stays inside MapMessages.
     /// </summary>
     procedure GetSystemText(AiosMessages: JsonArray): Text
 

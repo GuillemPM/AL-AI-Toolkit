@@ -78,8 +78,8 @@ codeunit 87445 "AIOS OpenCode Zen Model" implements "AIOS Language Model"
 
     local procedure BuildRequestBody(var Request: Record "AIOS Chat Request"; var Warnings: JsonArray): Text
     var
-        RequestOptions: Codeunit "AIOS Request Options";
-        FormatCU: Codeunit "AIOS OpenAI Compatible Format";
+        FormatOptions: Codeunit "AIOS OpenCode Zen Options";
+        FormatCU: Codeunit "AIOS OpenCode Zen Format";
         ChatFormat: Interface "AIOS Chat Format";
         Root: JsonObject;
         Messages: JsonArray;
@@ -92,7 +92,7 @@ codeunit 87445 "AIOS OpenCode Zen Model" implements "AIOS Language Model"
     begin
         ChatFormat := FormatCU;
         if Request.HasMessages() then
-            Messages := ChatFormat.MapMessages(Request.GetMessages())
+            Messages := ChatFormat.MapMessages(Request.GetProviderMessages())
         else begin
             SystemText := Request.GetEffectiveSystemMessage();
             if SystemText <> '' then begin
@@ -118,7 +118,7 @@ codeunit 87445 "AIOS OpenCode Zen Model" implements "AIOS Language Model"
         ToolDefs := Request.GetToolDefinitions();
         if ToolDefs.Count() > 0 then
             Root.Add('tools', ChatFormat.MapTools(ToolDefs));
-        RequestOptions.ApplyOpenAICompatible(Root, Request, Warnings);
+        FormatOptions.Apply(Root, Request, Warnings);
 
         Root.WriteTo(Body);
         exit(Body);
@@ -126,7 +126,7 @@ codeunit 87445 "AIOS OpenCode Zen Model" implements "AIOS Language Model"
 
     local procedure ParseSuccess(ResponseText: Text; var Response: Record "AIOS Chat Response"): Boolean
     var
-        FormatCU: Codeunit "AIOS OpenAI Compatible Format";
+        FormatCU: Codeunit "AIOS OpenCode Zen Format";
         ChatFormat: Interface "AIOS Chat Format";
         Root: JsonObject;
         ChoicesToken: JsonToken;

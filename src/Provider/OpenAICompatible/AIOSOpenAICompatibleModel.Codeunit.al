@@ -1,21 +1,26 @@
-namespace PM.Guillem.AIOpenSDK.Provider.OpenAI;
+namespace PM.Guillem.AIOpenSDK.Provider.OpenAICompatible;
 
 using PM.Guillem.AIOpenSDK.Core;
 
-codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
+codeunit 87451 "AIOS OpenAI Compatible Model" implements "AIOS Language Model"
 {
     Access = Internal;
 
     var
         BoundModelId: Text;
+        ProviderName: Text;
         ApiKey: SecretText;
         BaseUrl: Text;
 
-    procedure Initialize(ModelId: Text; KeyValue: SecretText; Url: Text)
+    procedure Initialize(ModelId: Text; KeyValue: SecretText; Url: Text; Name: Text)
     begin
         BoundModelId := ModelId;
         ApiKey := KeyValue;
         BaseUrl := Url;
+        if Name = '' then
+            ProviderName := 'openai-compatible'
+        else
+            ProviderName := Name;
     end;
 
     procedure GetModelId(): Text
@@ -37,7 +42,7 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
         Warnings: JsonArray;
     begin
         Clear(Response);
-        Response."Provider Name" := 'openai';
+        Response."Provider Name" := ProviderName;
 
         Body := BuildRequestBody(Request, Warnings);
         Response.AppendWarnings(Warnings);
@@ -73,8 +78,8 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
 
     local procedure BuildRequestBody(var Request: Record "AIOS Chat Request"; var Warnings: JsonArray): Text
     var
-        FormatOptions: Codeunit "AIOS OpenAI Options";
-        FormatCU: Codeunit "AIOS OpenAI Format";
+        FormatOptions: Codeunit "AIOS OpenAI Compatible Options";
+        FormatCU: Codeunit "AIOS OpenAI Compatible Format";
         ChatFormat: Interface "AIOS Chat Format";
         Root: JsonObject;
         Messages: JsonArray;
@@ -121,7 +126,7 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
 
     local procedure ParseSuccess(ResponseText: Text; var Response: Record "AIOS Chat Response"): Boolean
     var
-        FormatCU: Codeunit "AIOS OpenAI Format";
+        FormatCU: Codeunit "AIOS OpenAI Compatible Format";
         ChatFormat: Interface "AIOS Chat Format";
         Root: JsonObject;
         ChoicesToken: JsonToken;
@@ -201,10 +206,10 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
     end;
 
     var
-        SendFailedErr: Label 'Failed to send request to OpenAI.';
-        InvalidJsonErr: Label 'OpenAI returned invalid JSON.';
-        MissingChoicesErr: Label 'OpenAI response missing choices.';
-        MissingContentErr: Label 'OpenAI response missing message content.';
+        SendFailedErr: Label 'Failed to send request to OpenAI-compatible provider.';
+        InvalidJsonErr: Label 'OpenAI-compatible provider returned invalid JSON.';
+        MissingChoicesErr: Label 'OpenAI-compatible provider response missing choices.';
+        MissingContentErr: Label 'OpenAI-compatible provider response missing message content.';
         EmptyDueToMaxTokensErr: Label 'Empty model content (finish_reason=length).';
         EmptyContentErr: Label 'Empty model content (finish_reason=%1).', Comment = '%1 = finish reason';
 }

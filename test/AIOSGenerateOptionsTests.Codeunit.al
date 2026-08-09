@@ -1,7 +1,9 @@
 namespace PM.Guillem.AIOpenSDK.Test;
 
 using PM.Guillem.AIOpenSDK.Core;
+using PM.Guillem.AIOpenSDK.Provider.Anthropic;
 using PM.Guillem.AIOpenSDK.Provider.Mock;
+using PM.Guillem.AIOpenSDK.Provider.OpenAI;
 
 codeunit 87493 "AIOS Generate Options Tests"
 {
@@ -280,7 +282,7 @@ codeunit 87493 "AIOS Generate Options Tests"
     [Test]
     procedure ApplyOpenAI_ProviderDefault_OmitsReasoningEffort()
     var
-        RequestOptions: Codeunit "AIOS Request Options";
+        FormatOptions: Codeunit "AIOS OpenAI Options";
         Request: Record "AIOS Chat Request";
         Root: JsonObject;
         Warnings: JsonArray;
@@ -288,7 +290,7 @@ codeunit 87493 "AIOS Generate Options Tests"
     begin
         Clear(Request);
         Request.SetReasoning("AIOS Reasoning Effort"::ProviderDefault);
-        RequestOptions.ApplyOpenAICompatible(Root, Request, Warnings);
+        FormatOptions.Apply(Root, Request, Warnings);
         if Root.Get('reasoning_effort', Token) then
             Error(ExpectedNoReasoningEffortErr);
     end;
@@ -296,7 +298,7 @@ codeunit 87493 "AIOS Generate Options Tests"
     [Test]
     procedure ApplyAnthropic_Medium_UsesPercentBudget()
     var
-        RequestOptions: Codeunit "AIOS Request Options";
+        FormatOptions: Codeunit "AIOS Anthropic Options";
         Request: Record "AIOS Chat Request";
         Root: JsonObject;
         Warnings: JsonArray;
@@ -307,7 +309,7 @@ codeunit 87493 "AIOS Generate Options Tests"
         Clear(Request);
         Request."Max Tokens" := 32000;
         Request.SetReasoning("AIOS Reasoning Effort"::Medium);
-        RequestOptions.ApplyAnthropic(Root, Request, Warnings);
+        FormatOptions.Apply(Root, Request, Warnings);
         if not Root.Get('thinking', Token) then
             Error(ExpectedThinkingErr);
         Thinking := Token.AsObject();

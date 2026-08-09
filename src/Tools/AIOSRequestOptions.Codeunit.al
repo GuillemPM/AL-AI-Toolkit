@@ -1,8 +1,12 @@
 namespace PM.Guillem.AIOpenSDK.Core;
 
+/// <summary>
+/// Generic reasoning / warning helpers for request options.
+/// Provider-specific wire fields live in provider option codeunits.
+/// </summary>
 codeunit 87413 "AIOS Request Options"
 {
-    Access = Internal;
+    Access = Public;
 
     /// <summary>
     /// True when reasoning should be translated (not provider-default).
@@ -89,67 +93,6 @@ codeunit 87413 "AIOS Request Options"
             Budget := MaxBudget;
 
         exit(Budget);
-    end;
-
-    /// <summary>
-    /// Adds OpenAI-compatible sampling fields to the chat completions root object.
-    /// </summary>
-    procedure ApplyOpenAICompatible(var Root: JsonObject; var Request: Record "AIOS Chat Request"; var Warnings: JsonArray)
-    var
-        StopSequences: JsonArray;
-        ReasoningEffort: Text;
-    begin
-        if Request."Has Top P" then
-            Root.Add('top_p', Request."Top P");
-        if Request."Has Presence Penalty" then
-            Root.Add('presence_penalty', Request."Presence Penalty");
-        if Request."Has Frequency Penalty" then
-            Root.Add('frequency_penalty', Request."Frequency Penalty");
-        if Request."Has Seed" then
-            Root.Add('seed', Request.Seed);
-        if Request.HasStopSequences() then begin
-            StopSequences := Request.GetStopSequences();
-            Root.Add('stop', StopSequences);
-        end;
-
-        if IsCustomReasoning(Request.Reasoning) and (Request.Reasoning <> Request.Reasoning::None) then begin
-            ReasoningEffort := MapReasoningToEffort(
-                Request.Reasoning,
-                'minimal', 'low', 'medium', 'high', 'xhigh',
-                Warnings);
-            if ReasoningEffort <> '' then
-                Root.Add('reasoning_effort', ReasoningEffort);
-        end;
-    end;
-
-    /// <summary>
-    /// Adds Anthropic-compatible sampling and thinking fields to the messages root object.
-    /// </summary>
-    procedure ApplyAnthropic(var Root: JsonObject; var Request: Record "AIOS Chat Request"; var Warnings: JsonArray)
-    var
-        StopSequences: JsonArray;
-        Thinking: JsonObject;
-        BudgetTokens: Integer;
-        MaxOutputTokens: Integer;
-    begin
-        if Request."Has Top P" then
-            Root.Add('top_p', Request."Top P");
-        if Request."Has Top K" then
-            Root.Add('top_k', Request."Top K");
-        if Request.HasStopSequences() then begin
-            StopSequences := Request.GetStopSequences();
-            Root.Add('stop_sequences', StopSequences);
-        end;
-
-        if IsCustomReasoning(Request.Reasoning) and (Request.Reasoning <> Request.Reasoning::None) then begin
-            MaxOutputTokens := Request."Max Tokens";
-            BudgetTokens := MapReasoningToBudget(Request.Reasoning, MaxOutputTokens, 1024, 0, Warnings);
-            if BudgetTokens > 0 then begin
-                Thinking.Add('type', 'enabled');
-                Thinking.Add('budget_tokens', BudgetTokens);
-                Root.Add('thinking', Thinking);
-            end;
-        end;
     end;
 
     local procedure ReasoningPercentage(Reasoning: Enum "AIOS Reasoning Effort"): Decimal

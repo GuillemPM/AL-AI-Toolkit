@@ -13,6 +13,7 @@ Status: **v0.1** (usable client + providers; pre-1.0 — public APIs may still c
 - Mock provider so AI-dependent code is testable without network or API keys
 - Shared retry / backoff (`"AIOS Retry"`) for text and image generation
 - Direct HTTP to providers (OpenAI, Anthropic, OpenCode Zen, …) — not a wrapper around System.AI
+- Attachments: `Request.Attach(Item.Picture.Item(1))` / `Attach(InStream, MimeType, Filename)` for multimodal parts
 - Tools: primary `ToolSet.Add(Tool)` (`"AIOS Tool"`); secondary `ToolSet.Use(Handler)` to pack many tools in one ID
 
 When System.AI / Copilot is already the right tool for a Microsoft-hosted capability, prefer that. Use this toolkit when you need third-party providers, self-hosted endpoints, or a testable provider abstraction.
@@ -22,15 +23,21 @@ When System.AI / Copilot is already the right tool for a Microsoft-hosted capabi
 ## Repository layout
 
 ```
-src/Client/       Public AIOS Client, results, retry helper
-src/Provider/     Interfaces + request/response tables + provider adapters
-src/Structured/   JSON Schema builder, validator, RecRef binder
-src/Tools/        Tool interface/set/call + Chat Format (wire mapping)
-src/Mock/         In-memory mock provider (text + image)
-test/             Mock-based tests (no live keys required)
-examples/         Demo page, usage examples, feedback buffer DTO
+src/Client/              Public AIOS Client, results, retry helper
+src/Provider/            Core request/response tables + interfaces (no vendor wire shapes)
+src/Provider/OpenAI/     OpenAI provider (format, options, models) — Core only
+src/Provider/Anthropic/  Anthropic provider — Core only
+src/Provider/OpenCodeZen/ OpenCode Zen provider — Core only
+src/Provider/OpenAICompatible/  Generic OpenAI-compatible provider (any base URL) — Core only
+src/Mock/                Mock provider — Core only
+src/Structured/          JSON Schema builder, validator, RecRef binder
+src/Tools/               Tools + Chat Format interface + MIME helpers + attachments + request options
+test/                    Mock-based tests (no live keys required)
+examples/                Demo page, usage examples, feedback buffer DTO
 docs/OBJECT_IDS.md
 ```
+
+Providers are modular: each depends on **Core only** (no provider→provider deps). `"AIOS OpenAI Compatible"` is the AI SDK–style generic Chat Completions client (`Model(id, key, baseUrl)`).
 
 Object IDs: provisional **87400–87499**. Replace with an AppSource-assigned range before publishing.
 
@@ -54,12 +61,13 @@ begin
 end;
 ```
 
-Shipped factories: `"AIOS Anthropic"`, `"AIOS OpenAI"`, `"AIOS OpenCode Zen"`, `"AIOS Mock"`. API keys are `SecretText` end-to-end (hidden in the debugger; HTTP headers use the SecretText overloads).
+Shipped factories: `"AIOS Anthropic"`, `"AIOS OpenAI"`, `"AIOS OpenCode Zen"`, `"AIOS OpenAI Compatible"` (any Chat Completions base URL), `"AIOS Mock"`. API keys are `SecretText` end-to-end (hidden in the debugger; HTTP headers use the SecretText overloads).
 
 - **Public:** `Client.GenerateText` — `(Model, Prompt)`, `(Model, System, Prompt)`, or `(Model, Request)` for options; returns `"AIOS Generate Result"`, Errors on failure
 - **Result accessors:** `Result.Output()`, `Result.Body()`, `Result.Headers()`, `Result.HttpStatusCode()`, plus token / finish / provider helpers; `Result.HasToolCalls()` / `Result.GetToolCalls()` when the model requests tools
 - **Structured output (preferred):** `Request.SetOutput(Schema.Object(Fields))` then `GenerateText(Model, Request)` — response JSON is validated; read `Result.Output()`
 - **Flat record convenience:** `Request.SetOutput(RecRef)` then `GenerateText(Model, Request, RecRef)` — JSON fills bindable fields; raw JSON is on `Result.Output()`
+- **Attachments / multimodal:** `Request.Attach(Item.Picture.Item(1))` or `Attach(InStream|TempBlob|TenantMedia|Base64, …)` — binary kept raw in `Attachment Binaries` (zip); history holds id refs; Base64 only in `GetProviderMessages` for the wire body. `ClearAttachments` / `ClearMessages` / `SetMessages` prune unreferenced payloads.
 - **Tools:** primary `ToolSet.Add(Tool)` (`"AIOS Tool"`). Secondary: `"AIOS Tool Handler"` + `ToolSet.Use(Handler)` (once per ToolSet). Escape hatch: `ToolSet.Add(Name, Description, Schema)` + `OnExecuteTool` (see `"AIOS Demo Tools"`). Call `GenerateText(Model, Request, ToolSet)` (default MaxSteps = 5) or pass an explicit MaxSteps — never pass a handler into GenerateText. The client runs tools between model calls until final text or the step limit (`MaxSteps` less than 1 is treated as 1). If the loop stops at `MaxSteps` while the model still requested tools, the result succeeds with `HasToolCalls()` and `StoppedAtStepLimit()` true (plus a warning). Structured output / RecRef binding runs on the **final** non-tool-call step only. Unknown tool names fail the run; tool `Execute` failures are sent back to the model as tool result text and the loop continues. Thinking/reasoning models that return `reasoning_content` (e.g. DeepSeek via OpenCode Zen) have that field preserved and echoed on follow-up turns. The result exposes `GetResponseCalls()` / `GetStepCount()` / `GetTotalInputTokens()` / `GetTotalOutputTokens()` so every model HTTP call (tool steps and retries) is visible, not only the last response.
 - **Tools (single step / manual):** `GenerateText(Model, Request)` with `Request.SetTools` returns after the first model call (including tool calls). You can still append messages and call again yourself.
 - **Image generation:** `OpenAI.ImageModel(...)` / `Mock.ImageModel(...)` + `Client.GenerateImage` → `"AIOS Generate Image Result"` with `GetImages()`, `GetUsage()`, `GetResponseCalls()`
@@ -67,7 +75,17 @@ Shipped factories: `"AIOS Anthropic"`, `"AIOS OpenAI"`, `"AIOS OpenCode Zen"`, `
 - **Lifecycle** Integration Events on `"AIOS Client"`: `OnBeforeGenerate`, `OnBeforeLanguageModelCall`, `OnAfterLanguageModelCall`, `OnAfterGenerate` (success only)
 - **Retries:** request `GetMaxRetries` / `SetMaxRetries` (default 2); retriable errors are rate limit, timeout, and provider unavailable (`"AIOS Retry"`)
 - Interfaces remain available if you need a custom provider (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Chat Format"`, `"AIOS Image Model"`, `"AIOS Tool"`, `"AIOS Tool Handler"`)
-- **Custom providers:** implement `"AIOS Language Model"` (and optionally `"AIOS Provider"`). For tools/messages, implement `"AIOS Chat Format"` or reuse `"AIOS OpenAI Compatible Format"` / `"AIOS Anthropic Format"` if your API matches those schemas.
+- **Custom providers:** implement `"AIOS Language Model"` (and optionally `"AIOS Provider"`) in your own app depending on Core only. For tools/messages, implement `"AIOS Chat Format"` locally (do not take a dependency on another vendor provider). Or use `"AIOS OpenAI Compatible".Model(Id, Key, BaseUrl)` for any Chat Completions API. Call `MapMessages(Request.GetProviderMessages())` so attachment refs expand.
+
+```al
+Request.SetPrompt('Write a product description for this item image.');
+Request.Attach(Item.Picture.Item(1));  // MediaId from MediaSet
+Result := Client.GenerateText(VisionModel, Request);
+```
+
+Also: `Attach(TenantMedia)`, `Attach(TempBlob, MimeType, Filename)`, `Attach(InStream, MimeType, Filename)`.
+
+Item picture → description samples: `RunItemPictureDescriptionDemo` / `RunItemPictureDescriptionOpenAI`.
 
 ### Tools — Add and Use
 

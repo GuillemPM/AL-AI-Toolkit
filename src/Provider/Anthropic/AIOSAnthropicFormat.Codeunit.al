@@ -1,8 +1,11 @@
-namespace PM.Guillem.AIOpenSDK.Core;
+namespace PM.Guillem.AIOpenSDK.Provider.Anthropic;
+
+using PM.Guillem.AIOpenSDK.Core;
+using System.Text;
 
 /// <summary>
 /// Chat/tools wire format for the Anthropic Messages API.
-/// Reuse from custom providers that speak the same schema.
+/// Owned by the Anthropic provider layer — not core.
 /// </summary>
 codeunit 87419 "AIOS Anthropic Format" implements "AIOS Chat Format"
 {
@@ -41,6 +44,7 @@ codeunit 87419 "AIOS Anthropic Format" implements "AIOS Chat Format"
 
     /// <summary>
     /// Maps AIOS message history to Anthropic messages (system extracted separately).
+    /// User content may be a string or TextPart/FilePart array.
     /// </summary>
     procedure MapMessages(AiosMessages: JsonArray): JsonArray
     var
@@ -69,16 +73,19 @@ codeunit 87419 "AIOS Anthropic Format" implements "AIOS Chat Format"
                     begin
                         OutMsg.Add('role', 'user');
                         if Msg.Get('content', ContentToken) then
-                            OutMsg.Add('content', ContentToken.AsValue().AsText())
-                        else
-                            OutMsg.Add('content', '');
+                            OutMsg.Add('content', MapUserContent(ContentToken))
+                        else begin
+                            Clear(ContentArr);
+                            ContentArr.Add(TextBlock(''));
+                            OutMsg.Add('content', ContentArr);
+                        end;
                         OutMessages.Add(OutMsg);
                     end;
                 'assistant':
                     begin
                         OutMsg.Add('role', 'assistant');
                         Clear(ContentArr);
-                        if Msg.Get('content', ContentToken) and (not ContentToken.AsValue().IsNull()) then
+                        if Msg.Get('content', ContentToken) and ContentToken.IsValue() and (not ContentToken.AsValue().IsNull()) then
                             if ContentToken.AsValue().AsText() <> '' then
                                 ContentArr.Add(TextBlock(ContentToken.AsValue().AsText()));
                         if Msg.Get('tool_calls', ToolCallsToken) then
@@ -171,6 +178,146 @@ codeunit 87419 "AIOS Anthropic Format" implements "AIOS Chat Format"
         exit(Out);
     end;
 
+    local procedure MapUserContent(ContentToken: JsonToken): JsonArray
+    var
+        Parts: JsonArray;
+        OutParts: JsonArray;
+        PartToken: JsonToken;
+        Part: JsonObject;
+        TypeToken: JsonToken;
+        i: Integer;
+    begin
+        if ContentToken.IsValue() then begin
+            OutParts.Add(TextBlock(ContentToken.AsValue().AsText()));
+            exit(OutParts);
+        end;
+
+        if ContentToken.IsArray() then begin
+            Parts := ContentToken.AsArray();
+            for i := 0 to Parts.Count() - 1 do begin
+                Parts.Get(i, PartToken);
+                if not PartToken.IsObject() then
+                    continue;
+                Part := PartToken.AsObject();
+                if not Part.Get('type', TypeToken) then
+                    continue;
+                case TypeToken.AsValue().AsText() of
+                    'text':
+                        OutParts.Add(TextBlock(GetPartText(Part)));
+                    'file':
+                        OutParts.Add(FileBlock(Part));
+                end;
+            end;
+        end;
+
+        if OutParts.Count() = 0 then
+            OutParts.Add(TextBlock(''));
+        exit(OutParts);
+    end;
+
+    local procedure FileBlock(Part: JsonObject): JsonObject
+    var
+        MessageContent: Codeunit "AIOS Message Content";
+        MediaType: Text;
+        Data: Text;
+        Filename: Text;
+        Block: JsonObject;
+        Source: JsonObject;
+        Base64Convert: Codeunit "Base64 Convert";
+        Decoded: Text;
+    begin
+        MediaType := GetPartMediaType(Part);
+        Data := GetPartData(Part);
+        Filename := GetPartFilename(Part);
+        EnsureFilePartExpanded(Part, Data);
+
+        if MessageContent.IsTextMediaType(MediaType) then begin
+            Decoded := GetPartText(Part);
+            if Decoded = '' then
+                Decoded := Base64Convert.FromBase64(Data);
+            if Filename <> '' then
+                exit(TextBlock(StrSubstNo(FileAsTextFmtTok, Filename, Decoded)));
+            exit(TextBlock(Decoded));
+        end;
+
+        if MessageContent.IsImageMediaType(MediaType) then begin
+            if LowerCase(MediaType) = 'image' then
+                MediaType := 'image/png';
+            Source.Add('type', 'base64');
+            Source.Add('media_type', MediaType);
+            Source.Add('data', Data);
+            Block.Add('type', 'image');
+            Block.Add('source', Source);
+            exit(Block);
+        end;
+
+        if MessageContent.IsPdfMediaType(MediaType) then begin
+            Source.Add('type', 'base64');
+            Source.Add('media_type', 'application/pdf');
+            Source.Add('data', Data);
+            Block.Add('type', 'document');
+            Block.Add('source', Source);
+            if Filename <> '' then
+                Block.Add('title', Filename);
+            exit(Block);
+        end;
+
+        Error(UnsupportedFileErr, MediaType);
+    end;
+
+    local procedure EnsureFilePartExpanded(Part: JsonObject; Data: Text)
+    var
+        IdToken: JsonToken;
+    begin
+        if GetPartText(Part) <> '' then
+            exit;
+        if Data <> '' then
+            exit;
+        if Part.Get('id', IdToken) then
+            if IdToken.AsValue().AsText() <> '' then
+                Error(UnexpandedAttachmentErr);
+    end;
+
+    local procedure GetPartText(Part: JsonObject): Text
+    var
+        Token: JsonToken;
+    begin
+        if Part.Get('text', Token) then
+            if Token.IsValue() then
+                exit(Token.AsValue().AsText());
+        exit('');
+    end;
+
+    local procedure GetPartMediaType(Part: JsonObject): Text
+    var
+        Token: JsonToken;
+    begin
+        if Part.Get('mediaType', Token) then
+            if Token.IsValue() then
+                exit(Token.AsValue().AsText());
+        exit('');
+    end;
+
+    local procedure GetPartData(Part: JsonObject): Text
+    var
+        Token: JsonToken;
+    begin
+        if Part.Get('data', Token) then
+            if Token.IsValue() then
+                exit(Token.AsValue().AsText());
+        exit('');
+    end;
+
+    local procedure GetPartFilename(Part: JsonObject): Text
+    var
+        Token: JsonToken;
+    begin
+        if Part.Get('filename', Token) then
+            if Token.IsValue() then
+                exit(Token.AsValue().AsText());
+        exit('');
+    end;
+
     local procedure AppendToolUseBlocks(var ContentArr: JsonArray; AiosToolCalls: JsonArray)
     var
         CallToken: JsonToken;
@@ -240,4 +387,9 @@ codeunit 87419 "AIOS Anthropic Format" implements "AIOS Chat Format"
     begin
         exit(Obj);
     end;
+
+    var
+        FileAsTextFmtTok: Label '[file: %1]\n%2', Locked = true;
+        UnsupportedFileErr: Label 'Anthropic does not accept file media type ''%1''. Use image/*, application/pdf, or text/*.', Comment = '%1 = media type';
+        UnexpandedAttachmentErr: Label 'File part has an attachment id but no payload. Use Request.GetProviderMessages() before MapMessages.';
 }

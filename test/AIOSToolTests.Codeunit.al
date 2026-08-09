@@ -3,6 +3,7 @@ namespace PM.Guillem.AIOpenSDK.Test;
 using PM.Guillem.AIOpenSDK.Core;
 using PM.Guillem.AIOpenSDK.Examples;
 using PM.Guillem.AIOpenSDK.Provider.Mock;
+using PM.Guillem.AIOpenSDK.Provider.OpenAI;
 
 /// <summary>
 /// Mock-based tests for tool definitions, tool calls, message history, and multi-step GenerateText.
@@ -408,7 +409,7 @@ codeunit 87497 "AIOS Tool Tests"
     [Test]
     procedure OpenAIFormat_MapMessages_IncludesReasoningContentForToolCalls()
     var
-        FormatCU: Codeunit "AIOS OpenAI Compatible Format";
+        FormatCU: Codeunit "AIOS OpenAI Format";
         ChatFormat: Interface "AIOS Chat Format";
         Request: Record "AIOS Chat Request";
         ToolCalls: List of [Codeunit "AIOS Tool Call"];

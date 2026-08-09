@@ -1,8 +1,11 @@
-namespace PM.Guillem.AIOpenSDK.Core;
+namespace PM.Guillem.AIOpenSDK.Provider.OpenAICompatible;
+
+using PM.Guillem.AIOpenSDK.Core;
+using System.Text;
 
 /// <summary>
-/// Chat/tools wire format for OpenAI Chat Completions and compatible APIs.
-/// Reuse from custom providers that speak the same schema.
+/// Chat/tools wire format for OpenAI Chat Completions–compatible APIs.
+/// Owned by the OpenAI Compatible provider — independent of OpenAI / OpenCode Zen.
 /// </summary>
 codeunit 87418 "AIOS OpenAI Compatible Format" implements "AIOS Chat Format"
 {
@@ -45,6 +48,7 @@ codeunit 87418 "AIOS OpenAI Compatible Format" implements "AIOS Chat Format"
 
     /// <summary>
     /// Maps AIOS message history to OpenAI-compatible chat messages.
+    /// User content may be a string or TextPart/FilePart array.
     /// </summary>
     procedure MapMessages(AiosMessages: JsonArray): JsonArray
     var
@@ -66,11 +70,20 @@ codeunit 87418 "AIOS OpenAI Compatible Format" implements "AIOS Chat Format"
             Role := RoleToken.AsValue().AsText();
             Clear(OutMsg);
             case Role of
-                'system', 'user':
+                'system':
                     begin
                         OutMsg.Add('role', Role);
-                        if Msg.Get('content', ContentToken) then
+                        if Msg.Get('content', ContentToken) and ContentToken.IsValue() then
                             OutMsg.Add('content', ContentToken.AsValue().AsText())
+                        else
+                            OutMsg.Add('content', '');
+                        OutMessages.Add(OutMsg);
+                    end;
+                'user':
+                    begin
+                        OutMsg.Add('role', 'user');
+                        if Msg.Get('content', ContentToken) then
+                            SetUserContent(OutMsg, ContentToken)
                         else
                             OutMsg.Add('content', '');
                         OutMessages.Add(OutMsg);
@@ -78,14 +91,12 @@ codeunit 87418 "AIOS OpenAI Compatible Format" implements "AIOS Chat Format"
                 'assistant':
                     begin
                         OutMsg.Add('role', 'assistant');
-                        if Msg.Get('content', ContentToken) and (not ContentToken.AsValue().IsNull()) then
+                        if Msg.Get('content', ContentToken) and ContentToken.IsValue() and (not ContentToken.AsValue().IsNull()) then
                             OutMsg.Add('content', ContentToken.AsValue().AsText())
                         else
                             OutMsg.Add('content', '');
                         if Msg.Get('tool_calls', ToolCallsToken) then
                             OutMsg.Add('tool_calls', ToWireToolCalls(ToolCallsToken.AsArray()));
-                        // Thinking models (DeepSeek / OpenCode Zen, …) require reasoning_content
-                        // on assistant tool-call turns when continuing the conversation.
                         if Msg.Get('reasoning_content', ContentToken) then
                             OutMsg.Add('reasoning_content', ContentToken.AsValue().AsText());
                         OutMessages.Add(OutMsg);
@@ -95,7 +106,7 @@ codeunit 87418 "AIOS OpenAI Compatible Format" implements "AIOS Chat Format"
                         OutMsg.Add('role', 'tool');
                         if Msg.Get('tool_call_id', ContentToken) then
                             OutMsg.Add('tool_call_id', ContentToken.AsValue().AsText());
-                        if Msg.Get('content', ContentToken) then
+                        if Msg.Get('content', ContentToken) and ContentToken.IsValue() then
                             OutMsg.Add('content', ContentToken.AsValue().AsText())
                         else
                             OutMsg.Add('content', '');
@@ -107,7 +118,7 @@ codeunit 87418 "AIOS OpenAI Compatible Format" implements "AIOS Chat Format"
     end;
 
     /// <summary>
-    /// OpenAI-compatible APIs carry system in messages; always returns empty.
+    /// System stays inside messages; always returns empty.
     /// </summary>
     procedure GetSystemText(AiosMessages: JsonArray): Text
     begin
@@ -130,10 +141,159 @@ codeunit 87418 "AIOS OpenAI Compatible Format" implements "AIOS Chat Format"
         MessageObj := WireToken.AsObject();
         if not MessageObj.Get('tool_calls', ToolCallsToken) then
             exit(Empty);
-        // Providers often return "tool_calls": null on non-tool turns — AsArray() would throw.
         if not ToolCallsToken.IsArray() then
             exit(Empty);
         exit(ParseWireToolCalls(ToolCallsToken.AsArray()));
+    end;
+
+    local procedure SetUserContent(var OutMsg: JsonObject; ContentToken: JsonToken)
+    var
+        Parts: JsonArray;
+        OutParts: JsonArray;
+        PartToken: JsonToken;
+        Part: JsonObject;
+        TypeToken: JsonToken;
+        i: Integer;
+    begin
+        if ContentToken.IsValue() then begin
+            OutMsg.Add('content', ContentToken.AsValue().AsText());
+            exit;
+        end;
+
+        if ContentToken.IsArray() then begin
+            Parts := ContentToken.AsArray();
+            for i := 0 to Parts.Count() - 1 do begin
+                Parts.Get(i, PartToken);
+                if not PartToken.IsObject() then
+                    continue;
+                Part := PartToken.AsObject();
+                if not Part.Get('type', TypeToken) then
+                    continue;
+                case TypeToken.AsValue().AsText() of
+                    'text':
+                        OutParts.Add(TextPart(Part));
+                    'file':
+                        OutParts.Add(FilePart(Part));
+                end;
+            end;
+        end;
+
+        if OutParts.Count() = 0 then begin
+            Clear(Part);
+            Part.Add('type', 'text');
+            Part.Add('text', '');
+            OutParts.Add(Part);
+        end;
+        OutMsg.Add('content', OutParts);
+    end;
+
+    local procedure TextPart(Part: JsonObject): JsonObject
+    var
+        OutPart: JsonObject;
+    begin
+        OutPart.Add('type', 'text');
+        OutPart.Add('text', GetPartText(Part));
+        exit(OutPart);
+    end;
+
+    local procedure FilePart(Part: JsonObject): JsonObject
+    var
+        MessageContent: Codeunit "AIOS Message Content";
+        MediaType: Text;
+        Data: Text;
+        Filename: Text;
+        OutPart: JsonObject;
+        ImageUrl: JsonObject;
+        FileObj: JsonObject;
+        Base64Convert: Codeunit "Base64 Convert";
+        Decoded: Text;
+    begin
+        MediaType := GetPartMediaType(Part);
+        Data := GetPartData(Part);
+        Filename := GetPartFilename(Part);
+        EnsureFilePartExpanded(Part, Data);
+
+        if MessageContent.IsTextMediaType(MediaType) then begin
+            Decoded := GetPartText(Part);
+            if Decoded = '' then
+                Decoded := Base64Convert.FromBase64(Data);
+            OutPart.Add('type', 'text');
+            if Filename <> '' then
+                OutPart.Add('text', StrSubstNo(FileAsTextFmtTok, Filename, Decoded))
+            else
+                OutPart.Add('text', Decoded);
+            exit(OutPart);
+        end;
+
+        if MessageContent.IsImageMediaType(MediaType) then begin
+            if LowerCase(MediaType) = 'image' then
+                MediaType := 'image/png';
+            ImageUrl.Add('url', StrSubstNo(DataUrlTok, MediaType, Data));
+            OutPart.Add('type', 'image_url');
+            OutPart.Add('image_url', ImageUrl);
+            exit(OutPart);
+        end;
+
+        if Filename = '' then
+            Filename := 'file';
+        FileObj.Add('filename', Filename);
+        FileObj.Add('file_data', StrSubstNo(DataUrlTok, MediaType, Data));
+        OutPart.Add('type', 'file');
+        OutPart.Add('file', FileObj);
+        exit(OutPart);
+    end;
+
+    local procedure EnsureFilePartExpanded(Part: JsonObject; Data: Text)
+    var
+        IdToken: JsonToken;
+    begin
+        if GetPartText(Part) <> '' then
+            exit;
+        if Data <> '' then
+            exit;
+        if Part.Get('id', IdToken) then
+            if IdToken.AsValue().AsText() <> '' then
+                Error(UnexpandedAttachmentErr);
+    end;
+
+    local procedure GetPartText(Part: JsonObject): Text
+    var
+        Token: JsonToken;
+    begin
+        if Part.Get('text', Token) then
+            if Token.IsValue() then
+                exit(Token.AsValue().AsText());
+        exit('');
+    end;
+
+    local procedure GetPartMediaType(Part: JsonObject): Text
+    var
+        Token: JsonToken;
+    begin
+        if Part.Get('mediaType', Token) then
+            if Token.IsValue() then
+                exit(Token.AsValue().AsText());
+        exit('');
+    end;
+
+    local procedure GetPartData(Part: JsonObject): Text
+    var
+        Token: JsonToken;
+    begin
+        if Part.Get('data', Token) then
+            if Token.IsValue() then
+                exit(Token.AsValue().AsText());
+        exit('');
+    end;
+
+    local procedure GetPartFilename(Part: JsonObject): Text
+    var
+        Token: JsonToken;
+    begin
+        if Part.Get('filename', Token) then
+            if Token.IsValue() then
+                exit(Token.AsValue().AsText());
+        exit('');
     end;
 
     local procedure ToWireToolCalls(AiosToolCalls: JsonArray): JsonArray
@@ -224,4 +384,9 @@ codeunit 87418 "AIOS OpenAI Compatible Format" implements "AIOS Chat Format"
     begin
         exit(Obj);
     end;
+
+    var
+        DataUrlTok: Label 'data:%1;base64,%2', Locked = true;
+        FileAsTextFmtTok: Label '[file: %1]\n%2', Locked = true;
+        UnexpandedAttachmentErr: Label 'File part has an attachment id but no payload. Use Request.GetProviderMessages() before MapMessages.';
 }

@@ -5,7 +5,7 @@ namespace PM.Guillem.AIOpenSDK.Core;
 /// </summary>
 codeunit 87464 "AIOS Http Error Mapper"
 {
-    Access = Internal;
+    Access = Public;
 
     /// <summary>
     /// Maps a provider HTTP status code to the toolkit error enum.

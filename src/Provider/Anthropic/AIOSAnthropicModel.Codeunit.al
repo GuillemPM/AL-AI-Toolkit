@@ -74,7 +74,7 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
 
     local procedure BuildRequestBody(var Request: Record "AIOS Chat Request"; var Warnings: JsonArray): Text
     var
-        RequestOptions: Codeunit "AIOS Request Options";
+        FormatOptions: Codeunit "AIOS Anthropic Options";
         FormatCU: Codeunit "AIOS Anthropic Format";
         ChatFormat: Interface "AIOS Chat Format";
         Root: JsonObject;
@@ -91,7 +91,7 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
             MaxTokens := 4096;
 
         if Request.HasMessages() then begin
-            Messages := ChatFormat.MapMessages(Request.GetMessages());
+            Messages := ChatFormat.MapMessages(Request.GetProviderMessages());
             SystemText := ChatFormat.GetSystemText(Request.GetMessages());
             if SystemText = '' then
                 SystemText := Request.GetEffectiveSystemMessage();
@@ -112,7 +112,7 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
         ToolDefs := Request.GetToolDefinitions();
         if ToolDefs.Count() > 0 then
             Root.Add('tools', ChatFormat.MapTools(ToolDefs));
-        RequestOptions.ApplyAnthropic(Root, Request, Warnings);
+        FormatOptions.Apply(Root, Request, Warnings);
 
         Root.WriteTo(Body);
         exit(Body);
