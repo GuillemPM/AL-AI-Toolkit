@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    name: Validate multi-app layout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check app.json files and unique object IDs
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json, re, sys
+          from pathlib import Path
+
+          apps = sorted(Path('apps').glob('*/app.json'))
+          if len(apps) < 8:
+              print(f'Expected >= 8 apps, found {len(apps)}', file=sys.stderr)
+              sys.exit(1)
+
+          ids = {}
+          dup = False
+          for app_json in apps:
+              data = json.loads(app_json.read_text())
+              name = data['name']
+              assert data.get('dependencies') is not None
+              app_dir = app_json.parent
+              for al in app_dir.rglob('*.al'):
+                  text = al.read_text(encoding='utf-8')
+                  for m in re.finditer(r'(?m)^(codeunit|table|enum|page)\s+(\d+)\s+', text):
+                      oid = int(m.group(2))
+                      if oid in ids:
+                          print(f'Duplicate object ID {oid}: {ids[oid]} and {al}', file=sys.stderr)
+                          dup = True
+                      else:
+                          ids[oid] = str(al)
+              # provider→provider ban (except via Utils/Core)
+              deps = {d['name'] for d in data.get('dependencies', [])}
+              provider_names = {
+                  'AL AI Open SDK OpenAI',
+                  'AL AI Open SDK Anthropic',
+                  'AL AI Open SDK OpenAI Compatible',
+                  'AL AI Open SDK OpenCode Zen',
+              }
+              if name in provider_names:
+                  bad = deps & (provider_names - {name})
+                  if bad:
+                      print(f'{name} must not depend on other providers: {bad}', file=sys.stderr)
+                      dup = True
+              print(f'OK {name}: {app_json}')
+
+          if dup:
+              sys.exit(1)
+          print(f'Unique object IDs: {len(ids)}')
+          PY
+
+      - name: Remind compile/test
+        run: |
+          echo "Full AL compile + mock tests require BC 28 symbols (AL-Go / local alc)."
+          echo "Open AL-AI-Toolkit.code-workspace and compile Core → Utils → providers → Examples → Test."

@@ -1,0 +1,31 @@
+{
+  "id": "f624c4ac-75e8-4ce4-9a31-c2d6ff2a05a1",
+  "name": "AL AI Open SDK",
+  "publisher": "Guillermo Padilla",
+  "version": "0.1.0.0",
+  "brief": "Provider-agnostic AI client for Business Central (Core)",
+  "description": "Core library for calling LLMs from AL: client API, tools, structured output, retries, and mock provider. Install provider apps separately (OpenAI, Anthropic, OpenAI Compatible, OpenCode Zen).",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [],
+  "screenshots": [],
+  "platform": "1.0.0.0",
+  "application": "28.0.0.0",
+  "idRanges": [
+    { "from": 87400, "to": 87417 },
+    { "from": 87420, "to": 87428 },
+    { "from": 87446, "to": 87447 },
+    { "from": 87449, "to": 87449 },
+    { "from": 87460, "to": 87479 }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": true,
+    "includeSourceInSymbolFile": true
+  },
+  "runtime": "15.0",
+  "features": ["NoImplicitWith"]
+}

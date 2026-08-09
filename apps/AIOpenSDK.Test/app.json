@@ -1,0 +1,53 @@
+{
+  "id": "1de9f510-5694-4445-9cd8-1216b89d49bd",
+  "name": "AL AI Open SDK Test",
+  "publisher": "Guillermo Padilla",
+  "version": "0.1.0.0",
+  "brief": "Mock-based tests for AL AI Open SDK",
+  "description": "Unit tests for AL AI Open SDK. Core CI uses mock provider only; format tests may reference Provider Utils and Anthropic format helpers.",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [
+    {
+      "id": "f624c4ac-75e8-4ce4-9a31-c2d6ff2a05a1",
+      "name": "AL AI Open SDK",
+      "publisher": "Guillermo Padilla",
+      "version": "0.1.0.0"
+    },
+    {
+      "id": "508e5bc0-6081-4aad-8a82-d48352aede0c",
+      "name": "AL AI Open SDK Provider Utils",
+      "publisher": "Guillermo Padilla",
+      "version": "0.1.0.0"
+    },
+    {
+      "id": "b6caa435-9837-4155-9932-0b591bdeb4d1",
+      "name": "AL AI Open SDK Anthropic",
+      "publisher": "Guillermo Padilla",
+      "version": "0.1.0.0"
+    },
+    {
+      "id": "aa2ebf49-d38d-4f14-8dde-6f235d55fb4d",
+      "name": "AL AI Open SDK Examples",
+      "publisher": "Guillermo Padilla",
+      "version": "0.1.0.0"
+    }
+  ],
+  "screenshots": [],
+  "platform": "1.0.0.0",
+  "application": "28.0.0.0",
+  "idRanges": [
+    { "from": 87490, "to": 87497 },
+    { "from": 87500, "to": 87509 }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": true,
+    "includeSourceInSymbolFile": true
+  },
+  "runtime": "15.0",
+  "features": ["NoImplicitWith"]
+}

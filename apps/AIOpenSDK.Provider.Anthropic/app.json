@@ -1,0 +1,35 @@
+{
+  "id": "b6caa435-9837-4155-9932-0b591bdeb4d1",
+  "name": "AL AI Open SDK Anthropic",
+  "publisher": "Guillermo Padilla",
+  "version": "0.1.0.0",
+  "brief": "Anthropic provider for AL AI Open SDK",
+  "description": "Anthropic Messages API provider for AL AI Open SDK. Depends on Core only (does not pull other vendor providers).",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [
+    {
+      "id": "f624c4ac-75e8-4ce4-9a31-c2d6ff2a05a1",
+      "name": "AL AI Open SDK",
+      "publisher": "Guillermo Padilla",
+      "version": "0.1.0.0"
+    }
+  ],
+  "screenshots": [],
+  "platform": "1.0.0.0",
+  "application": "28.0.0.0",
+  "idRanges": [
+    { "from": 87440, "to": 87441 },
+    { "from": 87452, "to": 87453 }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": true,
+    "includeSourceInSymbolFile": true
+  },
+  "runtime": "15.0",
+  "features": ["NoImplicitWith"]
+}

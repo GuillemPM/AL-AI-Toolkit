@@ -1,0 +1,41 @@
+{
+  "id": "0398a2c3-d5c5-4446-95c2-692a816ecc52",
+  "name": "AL AI Open SDK OpenAI",
+  "publisher": "Guillermo Padilla",
+  "version": "0.1.0.0",
+  "brief": "OpenAI provider for AL AI Open SDK",
+  "description": "OpenAI language and image models for AL AI Open SDK. Depends on Core + Provider Utils only.",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [
+    {
+      "id": "f624c4ac-75e8-4ce4-9a31-c2d6ff2a05a1",
+      "name": "AL AI Open SDK",
+      "publisher": "Guillermo Padilla",
+      "version": "0.1.0.0"
+    },
+    {
+      "id": "508e5bc0-6081-4aad-8a82-d48352aede0c",
+      "name": "AL AI Open SDK Provider Utils",
+      "publisher": "Guillermo Padilla",
+      "version": "0.1.0.0"
+    }
+  ],
+  "screenshots": [],
+  "platform": "1.0.0.0",
+  "application": "28.0.0.0",
+  "idRanges": [
+    { "from": 87442, "to": 87443 },
+    { "from": 87448, "to": 87448 }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": true,
+    "includeSourceInSymbolFile": true
+  },
+  "runtime": "15.0",
+  "features": ["NoImplicitWith"]
+}

@@ -1,0 +1,19 @@
+{
+  "folders": [
+    { "name": "Core", "path": "apps/AIOpenSDK.Core" },
+    { "name": "ProviderUtils", "path": "apps/AIOpenSDK.ProviderUtils" },
+    { "name": "OpenAI", "path": "apps/AIOpenSDK.Provider.OpenAI" },
+    { "name": "Anthropic", "path": "apps/AIOpenSDK.Provider.Anthropic" },
+    { "name": "OpenAICompatible", "path": "apps/AIOpenSDK.Provider.OpenAICompatible" },
+    { "name": "OpenCodeZen", "path": "apps/AIOpenSDK.Provider.OpenCodeZen" },
+    { "name": "Examples", "path": "apps/AIOpenSDK.Examples" },
+    { "name": "Test", "path": "apps/AIOpenSDK.Test" },
+    { "name": "repo", "path": "." }
+  ],
+  "settings": {
+    "al.packageCachePath": "${workspaceFolder:repo}/.alpackages",
+    "al.assemblyProbingPaths": [
+      "${workspaceFolder:repo}/.netpackages"
+    ]
+  }
+}

@@ -8,10 +8,10 @@ rad.json
 .radar/
 .netpackages/
 
-# IDE
+# Root IDE (local only) — per-app apps/*/.vscode is tracked
 .vscode/*
 !.vscode/extensions.json
-!.vscode/launch.json
+!.vscode/launch.json.example
 !.vscode/settings.json.example
 
 # OS / editor

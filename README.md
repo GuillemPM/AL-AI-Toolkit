@@ -2,50 +2,85 @@
 
 Provider-agnostic AI integration library for Microsoft Dynamics 365 Business Central, written in AL.
 
-Call large language models through one client API — with structured output parsing, retries, image generation, and a mock provider for unit tests. This is a **library** that ships inside your extension. It is not a Copilot feature, not a hosted AI service, and not a Microsoft product.
+Packaged like the [Vercel AI SDK](https://ai-sdk.dev/): **Core** client API + **sibling provider apps**. Install only what you need.
 
 Status: **v0.1** (usable client + providers; pre-1.0 — public APIs may still change).
+
+## Install model
+
+| Need | Apps |
+|------|------|
+| Client + Mock tests | **AL AI Open SDK** (Core) |
+| OpenAI chat/image | Core + **OpenAI** (+ Provider Utils, pulled in) |
+| Anthropic | Core + **Anthropic** |
+| Any Chat Completions URL | Core + **OpenAI Compatible** (+ Provider Utils) |
+| OpenCode Zen | Core + **OpenCode Zen** (+ Provider Utils) |
+| Demo UI | **Examples** (depends on Core + providers) |
+
+```al
+OpenAI: Codeunit "AIOS OpenAI";
+Client: Codeunit "AIOS Client";
+Result: Codeunit "AIOS Generate Result";
+ApiKey: SecretText;
+begin
+    Result := Client.GenerateText(OpenAI.Model('gpt-5.5', ApiKey), 'Hello');
+    Message(Result.Output());
+end;
+```
+
+See [docs/PUBLIC_API.md](docs/PUBLIC_API.md) for the supported surface.
 
 ## Design highlights
 
 - Provider selection is configuration, not a code change (`"AIOS Provider"` → `"AIOS Language Model"` / `"AIOS Image Model"`)
 - Structured output (JSON Schema → validated text / `JsonToken`) is a first-class primitive; flat RecRef binding is a convenience
-- Mock provider so AI-dependent code is testable without network or API keys
+- Mock provider in Core so AI-dependent code is testable without network or API keys
 - Shared retry / backoff (`"AIOS Retry"`) for text and image generation
-- Direct HTTP to providers (OpenAI, Anthropic, OpenCode Zen, …) — not a wrapper around System.AI
-- Attachments: `Request.Attach(Item.Picture.Item(1))` / `Attach(InStream, MimeType, Filename)` for multimodal parts
-- Tools: primary `ToolSet.Add(Tool)` (`"AIOS Tool"`); secondary `ToolSet.Use(Handler)` to pack many tools in one ID
-
-When System.AI / Copilot is already the right tool for a Microsoft-hosted capability, prefer that. Use this toolkit when you need third-party providers, self-hosted endpoints, or a testable provider abstraction.
+- Direct HTTP to providers — not a wrapper around System.AI
+- Attachments and tools as documented below
+- **No provider→provider dependencies.** Chat Completions sharing lives in **Provider Utils** (like `@ai-sdk/provider-utils`). OpenAI Compatible is a peer package, not a base for OpenAI/Zen.
 
 **Not shipped yet:** Azure OpenAI adapter, System.AI platform provider, OpenTelemetry / GenAI telemetry.
 
 ## Repository layout
 
+Each `apps/*` folder is a **standalone AL extension** (own `app.json`, `src/`, `.vscode/`). Optional multi-root: [`AL-AI-Toolkit.code-workspace`](AL-AI-Toolkit.code-workspace).
+
 ```
-src/Client/              Public AIOS Client, results, retry helper
-src/Provider/            Core request/response tables + interfaces (no vendor wire shapes)
-src/Provider/OpenAI/     OpenAI provider (format, options, models) — Core only
-src/Provider/Anthropic/  Anthropic provider — Core only
-src/Provider/OpenCodeZen/ OpenCode Zen provider — Core only
-src/Provider/OpenAICompatible/  Generic OpenAI-compatible provider (any base URL) — Core only
-src/Mock/                Mock provider — Core only
-src/Structured/          JSON Schema builder, validator, RecRef binder
-src/Tools/               Tools + Chat Format interface + MIME helpers + attachments + request options
-test/                    Mock-based tests (no live keys required)
-examples/                Demo page, usage examples, feedback buffer DTO
+apps/AIOpenSDK.Core/                 Client, contracts, tools, structured, Mock
+apps/AIOpenSDK.ProviderUtils/        Shared Chat Completions format/options/HTTP
+apps/AIOpenSDK.Provider.OpenAI/
+apps/AIOpenSDK.Provider.Anthropic/
+apps/AIOpenSDK.Provider.OpenAICompatible/
+apps/AIOpenSDK.Provider.OpenCodeZen/
+apps/AIOpenSDK.Examples/             Demo page + samples
+apps/AIOpenSDK.Test/                 Mock-based tests
 docs/OBJECT_IDS.md
+docs/PUBLIC_API.md
+docs/DEVELOPMENT.md                  How to work on Core / one provider / consumers
+scripts/prepare-deps.ps1             Package Core+Utils (Windows)
+scripts/prepare-deps.sh              Package Core+Utils (Linux/macOS)
 ```
 
-Providers are modular: each depends on **Core only** (no provider→provider deps). `"AIOS OpenAI Compatible"` is the AI SDK–style generic Chat Completions client (`Model(id, key, baseUrl)`).
-
-Object IDs: provisional **87400–87499**. Replace with an AppSource-assigned range before publishing.
+Object IDs: provisional — see [docs/OBJECT_IDS.md](docs/OBJECT_IDS.md). Replace with AppSource-assigned ranges before publishing.
 
 ## Getting started (developers)
 
+Full workflows (including **provider-only** work): **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**.
+
 1. Install the [AL Language](https://marketplace.visualstudio.com/items?itemName=ms-dynamics-smb.al) extension.
-2. Ensure BC symbols are in `.alpackages` (Application 28.x).
-3. Open this folder and compile with ALC / the AL extension.
+2. Open `apps/AIOpenSDK.Core`, configure launch.json, run **Download Symbols** once (fills shared `.alpackages/`).
+3. From the repo root, package Core + ProviderUtils into `.alpackages`:
+
+   ```powershell
+   .\scripts\prepare-deps.ps1    # Windows
+   ```
+
+   ```bash
+   ./scripts/prepare-deps.sh     # Linux / macOS
+   ```
+
+4. Open the app you care about (e.g. one provider) and Package/Publish — or use [`AL-AI-Toolkit.code-workspace`](AL-AI-Toolkit.code-workspace) for the full stack.
 
 Happy path — `GenerateText` returns `"AIOS Generate Result"` (Errors on failure):
 
@@ -55,37 +90,30 @@ Client: Codeunit "AIOS Client";
 Result: Codeunit "AIOS Generate Result";
 ApiKey: SecretText;
 begin
-    // Prefer loading into SecretText (Isolated Storage / setup) so the debugger never shows the key
     Result := Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), 'Hello');
     Message(Result.Output());
 end;
 ```
 
-Shipped factories: `"AIOS Anthropic"`, `"AIOS OpenAI"`, `"AIOS OpenCode Zen"`, `"AIOS OpenAI Compatible"` (any Chat Completions base URL), `"AIOS Mock"`. API keys are `SecretText` end-to-end (hidden in the debugger; HTTP headers use the SecretText overloads).
+Shipped factories: `"AIOS Anthropic"`, `"AIOS OpenAI"`, `"AIOS OpenCode Zen"`, `"AIOS OpenAI Compatible"`, `"AIOS Mock"`. API keys are `SecretText` end-to-end.
 
 - **Public:** `Client.GenerateText` — `(Model, Prompt)`, `(Model, System, Prompt)`, or `(Model, Request)` for options; returns `"AIOS Generate Result"`, Errors on failure
 - **Result accessors:** `Result.Output()`, `Result.Body()`, `Result.Headers()`, `Result.HttpStatusCode()`, plus token / finish / provider helpers; `Result.HasToolCalls()` / `Result.GetToolCalls()` when the model requests tools
 - **Structured output (preferred):** `Request.SetOutput(Schema.Object(Fields))` then `GenerateText(Model, Request)` — response JSON is validated; read `Result.Output()`
 - **Flat record convenience:** `Request.SetOutput(RecRef)` then `GenerateText(Model, Request, RecRef)` — JSON fills bindable fields; raw JSON is on `Result.Output()`
-- **Attachments / multimodal:** `Request.Attach(Item.Picture.Item(1))` or `Attach(InStream|TempBlob|TenantMedia|Base64, …)` — binary kept raw in `Attachment Binaries` (zip); history holds id refs; Base64 only in `GetProviderMessages` for the wire body. `ClearAttachments` / `ClearMessages` / `SetMessages` prune unreferenced payloads.
-- **Tools:** primary `ToolSet.Add(Tool)` (`"AIOS Tool"`). Secondary: `"AIOS Tool Handler"` + `ToolSet.Use(Handler)` (once per ToolSet). Escape hatch: `ToolSet.Add(Name, Description, Schema)` + `OnExecuteTool` (see `"AIOS Demo Tools"`). Call `GenerateText(Model, Request, ToolSet)` (default MaxSteps = 5) or pass an explicit MaxSteps — never pass a handler into GenerateText. The client runs tools between model calls until final text or the step limit (`MaxSteps` less than 1 is treated as 1). If the loop stops at `MaxSteps` while the model still requested tools, the result succeeds with `HasToolCalls()` and `StoppedAtStepLimit()` true (plus a warning). Structured output / RecRef binding runs on the **final** non-tool-call step only. Unknown tool names fail the run; tool `Execute` failures are sent back to the model as tool result text and the loop continues. Thinking/reasoning models that return `reasoning_content` (e.g. DeepSeek via OpenCode Zen) have that field preserved and echoed on follow-up turns. The result exposes `GetResponseCalls()` / `GetStepCount()` / `GetTotalInputTokens()` / `GetTotalOutputTokens()` so every model HTTP call (tool steps and retries) is visible, not only the last response.
-- **Tools (single step / manual):** `GenerateText(Model, Request)` with `Request.SetTools` returns after the first model call (including tool calls). You can still append messages and call again yourself.
-- **Image generation:** `OpenAI.ImageModel(...)` / `Mock.ImageModel(...)` + `Client.GenerateImage` → `"AIOS Generate Image Result"` with `GetImages()`, `GetUsage()`, `GetResponseCalls()`
-- **Internal** (this app only — tests / demo soft-fail): `TryGenerateText` / `TryGenerate` / `TryGenerateWithTools` / `TryGenerateImage`
+- **Attachments / multimodal:** `Request.Attach(Item.Picture.Item(1))` or `Attach(InStream|TempBlob|TenantMedia|Base64, …)`
+- **Tools:** primary `ToolSet.Add(Tool)` (`"AIOS Tool"`). Secondary: `"AIOS Tool Handler"` + `ToolSet.Use(Handler)`. Escape hatch: `ToolSet.Add(Name, Description, Schema)` + `OnExecuteTool`
+- **Image generation:** `OpenAI.ImageModel(...)` / `Mock.ImageModel(...)` + `Client.GenerateImage`
+- **Internal** (Core only — tests / soft-fail): `TryGenerateText` / `TryGenerate` / `TryGenerateWithTools` / `TryGenerateImage`
 - **Lifecycle** Integration Events on `"AIOS Client"`: `OnBeforeGenerate`, `OnBeforeLanguageModelCall`, `OnAfterLanguageModelCall`, `OnAfterGenerate` (success only)
-- **Retries:** request `GetMaxRetries` / `SetMaxRetries` (default 2); retriable errors are rate limit, timeout, and provider unavailable (`"AIOS Retry"`)
-- Interfaces remain available if you need a custom provider (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Chat Format"`, `"AIOS Image Model"`, `"AIOS Tool"`, `"AIOS Tool Handler"`)
-- **Custom providers:** implement `"AIOS Language Model"` (and optionally `"AIOS Provider"`) in your own app depending on Core only. For tools/messages, implement `"AIOS Chat Format"` locally (do not take a dependency on another vendor provider). Or use `"AIOS OpenAI Compatible".Model(Id, Key, BaseUrl)` for any Chat Completions API. Call `MapMessages(Request.GetProviderMessages())` so attachment refs expand.
+- **Retries:** request `GetMaxRetries` / `SetMaxRetries` (default 2)
+- **Custom providers:** implement `"AIOS Language Model"` in your own app depending on Core (and Provider Utils if you speak Chat Completions). Or use `"AIOS OpenAI Compatible".Model(Id, Key, BaseUrl)`.
 
 ```al
 Request.SetPrompt('Write a product description for this item image.');
-Request.Attach(Item.Picture.Item(1));  // MediaId from MediaSet
+Request.Attach(Item.Picture.Item(1));
 Result := Client.GenerateText(VisionModel, Request);
 ```
-
-Also: `Attach(TenantMedia)`, `Attach(TempBlob, MimeType, Filename)`, `Attach(InStream, MimeType, Filename)`.
-
-Item picture → description samples: `RunItemPictureDescriptionDemo` / `RunItemPictureDescriptionOpenAI`.
 
 ### Tools — Add and Use
 
@@ -100,11 +128,7 @@ ToolSet.Use(Handler);   // once per ToolSet
 Result := Client.GenerateText(Model, Request, ToolSet);  // default MaxSteps = 5
 ```
 
-You can mix `Add(Tool)` and `Use(Handler)` on the same ToolSet if tool names do not overlap.
-
-Handlers build definitions with `"AIOS Schema".ToolDefinition`; read Execute args with `"AIOS Tool Args"`. Escape hatch: `Add(Name, …)` + `OnExecuteTool` (see `"AIOS Demo Tools"`).
-
-See [`examples/AIOSUsageExample.Codeunit.al`](examples/AIOSUsageExample.Codeunit.al). Interactive UI: page `"AIOS Toolkit Demo"`.
+See [`apps/AIOpenSDK.Examples/src/AIOSUsageExample.Codeunit.al`](apps/AIOpenSDK.Examples/src/AIOSUsageExample.Codeunit.al). Interactive UI: page `"AIOS Toolkit Demo"` (Examples app).
 
 ## License
 

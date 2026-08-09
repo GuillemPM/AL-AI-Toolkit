@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Publish: BC OnPrem (edit server)",
+      "type": "al",
+      "request": "launch",
+      "environmentType": "OnPrem",
+      "server": "http://192.168.1.33",
+      "serverInstance": "BC",
+      "port": 7049,
+      "authentication": "UserPassword",
+      "startupObjectId": 87481,
+      "startupObjectType": "Page",
+      "breakOnError": "All",
+      "launchBrowser": true
+    },
+    {
+      "name": "Publish: Sandbox (edit environmentName / tenant)",
+      "type": "al",
+      "request": "launch",
+      "environmentType": "Sandbox",
+      "environmentName": "sandbox",
+      "tenant": "common",
+      "authentication": "AAD",
+      "startupObjectId": 87481,
+      "startupObjectType": "Page",
+      "breakOnError": "All",
+      "launchBrowser": true
+    }
+  ]
+}

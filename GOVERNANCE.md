@@ -37,7 +37,7 @@ If adoption justifies it, move toward a more formal steering structure. Do **not
 
 - **High bar:** provider abstraction, structured-output contract, client result shapes
 - **Lower bar:** additional provider adapters
-- **Mandatory:** mock-provider test coverage for provider logic; no live API key required for core CI
+- **Mandatory:** mock-provider test coverage for provider logic; no live API key required for core CI (layout/ID checks run in GitHub Actions; full AL compile uses local alc / AL-Go with BC 28 symbols)
 
 ## Deprecation (from v1.0)
 
