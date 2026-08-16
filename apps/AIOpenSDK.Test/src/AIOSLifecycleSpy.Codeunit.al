@@ -43,25 +43,25 @@ codeunit 87492 "AIOS Lifecycle Spy"
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Client", OnBeforeGenerate, '', false, false)]
-    local procedure SpyOnBeforeGenerate(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure SpyOnBeforeGenerate(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
         Append('OnBeforeGenerate', ModelId);
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Client", OnBeforeLanguageModelCall, '', false, false)]
-    local procedure SpyOnBeforeLanguageModelCall(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure SpyOnBeforeLanguageModelCall(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
         Append('OnBeforeLanguageModelCall', ModelId);
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Client", OnAfterLanguageModelCall, '', false, false)]
-    local procedure SpyOnAfterLanguageModelCall(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure SpyOnAfterLanguageModelCall(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
         Append('OnAfterLanguageModelCall', ModelId);
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Client", OnAfterGenerate, '', false, false)]
-    local procedure SpyOnAfterGenerate(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure SpyOnAfterGenerate(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
         AfterGenerateCalled := true;
         Append('OnAfterGenerate', ModelId);

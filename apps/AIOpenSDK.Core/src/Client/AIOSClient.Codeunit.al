@@ -516,7 +516,7 @@ codeunit 87410 "AIOS Client"
     /// Raised once when generation starts, before any model call.
     /// </summary>
     [IntegrationEvent(false, false)]
-    local procedure OnBeforeGenerate(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure OnBeforeGenerate(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
     end;
 
@@ -524,7 +524,7 @@ codeunit 87410 "AIOS Client"
     /// Raised immediately before each language-model call attempt.
     /// </summary>
     [IntegrationEvent(false, false)]
-    local procedure OnBeforeLanguageModelCall(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure OnBeforeLanguageModelCall(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
     end;
 
@@ -532,7 +532,7 @@ codeunit 87410 "AIOS Client"
     /// Raised after each language-model call attempt returns, success or failure.
     /// </summary>
     [IntegrationEvent(false, false)]
-    local procedure OnAfterLanguageModelCall(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure OnAfterLanguageModelCall(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
     end;
 
@@ -540,7 +540,7 @@ codeunit 87410 "AIOS Client"
     /// Raised after a successful generation completes.
     /// </summary>
     [IntegrationEvent(false, false)]
-    local procedure OnAfterGenerate(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure OnAfterGenerate(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
     end;
 
