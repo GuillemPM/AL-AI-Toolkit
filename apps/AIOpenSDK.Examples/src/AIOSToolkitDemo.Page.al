@@ -68,7 +68,7 @@ page 87481 "AIOS Toolkit Demo"
                     Caption = 'API key';
                     ExtendedDatatype = Masked;
                     Editable = ApiKeyEditable;
-                    ToolTip = 'Provider API key. Not required for Mock. Stored per user in Isolated Storage.';
+                    ToolTip = 'Provider API key. Not required for Mock. Stored encrypted per user in Isolated Storage.';
 
                     trigger OnValidate()
                     begin
@@ -606,7 +606,7 @@ page 87481 "AIOS Toolkit Demo"
                     ModelId := 'demo-model';
                     ImageModelId := 'mock-image';
                     ApiKeyEditable := false;
-                    ApiKeyText := '';
+                    ClearStoredApiKey();
                 end;
             SelectedProvider::Anthropic:
                 begin
@@ -639,7 +639,7 @@ page 87481 "AIOS Toolkit Demo"
     begin
         if ModelId = '' then
             Error(ModelRequiredErr);
-        if (SelectedProvider <> SelectedProvider::Mock) and (ApiKeyText = '') then
+        if (SelectedProvider <> SelectedProvider::Mock) and (not HasApiKey()) then
             Error(ApiKeyRequiredErr);
 
         SaveSettings();
@@ -676,7 +676,7 @@ page 87481 "AIOS Toolkit Demo"
     begin
         if ModelId = '' then
             Error(ModelRequiredErr);
-        if (SelectedProvider <> SelectedProvider::Mock) and (ApiKeyText = '') then
+        if (SelectedProvider <> SelectedProvider::Mock) and (not HasApiKey()) then
             Error(ApiKeyRequiredErr);
         if UserPrompt = '' then
             Error(PromptRequiredErr);
@@ -712,7 +712,7 @@ page 87481 "AIOS Toolkit Demo"
     begin
         if ModelId = '' then
             Error(ModelRequiredErr);
-        if (SelectedProvider <> SelectedProvider::Mock) and (ApiKeyText = '') then
+        if (SelectedProvider <> SelectedProvider::Mock) and (not HasApiKey()) then
             Error(ApiKeyRequiredErr);
         if UserPrompt = '' then
             Error(JsonPromptRequiredErr);
@@ -744,7 +744,7 @@ page 87481 "AIOS Toolkit Demo"
     begin
         if ModelId = '' then
             Error(ModelRequiredErr);
-        if (SelectedProvider <> SelectedProvider::Mock) and (ApiKeyText = '') then
+        if (SelectedProvider <> SelectedProvider::Mock) and (not HasApiKey()) then
             Error(ApiKeyRequiredErr);
         if UserPrompt = '' then
             Error(ChoicePromptRequiredErr);
@@ -783,7 +783,7 @@ page 87481 "AIOS Toolkit Demo"
             Error(ToolLiveProviderRequiredErr);
         if ModelId = '' then
             Error(ModelRequiredErr);
-        if ApiKeyText = '' then
+        if not HasApiKey() then
             Error(ApiKeyRequiredErr);
         if UserPrompt = '' then
             Error(ToolPromptRequiredErr);
@@ -825,7 +825,7 @@ page 87481 "AIOS Toolkit Demo"
     begin
         if ImageModelId = '' then
             Error(ImageModelRequiredErr);
-        if (SelectedProvider <> SelectedProvider::Mock) and (ApiKeyText = '') then
+        if (SelectedProvider <> SelectedProvider::Mock) and (not HasApiKey()) then
             Error(ApiKeyRequiredErr);
         if UserPrompt = '' then
             Error(ImagePromptRequiredErr);
@@ -868,15 +868,12 @@ page 87481 "AIOS Toolkit Demo"
     local procedure BindSelectedImageModel(): Interface "AIOS Image Model"
     var
         OpenAI: Codeunit "AIOS OpenAI";
-        ApiKey: SecretText;
     begin
-        ApiKey := ApiKeyText;
-
         case SelectedProvider of
             SelectedProvider::Mock:
                 exit(MockProvider.ImageModel(ImageModelId));
             SelectedProvider::OpenAI:
-                exit(OpenAI.ImageModel(ImageModelId, ApiKey));
+                exit(OpenAI.ImageModel(ImageModelId, ResolveApiKey()));
             else
                 Error(ImageProviderUnsupportedErr, Format(SelectedProvider));
         end;
@@ -1180,7 +1177,7 @@ page 87481 "AIOS Toolkit Demo"
         Zen: Codeunit "AIOS OpenCode Zen";
         ApiKey: SecretText;
     begin
-        ApiKey := ApiKeyText;
+        ApiKey := ResolveApiKey();
 
         case SelectedProvider of
             SelectedProvider::Mock:
@@ -1204,7 +1201,7 @@ page 87481 "AIOS Toolkit Demo"
         Zen: Codeunit "AIOS OpenCode Zen";
         ApiKey: SecretText;
     begin
-        ApiKey := ApiKeyText;
+        ApiKey := ResolveApiKey();
 
         case SelectedProvider of
             SelectedProvider::Mock:
@@ -1252,12 +1249,7 @@ page 87481 "AIOS Toolkit Demo"
         Settings.Add('useMaxRetries', UseMaxRetries);
         Settings.WriteTo(SettingsText);
         IsolatedStorage.Set(SettingsKeyTok, SettingsText, DataScope::User);
-
-        if ApiKeyText = '' then begin
-            if IsolatedStorage.Contains(ApiKeyKeyTok, DataScope::User) then
-                IsolatedStorage.Delete(ApiKeyKeyTok, DataScope::User);
-        end else
-            IsolatedStorage.Set(ApiKeyKeyTok, ApiKeyText, DataScope::User);
+        PersistApiKeyFromPage();
     end;
 
     local procedure LoadSettings(): Boolean
@@ -1334,9 +1326,7 @@ page 87481 "AIOS Toolkit Demo"
             UseMaxRetries := SettingsToken.AsValue().AsBoolean();
 
         ApiKeyEditable := SelectedProvider <> SelectedProvider::Mock;
-        ApiKeyText := '';
-        if IsolatedStorage.Contains(ApiKeyKeyTok, DataScope::User) then
-            IsolatedStorage.Get(ApiKeyKeyTok, DataScope::User, ApiKeyText);
+        LoadApiKeyFromStorage();
 
         if ImageModelId = '' then
             case SelectedProvider of
@@ -1357,6 +1347,71 @@ page 87481 "AIOS Toolkit Demo"
     begin
         if IsolatedStorage.Contains(SettingsKeyTok, DataScope::User) then
             IsolatedStorage.Delete(SettingsKeyTok, DataScope::User);
+        ClearStoredApiKey();
+    end;
+
+    local procedure HasApiKey(): Boolean
+    begin
+        if ApiKeyText <> '' then
+            exit(true);
+        exit(not ApiKeySecret.IsEmpty());
+    end;
+
+    local procedure ResolveApiKey(): SecretText
+    begin
+        if ApiKeyText <> '' then
+            exit(ApiKeyText);
+        exit(ApiKeySecret);
+    end;
+
+    local procedure PersistApiKeyFromPage()
+    var
+        NewKey: SecretText;
+    begin
+        if SelectedProvider = SelectedProvider::Mock then begin
+            ClearStoredApiKey();
+            exit;
+        end;
+
+        // Empty field means "keep the existing encrypted key" so other settings
+        // can be saved without wiping credentials loaded from Isolated Storage.
+        if ApiKeyText = '' then
+            exit;
+
+        NewKey := ApiKeyText;
+        if not IsolatedStorage.SetEncrypted(ApiKeyKeyTok, NewKey, DataScope::User) then
+            Error(StoreApiKeyFailedErr);
+        ApiKeySecret := NewKey;
+        ApiKeyText := '';
+    end;
+
+    local procedure LoadApiKeyFromStorage()
+    var
+        PlainTextKey: Text;
+    begin
+        Clear(ApiKeySecret);
+        ApiKeyText := '';
+        if not IsolatedStorage.Contains(ApiKeyKeyTok, DataScope::User) then
+            exit;
+
+        if IsolatedStorage.Get(ApiKeyKeyTok, DataScope::User, ApiKeySecret) then
+            exit;
+
+        // Migrate legacy plaintext IsolatedStorage.Set values to SetEncrypted.
+        if not IsolatedStorage.Get(ApiKeyKeyTok, DataScope::User, PlainTextKey) then
+            exit;
+        if PlainTextKey = '' then
+            exit;
+
+        ApiKeySecret := PlainTextKey;
+        if not IsolatedStorage.SetEncrypted(ApiKeyKeyTok, ApiKeySecret, DataScope::User) then
+            Error(StoreApiKeyFailedErr);
+    end;
+
+    local procedure ClearStoredApiKey()
+    begin
+        Clear(ApiKeySecret);
+        ApiKeyText := '';
         if IsolatedStorage.Contains(ApiKeyKeyTok, DataScope::User) then
             IsolatedStorage.Delete(ApiKeyKeyTok, DataScope::User);
     end;
@@ -1368,6 +1423,7 @@ page 87481 "AIOS Toolkit Demo"
         ModelId: Text[100];
         ImageModelId: Text[100];
         ApiKeyText: Text[250];
+        ApiKeySecret: SecretText;
         SystemPrompt: Text;
         UserPrompt: Text;
         ChoiceOptionsText: Text;
@@ -1401,6 +1457,7 @@ page 87481 "AIOS Toolkit Demo"
         ModelRequiredErr: Label 'Enter a model id.';
         ImageModelRequiredErr: Label 'Enter an image model id (for example mock-image or dall-e-3).';
         ApiKeyRequiredErr: Label 'Enter an API key for this provider (not needed for Mock).';
+        StoreApiKeyFailedErr: Label 'The API key could not be stored.';
         PromptRequiredErr: Label 'Enter a prompt before structured generate.';
         JsonPromptRequiredErr: Label 'Enter a prompt before generate JSON.';
         ChoicePromptRequiredErr: Label 'Enter a prompt before generate choice.';
