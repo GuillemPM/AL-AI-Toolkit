@@ -28,6 +28,7 @@
   "platform": "1.0.0.0",
   "application": "28.0.0.0",
   "idRanges": [
+    { "from": 87429, "to": 87430 },
     { "from": 87450, "to": 87451 }
   ],
   "resourceExposurePolicy": {
