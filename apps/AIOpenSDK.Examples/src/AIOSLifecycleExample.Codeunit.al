@@ -29,25 +29,25 @@ codeunit 87484 "AIOS Lifecycle Example"
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Client", OnBeforeGenerate, '', false, false)]
-    local procedure LogOnBeforeGenerate(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure LogOnBeforeGenerate(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
         AppendTrace('OnBeforeGenerate', ModelId);
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Client", OnBeforeLanguageModelCall, '', false, false)]
-    local procedure LogOnBeforeLanguageModelCall(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure LogOnBeforeLanguageModelCall(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
         AppendTrace('OnBeforeLanguageModelCall', ModelId);
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Client", OnAfterLanguageModelCall, '', false, false)]
-    local procedure LogOnAfterLanguageModelCall(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure LogOnAfterLanguageModelCall(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
         AppendTrace('OnAfterLanguageModelCall', ModelId);
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Client", OnAfterGenerate, '', false, false)]
-    local procedure LogOnAfterGenerate(ModelId: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
+    local procedure LogOnAfterGenerate(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
         AppendTrace('OnAfterGenerate', ModelId);
     end;
