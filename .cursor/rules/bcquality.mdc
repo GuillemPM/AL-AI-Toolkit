@@ -1,0 +1,38 @@
+---
+description: Optional BCQuality AL quality review — use only when the user asks for a BCQuality review or AL quality review against BCQuality, and BCQuality/ is present locally
+alwaysApply: false
+---
+
+BCQuality is an **optional** local knowledge library at `BCQuality/` (gitignored; not required to clone or build this repo).
+
+It is a knowledge and skills library, not an agent framework.
+
+## When to apply
+
+Apply this rule only when:
+
+- the user explicitly asks for a BCQuality / AL quality review using BCQuality, and
+- the directory `BCQuality/` exists in the repo root.
+
+If `BCQuality/` is missing: do **not** invent BCQuality findings. Say that BCQuality is not cloned, and continue without it (or point at the clone command in CONTRIBUTING).
+
+## How to use BCQuality
+
+1. Inspect the relevant project/code first.
+2. Read `BCQuality/skills/read.md` before consuming BCQuality knowledge.
+3. Select only BCQuality skills and knowledge relevant to the current task.
+4. Do not load the whole BCQuality repository.
+5. Do not create one subagent per BCQuality review domain.
+6. Apply BCQuality guidance within the current Cursor agent unless parallel analysis is clearly justified.
+7. Verify every BCQuality finding against the actual source before reporting it.
+
+For code reviews:
+
+- inspect the target code once
+- determine which review domains are applicable
+- use the corresponding BCQuality review skills
+- skip domains that do not apply
+- combine and deduplicate findings
+- report only actionable findings
+
+BCQuality knowledge augments the project context and engineering reasoning.

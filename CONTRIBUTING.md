@@ -25,6 +25,18 @@ Thanks for contributing. This project is a **client library** for AL — not a C
 5. Full compile order when needed: **Core → ProviderUtils → providers → Examples → Test**.
 6. Tests must pass with the **mock provider** — no live API key required.
 
+## Optional: BCQuality (AL quality reviews)
+
+[BCQuality](https://github.com/microsoft/BCQuality) is **not** required to build, test, or contribute. It is a local knowledge library for AI-assisted AL reviews.
+
+If you want it:
+
+```bash
+git clone https://github.com/microsoft/BCQuality.git BCQuality
+```
+
+`BCQuality/` is gitignored. In Cursor, ask for a **BCQuality review** when you want agents to use it; day-to-day AL work does not need the clone.
+
 ## Package layout (AI SDK shape)
 
 | App | Depends on |
