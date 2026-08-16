@@ -10,7 +10,7 @@ codeunit 87409 "AIOS Chat Response Call"
     /// <summary>
     /// Loads fields from a chat response after a model call attempt.
     /// </summary>
-    procedure SetFromResponse(Step: Integer; var Response: Record "AIOS Chat Response")
+    internal procedure SetFromResponse(Step: Integer; var Response: Record "AIOS Chat Response")
     var
         HeadersObj: JsonObject;
     begin

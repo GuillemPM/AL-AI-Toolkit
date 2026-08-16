@@ -10,7 +10,7 @@ codeunit 87411 "AIOS Generate Result"
     /// <summary>
     /// Loads fields from a chat response after a successful generation.
     /// </summary>
-    procedure SetFromResponse(var Response: Record "AIOS Chat Response")
+    internal procedure SetFromResponse(var Response: Record "AIOS Chat Response")
     var
         HeadersObj: JsonObject;
     begin
@@ -33,7 +33,7 @@ codeunit 87411 "AIOS Generate Result"
     /// <summary>
     /// Attaches per-step language-model HTTP calls (tool loop / retries).
     /// </summary>
-    procedure SetResponseCalls(Calls: List of [Codeunit "AIOS Chat Response Call"])
+    internal procedure SetResponseCalls(Calls: List of [Codeunit "AIOS Chat Response Call"])
     begin
         ResponseCallList := Calls;
         RecalcTotalsFromCalls();
@@ -176,7 +176,7 @@ codeunit 87411 "AIOS Generate Result"
     /// <summary>
     /// Marks that generation ended at MaxSteps with pending tool calls (not a final text answer).
     /// </summary>
-    procedure SetStoppedAtStepLimit(Value: Boolean)
+    internal procedure SetStoppedAtStepLimit(Value: Boolean)
     var
         WarningObj: JsonObject;
     begin
