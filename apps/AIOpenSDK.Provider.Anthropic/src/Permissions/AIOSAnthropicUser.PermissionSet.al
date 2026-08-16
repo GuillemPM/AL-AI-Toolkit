@@ -1,5 +1,7 @@
 namespace PM.Guillem.AIOpenSDK.Provider.Anthropic;
 
+using PM.Guillem.AIOpenSDK.Core;
+
 /// <summary>
 /// Assignable role for Anthropic provider usage (includes Core).
 /// </summary>

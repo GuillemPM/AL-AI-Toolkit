@@ -1,5 +1,7 @@
 namespace PM.Guillem.AIOpenSDK.Provider.OpenAI;
 
+using PM.Guillem.AIOpenSDK.ProviderUtils;
+
 /// <summary>
 /// Assignable role for OpenAI provider usage (includes Core + Provider Utils).
 /// </summary>

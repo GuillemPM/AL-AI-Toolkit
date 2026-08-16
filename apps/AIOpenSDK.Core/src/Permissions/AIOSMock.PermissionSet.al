@@ -1,5 +1,7 @@
 namespace PM.Guillem.AIOpenSDK.Core;
 
+using PM.Guillem.AIOpenSDK.Provider.Mock;
+
 /// <summary>
 /// Non-assignable grants for the in-app mock provider (tests and examples).
 /// Included by "AIOS User Mock"; keep off production roles that only call real providers.
