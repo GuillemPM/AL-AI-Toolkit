@@ -180,7 +180,7 @@ codeunit 87497 "AIOS Tool Tests"
     end;
 
     [Test]
-    procedure GenerateText_NamedTools_OnExecuteTool_AutoExecutes()
+    procedure GenerateText_NamedTools_OnBeforeExecuteTool_AutoExecutes()
     var
         Mock: Codeunit "AIOS Mock";
         Client: Codeunit "AIOS Client";
