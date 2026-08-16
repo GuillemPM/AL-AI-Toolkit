@@ -1,5 +1,7 @@
 namespace PM.Guillem.AIOpenSDK.ProviderUtils;
 
+using PM.Guillem.AIOpenSDK.Core;
+
 /// <summary>
 /// Assignable role for Provider Utils plus Core runtime objects.
 /// </summary>

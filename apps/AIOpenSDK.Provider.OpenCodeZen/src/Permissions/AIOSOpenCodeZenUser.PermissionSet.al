@@ -1,5 +1,7 @@
 namespace PM.Guillem.AIOpenSDK.Provider.OpenCodeZen;
 
+using PM.Guillem.AIOpenSDK.ProviderUtils;
+
 /// <summary>
 /// Assignable role for OpenCode Zen provider usage (includes Core + Provider Utils).
 /// </summary>
