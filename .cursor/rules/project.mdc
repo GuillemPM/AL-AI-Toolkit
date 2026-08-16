@@ -1,0 +1,28 @@
+---
+description: AI Open SDK project conventions
+alwaysApply: true
+---
+
+This repository contains AI Open SDK, a Business Central AL SDK.
+
+Project layout:
+
+- `apps/AIOpenSDK.Core` contains provider-independent abstractions.
+- `apps/AIOpenSDK.ProviderUtils` holds shared Chat Completions helpers for Completions-based providers.
+- Provider-specific implementations belong in their respective apps (`AIOpenSDK.Provider.*`).
+- Core must not depend on provider implementations.
+- No provider app depends on another provider.
+
+Dependency direction (compile order): Core → ProviderUtils → providers → Examples → Test.
+
+When modifying an app:
+- inspect its `app.json`
+- respect its dependency direction
+- preserve existing public APIs unless the task explicitly requires a breaking change
+- keep object IDs within the owning app’s `idRanges`
+
+Prefer minimal changes.
+Do not introduce abstractions without a concrete use case.
+
+Compile the affected app after implementation when tooling is available.
+Tests should pass with the mock provider — no live API key required.
