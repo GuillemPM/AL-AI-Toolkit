@@ -25,11 +25,17 @@ codeunit 87412 "AIOS Generate Image Result"
         ProviderName := Aggregate."Provider Name";
     end;
 
+    /// <summary>
+    /// Returns every generated image from the successful GenerateImage call.
+    /// </summary>
     procedure GetImages(): List of [Codeunit "AIOS Generated Image"]
     begin
         exit(ImageList);
     end;
 
+    /// <summary>
+    /// Returns the first generated image. Errors when the result contains no images.
+    /// </summary>
     procedure GetImage(): Codeunit "AIOS Generated Image"
     var
         ImageCU: Codeunit "AIOS Generated Image";
@@ -40,31 +46,49 @@ codeunit 87412 "AIOS Generate Image Result"
         exit(ImageCU);
     end;
 
+    /// <summary>
+    /// Returns aggregated token and image usage for the GenerateImage operation.
+    /// </summary>
     procedure GetUsage(): Codeunit "AIOS Image Usage"
     begin
         exit(UsageCU);
     end;
 
+    /// <summary>
+    /// Returns per-batch HTTP call metadata for the GenerateImage operation.
+    /// </summary>
     procedure GetResponseCalls(): List of [Codeunit "AIOS Image Response Call"]
     begin
         exit(CallList);
     end;
 
+    /// <summary>
+    /// Returns provider warnings collected during image generation.
+    /// </summary>
     procedure GetWarnings(): JsonArray
     begin
         exit(WarningsArray);
     end;
 
+    /// <summary>
+    /// Returns provider-specific metadata from the image response.
+    /// </summary>
     procedure GetProviderMetadata(): JsonObject
     begin
         exit(ProviderMetadataObj);
     end;
 
+    /// <summary>
+    /// Returns the raw HTTP body from the last successful image batch.
+    /// </summary>
     procedure Body(): Text
     begin
         exit(BodyText);
     end;
 
+    /// <summary>
+    /// Returns response headers as a JSON object.
+    /// </summary>
     procedure Headers(): JsonObject
     var
         HeadersObj: JsonObject;
@@ -76,11 +100,17 @@ codeunit 87412 "AIOS Generate Image Result"
         exit(HeadersObj);
     end;
 
+    /// <summary>
+    /// Returns the HTTP status code from the last successful image batch.
+    /// </summary>
     procedure HttpStatusCode(): Integer
     begin
         exit(StatusCode);
     end;
 
+    /// <summary>
+    /// Returns the provider name from the image response.
+    /// </summary>
     procedure GetProviderName(): Text
     begin
         exit(ProviderName);

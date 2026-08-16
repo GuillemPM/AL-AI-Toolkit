@@ -7,6 +7,9 @@ codeunit 87414 "AIOS Image Usage"
 {
     Access = Public;
 
+    /// <summary>
+    /// Resets image and token counters to zero.
+    /// </summary>
     procedure ClearUsage()
     begin
         ImagesGeneratedCount := 0;
@@ -42,21 +45,33 @@ codeunit 87414 "AIOS Image Usage"
         TotalTokenCount := Count;
     end;
 
+    /// <summary>
+    /// Returns how many images were generated.
+    /// </summary>
     procedure ImagesGenerated(): Integer
     begin
         exit(ImagesGeneratedCount);
     end;
 
+    /// <summary>
+    /// Returns aggregated input token count.
+    /// </summary>
     procedure InputTokens(): Integer
     begin
         exit(InputTokenCount);
     end;
 
+    /// <summary>
+    /// Returns aggregated output token count.
+    /// </summary>
     procedure OutputTokens(): Integer
     begin
         exit(OutputTokenCount);
     end;
 
+    /// <summary>
+    /// Returns aggregated total token count.
+    /// </summary>
     procedure TotalTokens(): Integer
     begin
         exit(TotalTokenCount);

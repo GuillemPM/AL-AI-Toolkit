@@ -7,21 +7,33 @@ codeunit 87462 "AIOS Schema"
 {
     Access = Public;
 
+    /// <summary>
+    /// Builds a JSON Schema fragment with type string.
+    /// </summary>
     procedure String(): JsonObject
     begin
         exit(TypeOnly('string'));
     end;
 
+    /// <summary>
+    /// Builds a JSON Schema fragment with type number.
+    /// </summary>
     procedure Number(): JsonObject
     begin
         exit(TypeOnly('number'));
     end;
 
+    /// <summary>
+    /// Builds a JSON Schema fragment with type integer.
+    /// </summary>
     procedure Integer(): JsonObject
     begin
         exit(TypeOnly('integer'));
     end;
 
+    /// <summary>
+    /// Builds a JSON Schema fragment with type boolean.
+    /// </summary>
     procedure Boolean(): JsonObject
     begin
         exit(TypeOnly('boolean'));
@@ -194,6 +206,9 @@ codeunit 87462 "AIOS Schema"
         exit(Schema);
     end;
 
+    /// <summary>
+    /// Serializes a schema JsonObject to text.
+    /// </summary>
     procedure ToText(Schema: JsonObject): Text
     var
         Text: Text;

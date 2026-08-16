@@ -94,16 +94,25 @@ codeunit 87425 "AIOS Chat Output"
         SetOutput(Request, SchemaCodeunit.ToText(Schema));
     end;
 
+    /// <summary>
+    /// Returns true when the request is bound for RecRef structured output.
+    /// </summary>
     procedure HasOutput(var Request: Record "AIOS Chat Request"): Boolean
     begin
         exit(Request."Has Output");
     end;
 
+    /// <summary>
+    /// Returns true when the request has an output JSON Schema.
+    /// </summary>
     procedure HasOutputSchema(var Request: Record "AIOS Chat Request"): Boolean
     begin
         exit(Request."Has Output Schema");
     end;
 
+    /// <summary>
+    /// Returns the output JSON Schema text stored on the request.
+    /// </summary>
     procedure GetOutputSchema(var Request: Record "AIOS Chat Request"): Text
     var
         TypeHelper: Codeunit "Type Helper";
@@ -115,6 +124,9 @@ codeunit 87425 "AIOS Chat Output"
         exit(TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator()));
     end;
 
+    /// <summary>
+    /// Clears RecRef/schema output binding and related request flags.
+    /// </summary>
     procedure ClearOutput(var Request: Record "AIOS Chat Request")
     begin
         Request."Has Output" := false;
