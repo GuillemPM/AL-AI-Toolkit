@@ -3,15 +3,15 @@ namespace PM.Guillem.AIOpenSDK.Examples;
 using PM.Guillem.AIOpenSDK.Core;
 
 /// <summary>
-/// Escape hatch sample: OnExecuteTool for ToolSet.Add(Name, Description, Schema).
+/// Escape hatch sample: OnBeforeExecuteTool for ToolSet.Add(Name, Description, Schema).
 /// Prefer "AIOS Tool" + Add(Tool) or "AIOS Tool Handler" + Use(Handler).
 /// </summary>
 codeunit 87487 "AIOS Demo Tools"
 {
     Access = Public;
 
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Tool Set", 'OnExecuteTool', '', false, false)]
-    local procedure OnExecuteTool(Name: Text; Arguments: JsonObject; var ResultText: Text; var Succeeded: Boolean; var Handled: Boolean)
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Tool Set", 'OnBeforeExecuteTool', '', false, false)]
+    local procedure OnBeforeExecuteTool(Name: Text; Arguments: JsonObject; var ResultText: Text; var Succeeded: Boolean; var Handled: Boolean)
     begin
         case Name of
             'echo':

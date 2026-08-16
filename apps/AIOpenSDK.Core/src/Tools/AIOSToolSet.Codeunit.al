@@ -3,7 +3,7 @@ namespace PM.Guillem.AIOpenSDK.Core;
 /// <summary>
 /// Collection of tools for a chat request. Always pass this into GenerateText.
 /// Add(Tool) — primary. Use(Handler) — secondary (once per ToolSet).
-/// Add(Name, …) — escape hatch; execute via OnExecuteTool when no handler.
+/// Add(Name, …) — escape hatch; execute via OnBeforeExecuteTool when no handler.
 /// </summary>
 codeunit 87417 "AIOS Tool Set"
 {
@@ -59,7 +59,7 @@ codeunit 87417 "AIOS Tool Set"
 
     /// <summary>
     /// Escape hatch: named definition without an "AIOS Tool" codeunit. Prefer Add(Tool) or Use(Handler).
-    /// Execute via Use handler if set, otherwise OnExecuteTool.
+    /// Execute via Use handler if set, otherwise OnBeforeExecuteTool.
     /// </summary>
     procedure Add(Name: Text; Description: Text; Parameters: JsonObject)
     begin
@@ -122,7 +122,7 @@ codeunit 87417 "AIOS Tool Set"
     end;
 
     /// <summary>
-    /// Runs a tool by name. Add(Tool) first; then handler from Use; otherwise OnExecuteTool.
+    /// Runs a tool by name. Add(Tool) first; then handler from Use; otherwise OnBeforeExecuteTool.
     /// </summary>
     procedure Execute(Name: Text; Arguments: JsonObject; var ResultText: Text): Boolean
     var
@@ -142,7 +142,7 @@ codeunit 87417 "AIOS Tool Set"
         Clear(ResultText);
         Succeeded := false;
         Handled := false;
-        OnExecuteTool(Name, Arguments, ResultText, Succeeded, Handled);
+        OnBeforeExecuteTool(Name, Arguments, ResultText, Succeeded, Handled);
         if not Handled then
             Error(NoExecutorErr, Name);
         exit(Succeeded);
@@ -175,7 +175,7 @@ codeunit 87417 "AIOS Tool Set"
     /// Escape hatch only — prefer Add(Tool) or Use(Handler). Set Handled := true after handling.
     /// </summary>
     [IntegrationEvent(false, false)]
-    local procedure OnExecuteTool(Name: Text; Arguments: JsonObject; var ResultText: Text; var Succeeded: Boolean; var Handled: Boolean)
+    local procedure OnBeforeExecuteTool(Name: Text; Arguments: JsonObject; var ResultText: Text; var Succeeded: Boolean; var Handled: Boolean)
     begin
     end;
 
@@ -243,7 +243,7 @@ codeunit 87417 "AIOS Tool Set"
         ToolNameEmptyErr: Label 'Tool name cannot be empty.';
         DuplicateToolErr: Label 'Tool ''%1'' is already added.', Comment = '%1 = tool name';
         UnknownToolErr: Label 'Unknown tool ''%1''.', Comment = '%1 = tool name';
-        NoExecutorErr: Label 'Tool ''%1'' has no executor. Call Use(Handler) or subscribe to OnExecuteTool.', Comment = '%1 = tool name';
+        NoExecutorErr: Label 'Tool ''%1'' has no executor. Call Use(Handler) or subscribe to OnBeforeExecuteTool.', Comment = '%1 = tool name';
         DefinitionMissingNameErr: Label 'Tool definition is missing a name.';
         HandlerAlreadySetErr: Label 'ToolSet.Use can only be called once. Combine tools in one handler, or use Add(Tool) / Add(Name, …).';
 }
