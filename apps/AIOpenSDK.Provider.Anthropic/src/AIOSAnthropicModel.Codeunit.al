@@ -27,6 +27,8 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
 
     procedure Generate(var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
     var
+        PrivacyGate: Codeunit "AIOS Privacy Notice";
+        Anthropic: Codeunit "AIOS Anthropic";
         HttpErrors: Codeunit "AIOS Http Error Mapper";
         Client: HttpClient;
         HttpRequest: HttpRequestMessage;
@@ -40,6 +42,11 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
     begin
         Clear(Response);
         Response."Provider Name" := 'anthropic';
+
+        if not PrivacyGate.EnsureApproved(
+            Anthropic.PrivacyNoticeId(), Anthropic.PrivacyIntegrationName(), Anthropic.PrivacyLink(), Response)
+        then
+            exit(false);
 
         Body := BuildRequestBody(Request, Warnings);
         Response.AppendWarnings(Warnings);

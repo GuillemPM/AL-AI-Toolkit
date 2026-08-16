@@ -12,9 +12,11 @@ codeunit 87437 "AIOS Chat Completions Client"
 
     /// <summary>
     /// POST {BaseUrl}/chat/completions with Bearer auth and map the response into AIOS Chat Response.
+    /// Requires company approval of PrivacyNoticeId (Privacy Notices Status); does not show a consent dialog.
     /// </summary>
-    procedure Generate(ModelId: Text; ApiKey: SecretText; BaseUrl: Text; ProviderName: Text; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
+    procedure Generate(ModelId: Text; ApiKey: SecretText; BaseUrl: Text; ProviderName: Text; PrivacyNoticeId: Code[50]; PrivacyIntegrationName: Text[250]; PrivacyLink: Text[2048]; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
     var
+        PrivacyGate: Codeunit "AIOS Privacy Notice";
         HttpErrors: Codeunit "AIOS Http Error Mapper";
         Client: HttpClient;
         HttpRequest: HttpRequestMessage;
@@ -28,6 +30,9 @@ codeunit 87437 "AIOS Chat Completions Client"
     begin
         Clear(Response);
         Response."Provider Name" := ProviderName;
+
+        if not PrivacyGate.EnsureApproved(PrivacyNoticeId, PrivacyIntegrationName, PrivacyLink, Response) then
+            exit(false);
 
         Body := BuildRequestBody(ModelId, Request, Warnings);
         Response.AppendWarnings(Warnings);

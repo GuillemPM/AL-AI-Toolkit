@@ -32,6 +32,8 @@ codeunit 87448 "AIOS OpenAI Image Model" implements "AIOS Image Model"
 
     procedure GenerateImage(var Request: Record "AIOS Image Request"; var Response: Record "AIOS Image Response"): Boolean
     var
+        PrivacyGate: Codeunit "AIOS Privacy Notice";
+        OpenAI: Codeunit "AIOS OpenAI";
         HttpErrors: Codeunit "AIOS Http Error Mapper";
         Client: HttpClient;
         HttpRequest: HttpRequestMessage;
@@ -45,6 +47,11 @@ codeunit 87448 "AIOS OpenAI Image Model" implements "AIOS Image Model"
         Response."Provider Name" := 'openai';
         Response."Model Id" := CopyStr(BoundModelId, 1, MaxStrLen(Response."Model Id"));
         Response."Call Timestamp" := CurrentDateTime();
+
+        if not PrivacyGate.EnsureApproved(
+            OpenAI.PrivacyNoticeId(), OpenAI.PrivacyIntegrationName(), OpenAI.PrivacyLink(), Response)
+        then
+            exit(false);
 
         Body := BuildRequestBody(Request);
         Content.WriteFrom(Body);

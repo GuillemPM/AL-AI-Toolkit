@@ -10,6 +10,7 @@ Supported surface for application developers. Prefer these objects; treat anythi
 - `"AIOS Schema"`, `"AIOS Tool Set"`, `"AIOS Tool"` / `"AIOS Tool Handler"` interfaces
 - `"AIOS Mock"` — unit tests without network
 - `"AIOS Http Error Mapper"` — shared HTTP status → error type mapping (provider authors)
+- `"AIOS Privacy Notice"` — company-level privacy-notice approval gate for outbound AI HTTP (no per-call UI)
 - `"AIOS Request Options"` — reasoning helpers
 - Interfaces: `"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"AIOS Chat Format"`
 

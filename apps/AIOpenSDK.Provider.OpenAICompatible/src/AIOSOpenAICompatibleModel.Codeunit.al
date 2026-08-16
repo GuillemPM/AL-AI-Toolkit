@@ -32,7 +32,11 @@ codeunit 87451 "AIOS OpenAI Compatible Model" implements "AIOS Language Model"
     procedure Generate(var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
     var
         Completions: Codeunit "AIOS Chat Completions Client";
+        Compatible: Codeunit "AIOS OpenAI Compatible";
     begin
-        exit(Completions.Generate(BoundModelId, ApiKey, BaseUrl, ProviderName, Request, Response));
+        exit(Completions.Generate(
+            BoundModelId, ApiKey, BaseUrl, ProviderName,
+            Compatible.PrivacyNoticeId(), Compatible.PrivacyIntegrationName(), Compatible.PrivacyLink(),
+            Request, Response));
     end;
 }

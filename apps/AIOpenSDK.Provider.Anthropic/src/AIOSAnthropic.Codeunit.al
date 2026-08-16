@@ -1,6 +1,7 @@
 namespace PM.Guillem.AIOpenSDK.Provider.Anthropic;
 
 using PM.Guillem.AIOpenSDK.Core;
+using System.Privacy;
 
 codeunit 87440 "AIOS Anthropic" implements "AIOS Provider"
 {
@@ -92,6 +93,43 @@ codeunit 87440 "AIOS Anthropic" implements "AIOS Provider"
         exit(true);
     end;
 
+    /// <summary>
+    /// Stable privacy notice id for outbound Anthropic HTTP (approve on Privacy Notices Status).
+    /// </summary>
+    procedure PrivacyNoticeId(): Code[50]
+    begin
+        exit(PrivacyNoticeIdTok);
+    end;
+
+    /// <summary>
+    /// Integration name shown on Privacy Notices Status.
+    /// </summary>
+    procedure PrivacyIntegrationName(): Text[250]
+    begin
+        exit(PrivacyIntegrationNameTok);
+    end;
+
+    /// <summary>
+    /// Link to Anthropic privacy terms for the privacy notice.
+    /// </summary>
+    procedure PrivacyLink(): Text[2048]
+    begin
+        exit(PrivacyLinkTok);
+    end;
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Privacy Notice", 'OnRegisterPrivacyNotices', '', false, false)]
+    local procedure RegisterPrivacyNotice(var TempPrivacyNotice: Record "Privacy Notice" temporary)
+    begin
+        TempPrivacyNotice.Init();
+        TempPrivacyNotice.ID := PrivacyNoticeIdTok;
+        TempPrivacyNotice."Integration Service Name" := PrivacyIntegrationNameTok;
+        TempPrivacyNotice.Link := PrivacyLinkTok;
+        if not TempPrivacyNotice.Insert() then;
+    end;
+
     var
         BindFailedErr: Label 'Model %1 is not supported by provider %2 (missing model id or API key).', Comment = '%1 = model id, %2 = provider name';
+        PrivacyNoticeIdTok: Label 'AIOS-ANTHROPIC', Locked = true;
+        PrivacyIntegrationNameTok: Label 'AI Open SDK Anthropic', Locked = true;
+        PrivacyLinkTok: Label 'https://www.anthropic.com/privacy', Locked = true;
 }

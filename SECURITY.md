@@ -21,3 +21,4 @@ You should receive an acknowledgement within 7 days.
 - Never commit API keys, tokens, or tenant identifiers.
 - Prefer `SecretText` for credentials in AL.
 - Provider apps perform outbound HTTPS to configured base URLs; treat BaseUrl overrides as trusted configuration.
+- Outbound provider HTTP is gated by Business Central privacy notices (`AIOS-OPENAI`, `AIOS-ANTHROPIC`, `AIOS-OPENAI-COMPAT`, `AIOS-OPENCODE-ZEN`). Approve on **Privacy Notices Status** (admin Agree for everyone); send paths check approval state and do not prompt end users.

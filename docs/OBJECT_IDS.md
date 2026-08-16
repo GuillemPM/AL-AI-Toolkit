@@ -58,6 +58,7 @@ Interfaces (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"
 | 87466 | AIOS Mock (permission set) |
 | 87467 | AIOS User (permission set) |
 | 87468 | AIOS User Mock (permission set) |
+| 87469 | AIOS Privacy Notice |
 
 ### ProviderUtils
 
