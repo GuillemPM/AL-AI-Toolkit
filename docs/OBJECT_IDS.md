@@ -6,13 +6,13 @@ Provisional IDs until AppSource assignment. Each app owns its `idRanges` in `app
 |------|-----|
 | 87400–87417, 87420–87428 | **Core** contracts, client, tools |
 | 87446–87447, 87449 | **Core** Mock (+ image mock) |
-| 87460–87479 | **Core** structured output, retry, HTTP error mapper |
-| 87435–87439 | **ProviderUtils** Chat Completions helpers |
-| 87440–87441, 87452–87453 | **Anthropic** |
-| 87442–87443, 87448 | **OpenAI** (+ image model) |
-| 87444–87445 | **OpenCodeZen** |
-| 87450–87451 | **OpenAICompatible** |
-| 87480–87489, 87498–87499 | **Examples** |
+| 87460–87479 | **Core** structured output, retry, HTTP error mapper, permission sets |
+| 87435–87439 | **ProviderUtils** Chat Completions helpers + permission sets |
+| 87440–87441, 87452–87453, 87456–87457 | **Anthropic** (+ permission sets) |
+| 87442–87443, 87448, 87454–87455 | **OpenAI** (+ image model, permission sets) |
+| 87444–87445, 87458–87459 | **OpenCodeZen** (+ permission sets) |
+| 87429–87430, 87450–87451 | **OpenAICompatible** (+ permission sets) |
+| 87480–87489, 87498–87499, 87510–87511 | **Examples** (+ permission sets) |
 | 87490–87497, 87500–87509 | **Test** |
 
 Interfaces (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"AIOS Chat Format"`, `"AIOS Tool"`, `"AIOS Tool Handler"`) have no numeric object ID in AL.
@@ -54,6 +54,10 @@ Interfaces (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"
 | 87462 | AIOS Schema |
 | 87463 | AIOS Schema Validator |
 | 87464 | AIOS Http Error Mapper |
+| 87465 | AIOS Objects (permission set) |
+| 87466 | AIOS Mock (permission set) |
+| 87467 | AIOS User (permission set) |
+| 87468 | AIOS User Mock (permission set) |
 
 ### ProviderUtils
 
@@ -62,6 +66,8 @@ Interfaces (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"
 | 87435 | AIOS Chat Completions Format |
 | 87436 | AIOS Chat Completions Options |
 | 87437 | AIOS Chat Completions Client |
+| 87438 | AIOS ProvUtils Objects (permission set) |
+| 87439 | AIOS ProvUtils User (permission set) |
 
 ### Providers
 
@@ -71,13 +77,21 @@ Interfaces (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"
 | 87441 | AIOS Anthropic Model | Anthropic |
 | 87452 | AIOS Anthropic Format | Anthropic |
 | 87453 | AIOS Anthropic Options | Anthropic |
+| 87456 | AIOS Anthropic Objects (permission set) | Anthropic |
+| 87457 | AIOS Anthropic User (permission set) | Anthropic |
 | 87442 | AIOS OpenAI | OpenAI |
 | 87443 | AIOS OpenAI Model | OpenAI |
 | 87448 | AIOS OpenAI Image Model | OpenAI |
+| 87454 | AIOS OpenAI Objects (permission set) | OpenAI |
+| 87455 | AIOS OpenAI User (permission set) | OpenAI |
 | 87444 | AIOS OpenCode Zen | OpenCodeZen |
 | 87445 | AIOS OpenCode Zen Model | OpenCodeZen |
+| 87458 | AIOS OpenCodeZen Objects (permission set) | OpenCodeZen |
+| 87459 | AIOS OpenCodeZen User (permission set) | OpenCodeZen |
 | 87450 | AIOS OpenAI Compatible | OpenAICompatible |
 | 87451 | AIOS OpenAI Compatible Model | OpenAICompatible |
+| 87429 | AIOS Compatible Objects (permission set) | OpenAICompatible |
+| 87430 | AIOS Compatible User (permission set) | OpenAICompatible |
 
 ### Examples / Test
 
@@ -88,5 +102,7 @@ Interfaces (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"
 | 87482–87489 | Demo history / tools UI | Examples |
 | 87498 | AIOS Echo Tool | Examples |
 | 87499 | AIOS Get Customers Tool | Examples |
+| 87510 | AIOS Examples Objects (permission set) | Examples |
+| 87511 | AIOS Examples User (permission set) | Examples |
 | 87490–87497 | Test codeunits / bind target | Test |
 | 87500 | AIOS File Content Tests | Test |
