@@ -19,11 +19,17 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
         NextToolCallArgs: Text;
         HasNextToolCall: Boolean;
 
+    /// <summary>
+    /// Returns the mock provider specification version.
+    /// </summary>
     procedure SpecificationVersion(): Text
     begin
         exit('v1');
     end;
 
+    /// <summary>
+    /// Returns the provider name (mock).
+    /// </summary>
     procedure GetName(): Text
     begin
         exit('mock');
@@ -41,6 +47,9 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
         exit(LanguageModel);
     end;
 
+    /// <summary>
+    /// Binds a mock language model for ModelId into BoundModel. Returns false when ModelId is empty.
+    /// </summary>
     procedure BindLanguageModel(ModelId: Text; var BoundModel: Interface "AIOS Language Model"): Boolean
     var
         LanguageModel: Codeunit "AIOS Mock Model";
@@ -63,6 +72,9 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
         exit(true);
     end;
 
+    /// <summary>
+    /// Configures the next successful Generate response text and clears sticky failure/tool state.
+    /// </summary>
     procedure SetNextResponse(Content: Text)
     begin
         NextContent := Content;
@@ -73,6 +85,9 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
         ClearNextToolCall();
     end;
 
+    /// <summary>
+    /// Configures the next Generate call to fail with the given error type and message.
+    /// </summary>
     procedure SetNextError(ErrorType: Enum "AIOS Error Type"; ErrorMessage: Text)
     begin
         ForceFail := true;
@@ -143,6 +158,9 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
         exit(ImageModelInstance);
     end;
 
+    /// <summary>
+    /// Binds a mock image model for ModelId into BoundModel. Returns false when ModelId is empty.
+    /// </summary>
     procedure BindImageModel(ModelId: Text; var BoundModel: Interface "AIOS Image Model"): Boolean
     var
         ImageModelCU: Codeunit "AIOS Mock Image Model";
@@ -155,6 +173,9 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
         exit(true);
     end;
 
+    /// <summary>
+    /// Configures the next successful GenerateImage payload and clears sticky failure state.
+    /// </summary>
     procedure SetNextImageBase64(Base64: Text; MediaType: Text)
     begin
         NextImageBase64 := Base64;

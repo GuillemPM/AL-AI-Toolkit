@@ -9,11 +9,17 @@ codeunit 87427 "AIOS Chat Request Tools"
 {
     Access = Public;
 
+    /// <summary>
+    /// Stores tool definitions from ToolSet on the request for provider HTTP.
+    /// </summary>
     procedure SetTools(var Request: Record "AIOS Chat Request"; ToolSet: Codeunit "AIOS Tool Set")
     begin
         SetToolDefinitions(Request, ToolSet.GetDefinitions());
     end;
 
+    /// <summary>
+    /// Stores a JSON array of tool definitions on the request.
+    /// </summary>
     procedure SetToolDefinitions(var Request: Record "AIOS Chat Request"; Definitions: JsonArray)
     var
         OutStream: OutStream;
@@ -27,6 +33,9 @@ codeunit 87427 "AIOS Chat Request Tools"
         OutStream.WriteText(Text);
     end;
 
+    /// <summary>
+    /// Returns tool definitions stored on the request.
+    /// </summary>
     procedure GetToolDefinitions(var Request: Record "AIOS Chat Request"): JsonArray
     var
         TypeHelper: Codeunit "Type Helper";
@@ -45,11 +54,17 @@ codeunit 87427 "AIOS Chat Request Tools"
         exit(Definitions);
     end;
 
+    /// <summary>
+    /// Returns true when the request has one or more tool definitions.
+    /// </summary>
     procedure HasTools(var Request: Record "AIOS Chat Request"): Boolean
     begin
         exit(GetToolDefinitions(Request).Count() > 0);
     end;
 
+    /// <summary>
+    /// Clears tool definitions from the request.
+    /// </summary>
     procedure ClearTools(var Request: Record "AIOS Chat Request")
     begin
         Clear(Request.Tools);

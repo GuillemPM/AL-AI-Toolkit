@@ -9,6 +9,9 @@ codeunit 87428 "AIOS Chat Messages"
 {
     Access = Public;
 
+    /// <summary>
+    /// Returns the conversation message history stored on the request.
+    /// </summary>
     procedure GetMessages(var Request: Record "AIOS Chat Request"): JsonArray
     var
         TypeHelper: Codeunit "Type Helper";
@@ -27,16 +30,25 @@ codeunit 87428 "AIOS Chat Messages"
         exit(MessagesArr);
     end;
 
+    /// <summary>
+    /// Returns true when the request has one or more conversation messages.
+    /// </summary>
     procedure HasMessages(var Request: Record "AIOS Chat Request"): Boolean
     begin
         exit(GetMessages(Request).Count() > 0);
     end;
 
+    /// <summary>
+    /// Clears conversation message history on the request.
+    /// </summary>
     procedure ClearMessages(var Request: Record "AIOS Chat Request")
     begin
         Clear(Request.Messages);
     end;
 
+    /// <summary>
+    /// Replaces conversation message history on the request.
+    /// </summary>
     procedure SetMessages(var Request: Record "AIOS Chat Request"; MessagesArr: JsonArray)
     var
         OutStream: OutStream;
@@ -50,6 +62,9 @@ codeunit 87428 "AIOS Chat Messages"
         OutStream.WriteText(Text);
     end;
 
+    /// <summary>
+    /// Appends a user-role message to the request history.
+    /// </summary>
     procedure AppendUserMessage(var Request: Record "AIOS Chat Request"; Content: Text)
     var
         MessagesArr: JsonArray;
@@ -62,6 +77,9 @@ codeunit 87428 "AIOS Chat Messages"
         SetMessages(Request, MessagesArr);
     end;
 
+    /// <summary>
+    /// Appends an assistant-role message to the request history.
+    /// </summary>
     procedure AppendAssistantMessage(var Request: Record "AIOS Chat Request"; Content: Text)
     var
         MessagesArr: JsonArray;
@@ -74,11 +92,17 @@ codeunit 87428 "AIOS Chat Messages"
         SetMessages(Request, MessagesArr);
     end;
 
+    /// <summary>
+    /// Appends an assistant message that carries tool calls (no reasoning content).
+    /// </summary>
     procedure AppendAssistantToolCalls(var Request: Record "AIOS Chat Request"; Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"])
     begin
         AppendAssistantToolCalls(Request, Content, ToolCalls, '');
     end;
 
+    /// <summary>
+    /// Appends an assistant message with tool calls and optional reasoning content.
+    /// </summary>
     procedure AppendAssistantToolCalls(var Request: Record "AIOS Chat Request"; Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text)
     var
         MessagesArr: JsonArray;
@@ -107,6 +131,9 @@ codeunit 87428 "AIOS Chat Messages"
         SetMessages(Request, MessagesArr);
     end;
 
+    /// <summary>
+    /// Appends a tool-role result message for a prior tool call.
+    /// </summary>
     procedure AppendToolResult(var Request: Record "AIOS Chat Request"; ToolCallId: Text; ToolName: Text; Content: Text)
     var
         MessagesArr: JsonArray;

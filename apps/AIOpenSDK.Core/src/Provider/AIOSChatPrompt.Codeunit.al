@@ -9,6 +9,9 @@ codeunit 87424 "AIOS Chat Prompt"
 {
     Access = Public;
 
+    /// <summary>
+    /// Sets the user prompt text on the request.
+    /// </summary>
     procedure SetPrompt(var Request: Record "AIOS Chat Request"; Value: Text)
     var
         OutStream: OutStream;
@@ -20,6 +23,9 @@ codeunit 87424 "AIOS Chat Prompt"
         OutStream.WriteText(Value);
     end;
 
+    /// <summary>
+    /// Returns the user prompt text from the request.
+    /// </summary>
     procedure GetPrompt(var Request: Record "AIOS Chat Request"): Text
     var
         TypeHelper: Codeunit "Type Helper";
@@ -31,6 +37,9 @@ codeunit 87424 "AIOS Chat Prompt"
         exit(TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator()));
     end;
 
+    /// <summary>
+    /// Sets the system message text on the request.
+    /// </summary>
     procedure SetSystemMessage(var Request: Record "AIOS Chat Request"; Value: Text)
     var
         OutStream: OutStream;
@@ -42,6 +51,9 @@ codeunit 87424 "AIOS Chat Prompt"
         OutStream.WriteText(Value);
     end;
 
+    /// <summary>
+    /// Returns the system message text from the request.
+    /// </summary>
     procedure GetSystemMessage(var Request: Record "AIOS Chat Request"): Text
     var
         TypeHelper: Codeunit "Type Helper";

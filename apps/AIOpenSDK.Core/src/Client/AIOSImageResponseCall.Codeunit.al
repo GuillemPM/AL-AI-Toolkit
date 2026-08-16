@@ -17,21 +17,33 @@ codeunit 87408 "AIOS Image Response Call"
             HeadersObj.WriteTo(HeadersText);
     end;
 
+    /// <summary>
+    /// Returns when this image-model HTTP call was recorded.
+    /// </summary>
     procedure Timestamp(): DateTime
     begin
         exit(CallTimestamp);
     end;
 
+    /// <summary>
+    /// Returns the model id used for this image call.
+    /// </summary>
     procedure ModelId(): Text
     begin
         exit(ModelIdText);
     end;
 
+    /// <summary>
+    /// Returns the HTTP status code from this image call.
+    /// </summary>
     procedure HttpStatusCode(): Integer
     begin
         exit(StatusCode);
     end;
 
+    /// <summary>
+    /// Returns response headers as a JSON object.
+    /// </summary>
     procedure Headers(): JsonObject
     var
         HeadersObj: JsonObject;

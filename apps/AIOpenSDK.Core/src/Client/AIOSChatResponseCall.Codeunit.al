@@ -33,61 +33,97 @@ codeunit 87409 "AIOS Chat Response Call"
         ErrorMessageText := Response."Error Message";
     end;
 
+    /// <summary>
+    /// Returns the zero-based step index of this model call within the generate/tool loop.
+    /// </summary>
     procedure Step(): Integer
     begin
         exit(StepNo);
     end;
 
+    /// <summary>
+    /// Returns when this model call was recorded.
+    /// </summary>
     procedure Timestamp(): DateTime
     begin
         exit(CallTimestamp);
     end;
 
+    /// <summary>
+    /// Returns the provider name from the chat response.
+    /// </summary>
     procedure GetProviderName(): Text
     begin
         exit(ProviderName);
     end;
 
+    /// <summary>
+    /// Returns the HTTP status code from the model call.
+    /// </summary>
     procedure HttpStatusCode(): Integer
     begin
         exit(StatusCode);
     end;
 
+    /// <summary>
+    /// Returns input token count reported for this call.
+    /// </summary>
     procedure GetInputTokens(): Integer
     begin
         exit(InputTokens);
     end;
 
+    /// <summary>
+    /// Returns output token count reported for this call.
+    /// </summary>
     procedure GetOutputTokens(): Integer
     begin
         exit(OutputTokens);
     end;
 
+    /// <summary>
+    /// Returns the provider finish reason for this call.
+    /// </summary>
     procedure GetFinishReason(): Text
     begin
         exit(FinishReason);
     end;
 
+    /// <summary>
+    /// Returns true when the response included tool calls.
+    /// </summary>
     procedure GetHasToolCalls(): Boolean
     begin
         exit(HasToolCalls);
     end;
 
+    /// <summary>
+    /// Returns true when the call completed without an AIOS error type.
+    /// </summary>
     procedure Success(): Boolean
     begin
         exit(Succeeded);
     end;
 
+    /// <summary>
+    /// Returns the assistant text content from this call.
+    /// </summary>
     procedure Output(): Text
     begin
         exit(OutputText);
     end;
 
+    /// <summary>
+    /// Returns the raw HTTP response body from this call.
+    /// </summary>
     procedure Body(): Text
     begin
         exit(BodyText);
     end;
 
+    /// <summary>
+    /// Returns response headers as a JSON object.
+    /// </summary>
     procedure Headers(): JsonObject
     var
         HeadersObj: JsonObject;
@@ -99,11 +135,17 @@ codeunit 87409 "AIOS Chat Response Call"
         exit(HeadersObj);
     end;
 
+    /// <summary>
+    /// Returns the AIOS error type name when the call failed.
+    /// </summary>
     procedure GetErrorType(): Text
     begin
         exit(ErrorTypeText);
     end;
 
+    /// <summary>
+    /// Returns the error message when the call failed.
+    /// </summary>
     procedure GetErrorMessage(): Text
     begin
         exit(ErrorMessageText);
