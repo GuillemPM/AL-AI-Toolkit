@@ -9,16 +9,25 @@ codeunit 87498 "AIOS Echo Tool" implements "AIOS Tool"
 {
     Access = Public;
 
+    /// <summary>
+    /// Returns the tool name sent to the model (echo).
+    /// </summary>
     procedure Name(): Text
     begin
         exit('echo');
     end;
 
+    /// <summary>
+    /// Returns the human-readable tool description used for tool selection.
+    /// </summary>
     procedure Description(): Text
     begin
         exit('Echoes the message argument back to the model.');
     end;
 
+    /// <summary>
+    /// Returns the JSON Schema for tool arguments (required message string).
+    /// </summary>
     procedure InputSchema(): JsonObject
     var
         Schema: Codeunit "AIOS Schema";
@@ -28,6 +37,9 @@ codeunit 87498 "AIOS Echo Tool" implements "AIOS Tool"
         exit(Schema.Object(Fields));
     end;
 
+    /// <summary>
+    /// Echoes the message argument into ResultText. Returns false when message is missing.
+    /// </summary>
     procedure Execute(Arguments: JsonObject; var ResultText: Text): Boolean
     var
         Args: Codeunit "AIOS Tool Args";

@@ -449,6 +449,9 @@ codeunit 87480 "AIOS Usage Example"
         Message(ImageDemoMsg, Usage.ImagesGenerated(), ImageCU.MediaType(), StrLen(ImageCU.Base64()), Result.HttpStatusCode());
     end;
 
+    /// <summary>
+    /// Runs a GenerateImage demo against OpenAI gpt-image-2 and loads the first returned image.
+    /// </summary>
     procedure RunOpenAIImageDemo()
     var
         Client: Codeunit "AIOS Client";

@@ -10,6 +10,9 @@ codeunit 87488 "AIOS Sample Tool Handler" implements "AIOS Tool Handler"
 {
     Access = Public;
 
+    /// <summary>
+    /// Returns the JSON array of tool definitions this handler exposes.
+    /// </summary>
     procedure GetDefinitions(): JsonArray
     var
         Schema: Codeunit "AIOS Schema";
@@ -32,6 +35,9 @@ codeunit 87488 "AIOS Sample Tool Handler" implements "AIOS Tool Handler"
         exit(Definitions);
     end;
 
+    /// <summary>
+    /// Runs a named tool from this handler pack and writes ResultText. Returns false on failure.
+    /// </summary>
     procedure Execute(Name: Text; Arguments: JsonObject; var ResultText: Text): Boolean
     begin
         case Name of

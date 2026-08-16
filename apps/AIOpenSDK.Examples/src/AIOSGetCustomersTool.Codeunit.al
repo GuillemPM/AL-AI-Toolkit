@@ -10,16 +10,25 @@ codeunit 87499 "AIOS Get Customers Tool" implements "AIOS Tool"
 {
     Access = Public;
 
+    /// <summary>
+    /// Returns the tool name sent to the model.
+    /// </summary>
     procedure Name(): Text
     begin
         exit('get_customer_list');
     end;
 
+    /// <summary>
+    /// Returns the human-readable tool description used for tool selection.
+    /// </summary>
     procedure Description(): Text
     begin
         exit('Returns a JSON array of customers from Business Central (number and name). Use when the user asks about customers or accounts.');
     end;
 
+    /// <summary>
+    /// Returns the JSON Schema for tool arguments.
+    /// </summary>
     procedure InputSchema(): JsonObject
     var
         Schema: Codeunit "AIOS Schema";
@@ -34,6 +43,9 @@ codeunit 87499 "AIOS Get Customers Tool" implements "AIOS Tool"
         exit(Schema.Object(Fields));
     end;
 
+    /// <summary>
+    /// Runs the customer lookup and writes the result into ResultText. Returns false on failure.
+    /// </summary>
     procedure Execute(Arguments: JsonObject; var ResultText: Text): Boolean
     var
         Args: Codeunit "AIOS Tool Args";
