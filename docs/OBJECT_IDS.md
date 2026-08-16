@@ -58,6 +58,7 @@ Interfaces (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"
 | 87466 | AIOS Mock (permission set) |
 | 87467 | AIOS User (permission set) |
 | 87468 | AIOS User Mock (permission set) |
+| 87469 | AIOS Privacy Notice |
 
 ### ProviderUtils
 
@@ -86,8 +87,8 @@ Interfaces (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"
 | 87455 | AIOS OpenAI User (permission set) | OpenAI |
 | 87444 | AIOS OpenCode Zen | OpenCodeZen |
 | 87445 | AIOS OpenCode Zen Model | OpenCodeZen |
-| 87458 | AIOS OpenCodeZen Objects (permission set) | OpenCodeZen |
-| 87459 | AIOS OpenCodeZen User (permission set) | OpenCodeZen |
+| 87458 | AIOS OCZen Objects (permission set) | OpenCodeZen |
+| 87459 | AIOS OCZen User (permission set) | OpenCodeZen |
 | 87450 | AIOS OpenAI Compatible | OpenAICompatible |
 | 87451 | AIOS OpenAI Compatible Model | OpenAICompatible |
 | 87429 | AIOS Compatible Objects (permission set) | OpenAICompatible |

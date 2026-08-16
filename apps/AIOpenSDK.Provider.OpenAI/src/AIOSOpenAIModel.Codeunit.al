@@ -27,7 +27,11 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
     procedure Generate(var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
     var
         Completions: Codeunit "AIOS Chat Completions Client";
+        OpenAI: Codeunit "AIOS OpenAI";
     begin
-        exit(Completions.Generate(BoundModelId, ApiKey, BaseUrl, 'openai', Request, Response));
+        exit(Completions.Generate(
+            BoundModelId, ApiKey, BaseUrl, 'openai',
+            OpenAI.PrivacyNoticeId(), OpenAI.PrivacyIntegrationName(), OpenAI.PrivacyLink(),
+            Request, Response));
     end;
 }

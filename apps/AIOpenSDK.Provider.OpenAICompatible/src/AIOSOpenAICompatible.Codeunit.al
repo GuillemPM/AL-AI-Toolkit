@@ -1,6 +1,7 @@
 namespace PM.Guillem.AIOpenSDK.Provider.OpenAICompatible;
 
 using PM.Guillem.AIOpenSDK.Core;
+using System.Privacy;
 
 /// <summary>
 /// Generic OpenAI Chat Completions–compatible provider (AI SDK @ai-sdk/openai-compatible equivalent).
@@ -94,6 +95,43 @@ codeunit 87450 "AIOS OpenAI Compatible" implements "AIOS Provider"
         exit(true);
     end;
 
+    /// <summary>
+    /// Stable privacy notice id for outbound OpenAI-compatible HTTP (approve on Privacy Notices Status).
+    /// </summary>
+    procedure PrivacyNoticeId(): Code[50]
+    begin
+        exit(PrivacyNoticeIdTok);
+    end;
+
+    /// <summary>
+    /// Integration name shown on Privacy Notices Status.
+    /// </summary>
+    procedure PrivacyIntegrationName(): Text[250]
+    begin
+        exit(PrivacyIntegrationNameTok);
+    end;
+
+    /// <summary>
+    /// Link describing privacy notices for custom OpenAI-compatible endpoints.
+    /// </summary>
+    procedure PrivacyLink(): Text[2048]
+    begin
+        exit(PrivacyLinkTok);
+    end;
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Privacy Notice", 'OnRegisterPrivacyNotices', '', false, false)]
+    local procedure RegisterPrivacyNotice(var TempPrivacyNotice: Record "Privacy Notice" temporary)
+    begin
+        TempPrivacyNotice.Init();
+        TempPrivacyNotice.ID := PrivacyNoticeIdTok;
+        TempPrivacyNotice."Integration Service Name" := PrivacyIntegrationNameTok;
+        TempPrivacyNotice.Link := PrivacyLinkTok;
+        if not TempPrivacyNotice.Insert() then;
+    end;
+
     var
         BindFailedErr: Label 'Model %1 is not supported by provider %2 (missing model id, API key, or base URL).', Comment = '%1 = model id, %2 = provider name';
+        PrivacyNoticeIdTok: Label 'AIOS-OPENAI-COMPAT', Locked = true;
+        PrivacyIntegrationNameTok: Label 'AI Open SDK OpenAI Compatible', Locked = true;
+        PrivacyLinkTok: Label 'https://learn.microsoft.com/dynamics365/business-central/privacy-notices-status', Locked = true;
 }

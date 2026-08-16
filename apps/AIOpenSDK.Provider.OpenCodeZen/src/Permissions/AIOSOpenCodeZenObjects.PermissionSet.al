@@ -3,7 +3,7 @@ namespace PM.Guillem.AIOpenSDK.Provider.OpenCodeZen;
 /// <summary>
 /// Non-assignable grants for the OpenCode Zen provider codeunits.
 /// </summary>
-permissionset 87458 "AIOS OpenCodeZen Objects"
+permissionset 87458 "AIOS OCZen Objects"
 {
     Access = Public;
     Assignable = false;

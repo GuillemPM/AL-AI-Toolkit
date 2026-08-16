@@ -32,7 +32,11 @@ codeunit 87445 "AIOS OpenCode Zen Model" implements "AIOS Language Model"
     procedure Generate(var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
     var
         Completions: Codeunit "AIOS Chat Completions Client";
+        OpenCodeZen: Codeunit "AIOS OpenCode Zen";
     begin
-        exit(Completions.Generate(BoundModelId, ApiKey, BaseUrl, 'opencode-zen', Request, Response));
+        exit(Completions.Generate(
+            BoundModelId, ApiKey, BaseUrl, 'opencode-zen',
+            OpenCodeZen.PrivacyNoticeId(), OpenCodeZen.PrivacyIntegrationName(), OpenCodeZen.PrivacyLink(),
+            Request, Response));
     end;
 }

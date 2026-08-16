@@ -17,6 +17,6 @@ permissionset 87511 "AIOS Examples User"
         "AIOS User Mock",
         "AIOS OpenAI User",
         "AIOS Anthropic User",
-        "AIOS OpenCodeZen User",
+        "AIOS OCZen User",
         "AIOS Examples Objects";
 }

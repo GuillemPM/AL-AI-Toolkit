@@ -41,5 +41,6 @@ permissionset 87465 "AIOS Objects"
         codeunit "AIOS Json Binder" = X,
         codeunit "AIOS Schema" = X,
         codeunit "AIOS Schema Validator" = X,
-        codeunit "AIOS Http Error Mapper" = X;
+        codeunit "AIOS Http Error Mapper" = X,
+        codeunit "AIOS Privacy Notice" = X;
 }
