@@ -11,16 +11,25 @@ codeunit 87440 "AIOS Anthropic" implements "AIOS Provider"
         ApiVersion: Text;
         BaseUrl: Text;
 
+    /// <summary>
+    /// Returns the Anthropic provider specification version.
+    /// </summary>
     procedure SpecificationVersion(): Text
     begin
         exit('v1');
     end;
 
+    /// <summary>
+    /// Returns the provider name (anthropic).
+    /// </summary>
     procedure GetName(): Text
     begin
         exit('anthropic');
     end;
 
+    /// <summary>
+    /// Stores the API key used for subsequent Model binds.
+    /// </summary>
     procedure SetApiKey(KeyValue: SecretText)
     begin
         ApiKey := KeyValue;
@@ -63,6 +72,9 @@ codeunit 87440 "AIOS Anthropic" implements "AIOS Provider"
         exit(LanguageModel);
     end;
 
+    /// <summary>
+    /// Binds a language model for ModelId into BoundModel using the configured key, API version, and base URL. Returns false when ModelId or the API key is missing.
+    /// </summary>
     procedure BindLanguageModel(ModelId: Text; var BoundModel: Interface "AIOS Language Model"): Boolean
     var
         LanguageModel: Codeunit "AIOS Anthropic Model";

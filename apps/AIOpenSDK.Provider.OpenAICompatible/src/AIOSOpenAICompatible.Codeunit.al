@@ -15,11 +15,17 @@ codeunit 87450 "AIOS OpenAI Compatible" implements "AIOS Provider"
         BaseUrl: Text;
         ProviderName: Text;
 
+    /// <summary>
+    /// Returns the OpenAI-compatible provider specification version.
+    /// </summary>
     procedure SpecificationVersion(): Text
     begin
         exit('v1');
     end;
 
+    /// <summary>
+    /// Returns the configured provider display name.
+    /// </summary>
     procedure GetName(): Text
     begin
         if ProviderName = '' then
@@ -35,6 +41,9 @@ codeunit 87450 "AIOS OpenAI Compatible" implements "AIOS Provider"
         ProviderName := Name;
     end;
 
+    /// <summary>
+    /// Stores the API key used for subsequent Model binds.
+    /// </summary>
     procedure SetApiKey(KeyValue: SecretText)
     begin
         ApiKey := KeyValue;
@@ -70,6 +79,9 @@ codeunit 87450 "AIOS OpenAI Compatible" implements "AIOS Provider"
         exit(LanguageModel);
     end;
 
+    /// <summary>
+    /// Binds a language model for ModelId into BoundModel using the configured key, base URL, and name. Returns false when ModelId, API key, or base URL is missing.
+    /// </summary>
     procedure BindLanguageModel(ModelId: Text; var BoundModel: Interface "AIOS Language Model"): Boolean
     var
         LanguageModel: Codeunit "AIOS OpenAI Compatible Model";

@@ -10,11 +10,17 @@ codeunit 87444 "AIOS OpenCode Zen" implements "AIOS Provider"
         ApiKey: SecretText;
         BaseUrl: Text;
 
+    /// <summary>
+    /// Returns the OpenCode Zen provider specification version.
+    /// </summary>
     procedure SpecificationVersion(): Text
     begin
         exit('v1');
     end;
 
+    /// <summary>
+    /// Returns the provider name (opencode-zen).
+    /// </summary>
     procedure GetName(): Text
     begin
         exit('opencode-zen');
@@ -57,6 +63,9 @@ codeunit 87444 "AIOS OpenCode Zen" implements "AIOS Provider"
         exit(LanguageModel);
     end;
 
+    /// <summary>
+    /// Binds a language model for ModelId into BoundModel using the configured key and base URL. Returns false when ModelId or the API key is missing.
+    /// </summary>
     procedure BindLanguageModel(ModelId: Text; var BoundModel: Interface "AIOS Language Model"): Boolean
     var
         LanguageModel: Codeunit "AIOS OpenCode Zen Model";
