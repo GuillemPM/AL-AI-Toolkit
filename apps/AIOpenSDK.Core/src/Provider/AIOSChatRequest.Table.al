@@ -655,6 +655,26 @@ table 87401 "AIOS Chat Request"
     end;
 
     /// <summary>
+    /// Appends an assistant tool-call message with reasoning content and provider-owned content.
+    /// </summary>
+    procedure AppendAssistantToolCalls(Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text; ProviderContent: JsonObject)
+    var
+        ChatMessages: Codeunit "AIOS Chat Messages";
+    begin
+        ChatMessages.AppendAssistantToolCalls(Rec, Content, ToolCalls, ReasoningContent, ProviderContent);
+    end;
+
+    /// <summary>
+    /// Appends the assistant tool-call turn from a model response, including provider-owned content.
+    /// </summary>
+    procedure AppendAssistantToolCalls(var Response: Record "AIOS Chat Response")
+    var
+        ChatMessages: Codeunit "AIOS Chat Messages";
+    begin
+        ChatMessages.AppendAssistantToolCalls(Rec, Response);
+    end;
+
+    /// <summary>
     /// Appends a tool result message for a prior tool call id.
     /// </summary>
     procedure AppendToolResult(ToolCallId: Text; ToolName: Text; Content: Text)

@@ -80,6 +80,11 @@ table 87402 "AIOS Chat Response"
             Caption = 'Reasoning Content';
             DataClassification = CustomerContent;
         }
+        field(92; "Provider Content"; Blob)
+        {
+            Caption = 'Provider Content';
+            DataClassification = CustomerContent;
+        }
     }
 
     keys
@@ -434,6 +439,41 @@ table 87402 "AIOS Chat Response"
             exit('');
         "Reasoning Content".CreateInStream(InStream, TextEncoding::UTF8);
         exit(TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator()));
+    end;
+
+    /// <summary>
+    /// Stores opaque provider-owned assistant content replayed on tool-loop turns.
+    /// </summary>
+    procedure SetProviderContent(Value: JsonObject)
+    var
+        OutStream: OutStream;
+        Text: Text;
+    begin
+        Clear("Provider Content");
+        if Value.Keys().Count() = 0 then
+            exit;
+        Value.WriteTo(Text);
+        "Provider Content".CreateOutStream(OutStream, TextEncoding::UTF8);
+        OutStream.WriteText(Text);
+    end;
+
+    /// <summary>
+    /// Provider-owned assistant content from the last response, or an empty object when none was returned.
+    /// </summary>
+    procedure GetProviderContent(): JsonObject
+    var
+        TypeHelper: Codeunit "Type Helper";
+        InStream: InStream;
+        Value: JsonObject;
+        Text: Text;
+    begin
+        if not "Provider Content".HasValue then
+            exit(Value);
+        "Provider Content".CreateInStream(InStream, TextEncoding::UTF8);
+        Text := TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator());
+        if not Value.ReadFrom(Text) then
+            Clear(Value);
+        exit(Value);
     end;
 
     local procedure SetWarnings(var WarningsArray: JsonArray)

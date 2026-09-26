@@ -172,6 +172,9 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
         if ToolCalls.Count() > 0 then
             Response.SetToolCallsJson(ToolCalls);
 
+        Response.SetProviderContent(FormatCU.ExtractProviderContent(ContentToken));
+        Response.SetReasoningContent(FormatCU.GetThinkingText(ContentToken));
+
         if Root.Get('stop_reason', TextToken) then
             Response."Finish Reason" := CopyStr(TextToken.AsValue().AsText(), 1, MaxStrLen(Response."Finish Reason"));
 

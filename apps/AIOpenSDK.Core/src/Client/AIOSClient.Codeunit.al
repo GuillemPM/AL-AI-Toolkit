@@ -318,7 +318,7 @@ codeunit 87410 "AIOS Client"
             ToolCalls := Response.GetToolCalls();
             if not TryExecuteToolCalls(ToolSet, ToolCalls, Response, ResultTexts) then
                 exit(false);
-            ChatMessages.AppendToolStep(Request, Response.GetText(), ToolCalls, Response.GetReasoningContent(), ResultTexts);
+            ChatMessages.AppendToolStep(Request, Response.GetText(), ToolCalls, Response.GetReasoningContent(), ResultTexts, Response.GetProviderContent());
         end;
 
         exit(false);

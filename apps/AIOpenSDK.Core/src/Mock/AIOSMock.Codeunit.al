@@ -18,6 +18,7 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
         NextToolCallName: Text;
         NextToolCallArgs: Text;
         HasNextToolCall: Boolean;
+        NextToolCallProviderContent: JsonObject;
 
     /// <summary>
     /// Returns the mock provider specification version.
@@ -68,6 +69,7 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
             NextToolCallId,
             NextToolCallName,
             NextToolCallArgs);
+        LanguageModel.SetToolCallProviderContent(NextToolCallProviderContent);
         BoundModel := LanguageModel;
         exit(true);
     end;
@@ -147,6 +149,14 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
     end;
 
     /// <summary>
+    /// Provider-owned content returned with the next tool-call response.
+    /// </summary>
+    procedure SetNextToolCallProviderContent(ProviderContent: JsonObject)
+    begin
+        NextToolCallProviderContent := ProviderContent;
+    end;
+
+    /// <summary>
     /// Bind a mock image model. Configure with SetNextImageBase64 before calling GenerateImage.
     /// </summary>
     procedure ImageModel(ModelId: Text): Interface "AIOS Image Model"
@@ -192,6 +202,7 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
         NextToolCallId := '';
         NextToolCallName := '';
         NextToolCallArgs := '';
+        Clear(NextToolCallProviderContent);
     end;
 
     var
