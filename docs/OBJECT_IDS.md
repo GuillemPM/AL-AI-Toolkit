@@ -107,4 +107,6 @@ Interfaces (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"
 | 87511 | AIOS Examples User (permission set) | Examples |
 | 87490–87497 | Test codeunits / bind target | Test |
 | 87500 | AIOS File Content Tests | Test |
-| 87501 | AIOS Anthropic Thinking Tests | Test |
+| 87501 | AIOS Chat Completions Tests | Test |
+| 87503 | AIOS Tool Loop Test Double | Test |
+| 87504 | AIOS Anthropic Thinking Tests | Test |

@@ -61,6 +61,16 @@ codeunit 87493 "AIOS Generate Options Tests"
             Error(UnexpectedErrorMapErr, 502, 'ProviderUnavailable');
         if HttpErrors.FromHttpStatus(503) <> "AIOS Error Type"::ProviderUnavailable then
             Error(UnexpectedErrorMapErr, 503, 'ProviderUnavailable');
+        if HttpErrors.FromHttpStatus(529) <> "AIOS Error Type"::ProviderUnavailable then
+            Error(UnexpectedErrorMapErr, 529, 'ProviderUnavailable');
+        if HttpErrors.FromHttpStatus(520) <> "AIOS Error Type"::ProviderUnavailable then
+            Error(UnexpectedErrorMapErr, 520, 'ProviderUnavailable');
+        if HttpErrors.FromHttpStatus(599) <> "AIOS Error Type"::ProviderUnavailable then
+            Error(UnexpectedErrorMapErr, 599, 'ProviderUnavailable');
+        if HttpErrors.FromHttpStatus(501) <> "AIOS Error Type"::Unknown then
+            Error(UnexpectedErrorMapErr, 501, 'Unknown');
+        if HttpErrors.FromHttpStatus(505) <> "AIOS Error Type"::Unknown then
+            Error(UnexpectedErrorMapErr, 505, 'Unknown');
         if HttpErrors.FromHttpStatus(418) <> "AIOS Error Type"::Unknown then
             Error(UnexpectedErrorMapErr, 418, 'Unknown');
     end;

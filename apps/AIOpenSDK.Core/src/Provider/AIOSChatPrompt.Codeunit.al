@@ -17,6 +17,7 @@ codeunit 87424 "AIOS Chat Prompt"
         OutStream: OutStream;
     begin
         Clear(Request.Prompt);
+        Request."Prompt Pending" := Value <> '';
         if Value = '' then
             exit;
         Request.Prompt.CreateOutStream(OutStream, TextEncoding::UTF8);

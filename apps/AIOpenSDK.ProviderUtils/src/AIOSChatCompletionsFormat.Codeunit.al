@@ -97,7 +97,8 @@ codeunit 87435 "AIOS Chat Completions Format" implements "AIOS Chat Format"
                         if Msg.Get('tool_calls', ToolCallsToken) then
                             OutMsg.Add('tool_calls', ToWireToolCalls(ToolCallsToken.AsArray()));
                         if Msg.Get('reasoning_content', ContentToken) then
-                            OutMsg.Add('reasoning_content', ContentToken.AsValue().AsText());
+                            if TokenText(ContentToken) <> '' then
+                                OutMsg.Add('reasoning_content', TokenText(ContentToken));
                         OutMessages.Add(OutMsg);
                     end;
                 'tool':
@@ -206,6 +207,7 @@ codeunit 87435 "AIOS Chat Completions Format" implements "AIOS Chat Format"
         FileObj: JsonObject;
         Base64Convert: Codeunit "Base64 Convert";
         Decoded: Text;
+        Lf: Text[1];
     begin
         MediaType := GetPartMediaType(Part);
         Data := GetPartData(Part);
@@ -217,9 +219,10 @@ codeunit 87435 "AIOS Chat Completions Format" implements "AIOS Chat Format"
             if Decoded = '' then
                 Decoded := Base64Convert.FromBase64(Data);
             OutPart.Add('type', 'text');
-            if Filename <> '' then
-                OutPart.Add('text', StrSubstNo(FileAsTextFmtTok, Filename, Decoded))
-            else
+            if Filename <> '' then begin
+                Lf[1] := 10;
+                OutPart.Add('text', StrSubstNo(FileAsTextFmtTok, Filename, Lf, Decoded));
+            end else
                 OutPart.Add('text', Decoded);
             exit(OutPart);
         end;
@@ -355,26 +358,42 @@ codeunit 87435 "AIOS Chat Completions Format" implements "AIOS Chat Format"
             Clear(OutCall);
             Clear(ArgsObj);
             if Call.Get('id', IdToken) then
-                OutCall.Add('id', IdToken.AsValue().AsText());
+                OutCall.Add('id', TokenText(IdToken));
             if Call.Get('function', FunctionToken) and FunctionToken.IsObject() then begin
                 FunctionObj := FunctionToken.AsObject();
                 if FunctionObj.Get('name', NameToken) then
-                    OutCall.Add('name', NameToken.AsValue().AsText());
+                    OutCall.Add('name', TokenText(NameToken));
                 if FunctionObj.Get('arguments', ArgsToken) then begin
                     if ArgsToken.IsObject() then
-                        ArgsObj := ArgsToken.AsObject()
+                        OutCall.Add('arguments', ArgsToken.AsObject())
                     else begin
-                        ArgsText := ArgsToken.AsValue().AsText();
-                        if not ArgsObj.ReadFrom(ArgsText) then
-                            Clear(ArgsObj);
+                        ArgsText := TokenText(ArgsToken);
+                        if DelChr(ArgsText, '<>', ' ') = '' then
+                            OutCall.Add('arguments', EmptyObject())
+                        else
+                            if ArgsObj.ReadFrom(ArgsText) then
+                                OutCall.Add('arguments', ArgsObj)
+                            else
+                                OutCall.Add('arguments', ArgsText);
                     end;
-                    OutCall.Add('arguments', ArgsObj);
                 end else
                     OutCall.Add('arguments', EmptyObject());
             end;
             Out.Add(OutCall);
         end;
         exit(Out);
+    end;
+
+    /// <summary>
+    /// Text of a scalar JSON token; empty for null, objects, and arrays.
+    /// </summary>
+    local procedure TokenText(Token: JsonToken): Text
+    begin
+        if not Token.IsValue() then
+            exit('');
+        if Token.AsValue().IsNull() then
+            exit('');
+        exit(Token.AsValue().AsText());
     end;
 
     local procedure EmptyObject(): JsonObject
@@ -386,6 +405,6 @@ codeunit 87435 "AIOS Chat Completions Format" implements "AIOS Chat Format"
 
     var
         DataUrlTok: Label 'data:%1;base64,%2', Locked = true;
-        FileAsTextFmtTok: Label '[file: %1]\n%2', Locked = true;
+        FileAsTextFmtTok: Label '[file: %1]%2%3', Locked = true;
         UnexpandedAttachmentErr: Label 'File part has an attachment id but no payload. Use Request.GetProviderMessages() before MapMessages.';
 }

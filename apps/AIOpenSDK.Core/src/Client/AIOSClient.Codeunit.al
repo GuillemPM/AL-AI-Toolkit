@@ -47,10 +47,7 @@ codeunit 87410 "AIOS Client"
     var
         Response: Record "AIOS Chat Response";
     begin
-        if OutputRecRef.Number() = 0 then
-            Error(OutputRecordMissingErr);
-        if not Request.HasOutput() then
-            Request.SetOutput(OutputRecRef);
+        BindOutputRecord(Request, OutputRecRef);
         if not TryGenerate(Model, Request, Response, OutputRecRef) then
             Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
         exit(BuildGenerateResult(Response));
@@ -92,10 +89,7 @@ codeunit 87410 "AIOS Client"
     var
         Response: Record "AIOS Chat Response";
     begin
-        if OutputRecRef.Number() = 0 then
-            Error(OutputRecordMissingErr);
-        if not Request.HasOutput() then
-            Request.SetOutput(OutputRecRef);
+        BindOutputRecord(Request, OutputRecRef);
         if not TryGenerateWithTools(Model, Request, ToolSet, MaxSteps, Response, OutputRecRef) then
             Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
         exit(BuildGenerateResult(Response));
@@ -267,9 +261,9 @@ codeunit 87410 "AIOS Client"
     begin
         Clear(Response);
         ClearChatResponseCalls();
-        Request.EnsureMessagesFromPrompt();
         ModelId := Model.GetModelId();
         OnBeforeGenerate(ModelId, Request, Response);
+        Request.EnsureMessagesFromPrompt();
         if not TryGenerateCore(Model, Request, Response, OutputRecRef) then
             exit(false);
         OnAfterGenerate(ModelId, Request, Response);
@@ -285,6 +279,8 @@ codeunit 87410 "AIOS Client"
         Step: Integer;
         EffectiveMaxSteps: Integer;
         ToolCalls: List of [Codeunit "AIOS Tool Call"];
+        ResultTexts: List of [Text];
+        ChatMessages: Codeunit "AIOS Chat Messages";
     begin
         Clear(Response);
         ClearChatResponseCalls();
@@ -296,9 +292,9 @@ codeunit 87410 "AIOS Client"
 
         ModelId := Model.GetModelId();
         Request.SetTools(ToolSet);
-        Request.EnsureMessagesFromPrompt();
 
         OnBeforeGenerate(ModelId, Request, Response);
+        Request.EnsureMessagesFromPrompt();
 
         for Step := 1 to EffectiveMaxSteps do begin
             if not TryGenerateCore(Model, Request, Response, OutputRecRef) then
@@ -311,14 +307,18 @@ codeunit 87410 "AIOS Client"
 
             if Step = EffectiveMaxSteps then begin
                 LastStoppedAtStepLimit := true;
+                if Request.HasOutput() then begin
+                    Response.SetError("AIOS Error Type"::ParseFailed, StrSubstNo(StepLimitNoOutputErr, EffectiveMaxSteps));
+                    exit(false);
+                end;
                 OnAfterGenerate(ModelId, Request, Response);
                 exit(true);
             end;
 
             ToolCalls := Response.GetToolCalls();
-            Request.AppendAssistantToolCalls(Response);
-            if not TryExecuteToolCalls(ToolSet, ToolCalls, Request, Response) then
+            if not TryExecuteToolCalls(ToolSet, ToolCalls, Response, ResultTexts) then
                 exit(false);
+            ChatMessages.AppendToolStep(Request, Response.GetText(), ToolCalls, Response.GetReasoningContent(), ResultTexts, Response.GetProviderContent());
         end;
 
         exit(false);
@@ -397,20 +397,34 @@ codeunit 87410 "AIOS Client"
         exit(Result);
     end;
 
-    local procedure TryExecuteToolCalls(ToolSet: Codeunit "AIOS Tool Set"; ToolCalls: List of [Codeunit "AIOS Tool Call"]; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
+    /// <summary>
+    /// Runs every tool call and collects one result text per call.
+    /// </summary>
+    local procedure TryExecuteToolCalls(ToolSet: Codeunit "AIOS Tool Set"; ToolCalls: List of [Codeunit "AIOS Tool Call"]; var Response: Record "AIOS Chat Response"; var ResultTexts: List of [Text]): Boolean
     var
         Call: Codeunit "AIOS Tool Call";
+        HttpErrors: Codeunit "AIOS Http Error Mapper";
+        Arguments: JsonObject;
         ResultText: Text;
         i: Integer;
     begin
+        Clear(ResultTexts);
         for i := 1 to ToolCalls.Count() do begin
             ToolCalls.Get(i, Call);
             if not ToolSet.HasTool(Call.GetName()) then begin
                 Response.SetError("AIOS Error Type"::InvalidRequest, StrSubstNo(UnknownToolErr, Call.GetName()));
                 exit(false);
             end;
-            ToolSet.Execute(Call.GetName(), Call.GetArguments(), ResultText);
-            Request.AppendToolResult(Call.GetId(), Call.GetName(), ResultText);
+        end;
+
+        for i := 1 to ToolCalls.Count() do begin
+            ToolCalls.Get(i, Call);
+            Clear(ResultText);
+            if Call.TryGetArguments(Arguments) then
+                ToolSet.Execute(Call.GetName(), Arguments, ResultText)
+            else
+                ResultText := StrSubstNo(InvalidToolArgumentsMsg, Call.GetName(), HttpErrors.PreviewBody(Call.GetArgumentsJson()));
+            ResultTexts.Add(ResultText);
         end;
         exit(true);
     end;
@@ -507,13 +521,23 @@ codeunit 87410 "AIOS Client"
         exit(TryGenerate(Model, Request, Response, EmptyOutput));
     end;
 
+    /// <summary>
+    /// Binds structured output to OutputRecRef, replacing any earlier binding.
+    /// </summary>
+    local procedure BindOutputRecord(var Request: Record "AIOS Chat Request"; var OutputRecRef: RecordRef)
+    begin
+        if OutputRecRef.Number() = 0 then
+            Error(OutputRecordMissingErr);
+        Request.SetOutput(OutputRecRef);
+    end;
+
     local procedure DefaultToolMaxSteps(): Integer
     begin
         exit(5);
     end;
 
     /// <summary>
-    /// Raised once when generation starts, before any model call.
+    /// Raised once when generation starts, before the prompt is added to the history and before any model call.
     /// </summary>
     [IntegrationEvent(false, false)]
     local procedure OnBeforeGenerate(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
@@ -559,4 +583,6 @@ codeunit 87410 "AIOS Client"
         ChoiceUnwrapFailedErr: Label 'Choice response missing a string result property.';
         InvalidOutputSchemaErr: Label 'Output schema is not a valid JSON object.';
         UnknownToolErr: Label 'Unknown tool ''%1''.', Comment = '%1 = tool name';
+        InvalidToolArgumentsMsg: Label 'Invalid arguments for tool ''%1'': not valid JSON. The tool was not run. Received: %2', Comment = '%1 = tool name, %2 = raw arguments (truncated)';
+        StepLimitNoOutputErr: Label 'Structured output was not produced: the tool loop reached MaxSteps (%1) while the model still requested tool calls.', Comment = '%1 = max steps';
 }

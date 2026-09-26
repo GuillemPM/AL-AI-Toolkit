@@ -144,8 +144,8 @@ codeunit 87497 "AIOS Tool Tests"
             Error(MissingFieldErr, 'tool_calls');
         if ToolCallsToken.AsArray().Count() <> 1 then
             Error(UnexpectedCountErr, 1, ToolCallsToken.AsArray().Count());
-        if not Msg.Get('reasoning_content', ContentToken) then
-            Error(MissingFieldErr, 'reasoning_content');
+        if Msg.Get('reasoning_content', ContentToken) then
+            Error(UnexpectedFieldErr, 'reasoning_content');
 
         Messages.Get(2, MsgToken);
         Msg := MsgToken.AsObject();
@@ -324,6 +324,7 @@ codeunit 87497 "AIOS Tool Tests"
         Mock.SetNextToolCall('orphan_tool_no_subscriber', '{}');
         Request.SetPrompt('x');
         asserterror Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+        AssertNoToolTurns(Request, 1);
     end;
 
     [Test]
@@ -390,6 +391,24 @@ codeunit 87497 "AIOS Tool Tests"
             Error(UnexpectedTextErr, 'done after echo', Result.Output());
         if ResultText <> 'hello-tool' then
             Error(UnexpectedTextErr, 'hello-tool', ResultText);
+        if CountUserMessages(Request.GetMessages()) <> 1 then
+            Error(UnexpectedCountErr, 1, CountUserMessages(Request.GetMessages()));
+    end;
+
+    local procedure CountUserMessages(Messages: JsonArray): Integer
+    var
+        MsgToken: JsonToken;
+        RoleToken: JsonToken;
+        i: Integer;
+        Found: Integer;
+    begin
+        for i := 0 to Messages.Count() - 1 do begin
+            Messages.Get(i, MsgToken);
+            if MsgToken.AsObject().Get('role', RoleToken) then
+                if RoleToken.AsValue().AsText() = 'user' then
+                    Found += 1;
+        end;
+        exit(Found);
     end;
 
     [Test]
@@ -515,6 +534,7 @@ codeunit 87497 "AIOS Tool Tests"
         asserterror Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
         if StrPos(GetLastErrorText(), 'missing_tool') = 0 then
             Error(ExpectedFailureErr);
+        AssertNoToolTurns(Request, 1);
     end;
 
     [Test]
@@ -600,6 +620,309 @@ codeunit 87497 "AIOS Tool Tests"
         AssertTotalsMatchCalls(Result);
     end;
 
+    [Test]
+    procedure GenerateText_ToolFailure_RequestReusable()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Echo: Codeunit "AIOS Echo Tool";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+        Tool: Interface "AIOS Tool";
+    begin
+        Tool := Echo;
+        ToolSet.Add(Tool);
+        Mock.SetNextToolCall('missing_tool', '{}');
+        Request.SetPrompt('x');
+        Request.SetMaxRetries(0);
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+
+        Mock.SetNextResponse('recovered');
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+        if Result.Output() <> 'recovered' then
+            Error(UnexpectedTextErr, 'recovered', Result.Output());
+        AssertNoToolTurns(Request, -1);
+    end;
+
+    [Test]
+    procedure GenerateText_SecondToolUnknown_FirstToolNotExecuted()
+    var
+        TestDouble: Codeunit "AIOS Tool Loop Test Double";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Request: Record "AIOS Chat Request";
+        Model: Interface "AIOS Language Model";
+        Tool: Interface "AIOS Tool";
+    begin
+        TestDouble.Reset('[{"id":"c1","name":"count_calls","arguments":{}},{"id":"c2","name":"missing_tool","arguments":{}}]', 'unused');
+        Tool := TestDouble;
+        ToolSet.Add(Tool);
+        Model := TestDouble;
+        Request.SetPrompt('x');
+        Request.SetMaxRetries(0);
+
+        asserterror Client.GenerateText(Model, Request, ToolSet, 5);
+        if StrPos(GetLastErrorText(), 'missing_tool') = 0 then
+            Error(ExpectedFailureErr);
+        if TestDouble.GetExecuteCount() <> 0 then
+            Error(UnexpectedCountErr, 0, TestDouble.GetExecuteCount());
+        AssertNoToolTurns(Request, 1);
+    end;
+
+    [Test]
+    procedure GenerateText_MultipleToolCalls_RecordsAllResults()
+    var
+        TestDouble: Codeunit "AIOS Tool Loop Test Double";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+        Model: Interface "AIOS Language Model";
+        Tool: Interface "AIOS Tool";
+        Messages: JsonArray;
+    begin
+        TestDouble.Reset('[{"id":"c1","name":"count_calls","arguments":{}},{"id":"c2","name":"count_calls","arguments":{}}]', 'both done');
+        Tool := TestDouble;
+        ToolSet.Add(Tool);
+        Model := TestDouble;
+        Request.SetPrompt('x');
+
+        Result := Client.GenerateText(Model, Request, ToolSet, 5);
+        if Result.Output() <> 'both done' then
+            Error(UnexpectedTextErr, 'both done', Result.Output());
+        if TestDouble.GetExecuteCount() <> 2 then
+            Error(UnexpectedCountErr, 2, TestDouble.GetExecuteCount());
+        Messages := Request.GetMessages();
+        if Messages.Count() <> 4 then
+            Error(UnexpectedCountErr, 4, Messages.Count());
+        AssertMessageField(Messages, 2, 'tool_call_id', 'c1');
+        AssertMessageField(Messages, 3, 'tool_call_id', 'c2');
+    end;
+
+    [Test]
+    procedure GenerateText_MalformedArgs_NotExecuted_ErrorFedBack()
+    var
+        TestDouble: Codeunit "AIOS Tool Loop Test Double";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+        Model: Interface "AIOS Language Model";
+        Tool: Interface "AIOS Tool";
+        Messages: JsonArray;
+        MsgToken: JsonToken;
+        ContentToken: JsonToken;
+        CallsToken: JsonToken;
+        CallToken: JsonToken;
+        ArgsToken: JsonToken;
+    begin
+        TestDouble.Reset('[{"id":"c1","name":"count_calls","arguments":"{\"a\":"}]', 'after bad args');
+        Tool := TestDouble;
+        ToolSet.Add(Tool);
+        Model := TestDouble;
+        Request.SetPrompt('x');
+
+        Result := Client.GenerateText(Model, Request, ToolSet, 5);
+        if Result.Output() <> 'after bad args' then
+            Error(UnexpectedTextErr, 'after bad args', Result.Output());
+        if TestDouble.GetExecuteCount() <> 0 then
+            Error(UnexpectedCountErr, 0, TestDouble.GetExecuteCount());
+
+        Messages := Request.GetMessages();
+        Messages.Get(2, MsgToken);
+        MsgToken.AsObject().Get('content', ContentToken);
+        if StrPos(ContentToken.AsValue().AsText(), 'not valid JSON') = 0 then
+            Error(UnexpectedTextErr, 'not valid JSON', ContentToken.AsValue().AsText());
+
+        Messages.Get(1, MsgToken);
+        MsgToken.AsObject().Get('tool_calls', CallsToken);
+        CallsToken.AsArray().Get(0, CallToken);
+        CallToken.AsObject().Get('arguments', ArgsToken);
+        if not ArgsToken.IsValue() then
+            Error(ExpectedRawArgumentsErr);
+        if ArgsToken.AsValue().AsText() <> '{"a":' then
+            Error(UnexpectedTextErr, '{"a":', ArgsToken.AsValue().AsText());
+    end;
+
+    [Test]
+    procedure GenerateText_MockMalformedArgs_NotExecuted()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Echo: Codeunit "AIOS Echo Tool";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+        Tool: Interface "AIOS Tool";
+        Messages: JsonArray;
+        MsgToken: JsonToken;
+        ContentToken: JsonToken;
+    begin
+        Tool := Echo;
+        ToolSet.Add(Tool);
+        Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":', 'done');
+        Request.SetPrompt('x');
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+        Messages := Request.GetMessages();
+        Messages.Get(2, MsgToken);
+        MsgToken.AsObject().Get('content', ContentToken);
+        if StrPos(ContentToken.AsValue().AsText(), 'not valid JSON') = 0 then
+            Error(UnexpectedTextErr, 'not valid JSON', ContentToken.AsValue().AsText());
+    end;
+
+    [Test]
+    procedure ToolCall_TryGetArguments_DetectsMalformedJson()
+    var
+        Call: Codeunit "AIOS Tool Call";
+        Args: JsonObject;
+    begin
+        Call.SetCall('c1', 'echo', '{"message":');
+        if Call.TryGetArguments(Args) then
+            Error(ExpectedMalformedArgsErr);
+        if Call.GetArgumentsJson() <> '{"message":' then
+            Error(UnexpectedTextErr, '{"message":', Call.GetArgumentsJson());
+        if Call.GetArguments().Keys().Count() <> 0 then
+            Error(UnexpectedCountErr, 0, Call.GetArguments().Keys().Count());
+
+        Call.SetCall('c2', 'echo', '  ');
+        if not Call.TryGetArguments(Args) then
+            Error(ExpectedValidArgsErr);
+
+        Call.SetCall('c3', 'echo', '{"message":"hi"}');
+        if not Call.TryGetArguments(Args) then
+            Error(ExpectedValidArgsErr);
+        if not Args.Contains('message') then
+            Error(MissingFieldErr, 'message');
+    end;
+
+    [Test]
+    procedure ChatCompletionsFormat_ParseToolCalls_KeepsMalformedArgumentsRaw()
+    var
+        FormatCU: Codeunit "AIOS Chat Completions Format";
+        Response: Record "AIOS Chat Response";
+        Wire: JsonArray;
+        Parsed: JsonArray;
+        WireToken: JsonToken;
+        CallToken: JsonToken;
+        ArgsToken: JsonToken;
+        ToolCalls: List of [Codeunit "AIOS Tool Call"];
+        Call: Codeunit "AIOS Tool Call";
+        Args: JsonObject;
+    begin
+        Wire.ReadFrom('[{"id":"c1","type":"function","function":{"name":"echo","arguments":"{\"message\":"}},{"id":"c2","type":"function","function":{"name":"echo","arguments":""}}]');
+        WireToken := Wire.AsToken();
+        Parsed := FormatCU.ParseToolCalls(WireToken);
+
+        Parsed.Get(0, CallToken);
+        CallToken.AsObject().Get('arguments', ArgsToken);
+        if not ArgsToken.IsValue() then
+            Error(ExpectedRawArgumentsErr);
+        Parsed.Get(1, CallToken);
+        CallToken.AsObject().Get('arguments', ArgsToken);
+        if not ArgsToken.IsObject() then
+            Error(ExpectedValidArgsErr);
+
+        Response.SetToolCallsJson(Parsed);
+        ToolCalls := Response.GetToolCalls();
+        ToolCalls.Get(1, Call);
+        if Call.TryGetArguments(Args) then
+            Error(ExpectedMalformedArgsErr);
+        if Call.GetArgumentsJson() <> '{"message":' then
+            Error(UnexpectedTextErr, '{"message":', Call.GetArgumentsJson());
+        ToolCalls.Get(2, Call);
+        if not Call.TryGetArguments(Args) then
+            Error(ExpectedValidArgsErr);
+    end;
+
+    [Test]
+    procedure GenerateText_ToolsRecRef_StepLimit_Errors()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Echo: Codeunit "AIOS Echo Tool";
+        Request: Record "AIOS Chat Request";
+        Target: Record "AIOS Test Bind Target";
+        RecRef: RecordRef;
+        Tool: Interface "AIOS Tool";
+    begin
+        Tool := Echo;
+        ToolSet.Add(Tool);
+        Mock.SetNextToolCall('echo', '{"message":"x"}');
+        RecRef.GetTable(Target);
+        Request.SetPrompt('structured');
+        Request.SetOutput(RecRef);
+
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 1, RecRef);
+        if StrPos(GetLastErrorText(), 'MaxSteps') = 0 then
+            Error(UnexpectedTextErr, 'MaxSteps', GetLastErrorText());
+    end;
+
+    [Test]
+    procedure GenerateText_ToolsRecRef_BindsOnFinalStep()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Echo: Codeunit "AIOS Echo Tool";
+        Request: Record "AIOS Chat Request";
+        Target: Record "AIOS Test Bind Target";
+        Result: Codeunit "AIOS Generate Result";
+        RecRef: RecordRef;
+        Tool: Interface "AIOS Tool";
+    begin
+        Tool := Echo;
+        ToolSet.Add(Tool);
+        Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"x"}', '{"Sentiment":"positive"}');
+        RecRef.GetTable(Target);
+        Request.SetPrompt('structured');
+        Request.SetOutput(RecRef);
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5, RecRef);
+        RecRef.SetTable(Target, true);
+        if Target.Sentiment <> 'positive' then
+            Error(UnexpectedTextErr, 'positive', Target.Sentiment);
+        if Result.StoppedAtStepLimit() then
+            Error(UnexpectedStoppedAtStepLimitErr);
+    end;
+
+    /// <summary>
+    /// Asserts the history has no tool-call or tool-result messages.
+    /// </summary>
+    local procedure AssertNoToolTurns(var Request: Record "AIOS Chat Request"; ExpectedCount: Integer)
+    var
+        Messages: JsonArray;
+        MsgToken: JsonToken;
+        RoleToken: JsonToken;
+        i: Integer;
+    begin
+        Messages := Request.GetMessages();
+        if (ExpectedCount >= 0) and (Messages.Count() <> ExpectedCount) then
+            Error(UnexpectedCountErr, ExpectedCount, Messages.Count());
+        for i := 0 to Messages.Count() - 1 do begin
+            Messages.Get(i, MsgToken);
+            if MsgToken.AsObject().Contains('tool_calls') then
+                Error(UnexpectedDanglingToolCallsErr);
+            if MsgToken.AsObject().Get('role', RoleToken) then
+                if RoleToken.AsValue().AsText() = 'tool' then
+                    Error(UnexpectedDanglingToolCallsErr);
+        end;
+    end;
+
+    local procedure AssertMessageField(Messages: JsonArray; Index: Integer; FieldName: Text; Expected: Text)
+    var
+        MsgToken: JsonToken;
+        ValueToken: JsonToken;
+    begin
+        Messages.Get(Index, MsgToken);
+        if not MsgToken.AsObject().Get(FieldName, ValueToken) then
+            Error(MissingFieldErr, FieldName);
+        if ValueToken.AsValue().AsText() <> Expected then
+            Error(UnexpectedTextErr, Expected, ValueToken.AsValue().AsText());
+    end;
+
     local procedure AssertTotalsMatchCalls(Result: Codeunit "AIOS Generate Result")
     var
         Calls: List of [Codeunit "AIOS Chat Response Call"];
@@ -646,6 +969,7 @@ codeunit 87497 "AIOS Tool Tests"
         UnexpectedTextErr: Label 'Expected ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
         UnexpectedCountErr: Label 'Expected count %1, got %2.', Comment = '%1 = expected, %2 = actual';
         MissingFieldErr: Label 'Missing field %1.', Comment = '%1 = field name';
+        UnexpectedFieldErr: Label 'Did not expect field %1.', Comment = '%1 = field name';
         ExpectedDescriptionErr: Label 'Expected a non-empty tool description.';
         ExpectedParametersObjectErr: Label 'Expected parameters to be a JSON object.';
         ExpectedHasToolsErr: Label 'Expected request to have tools.';
@@ -657,6 +981,10 @@ codeunit 87497 "AIOS Tool Tests"
         UnknownToolErr: Label 'Unknown tool %1.', Comment = '%1 = tool name';
         ToolExecuteFailedErr: Label 'Tool %1 failed: %2', Comment = '%1 = tool name, %2 = result';
         ExpectedFailureErr: Label 'Expected GenerateText with tools to fail for unknown tool.';
+        UnexpectedDanglingToolCallsErr: Label 'Request history must not keep a tool-call turn from a failed step.';
+        ExpectedRawArgumentsErr: Label 'Expected malformed arguments to be kept as raw text.';
+        ExpectedMalformedArgsErr: Label 'Expected TryGetArguments to reject malformed JSON.';
+        ExpectedValidArgsErr: Label 'Expected valid (or blank) tool arguments.';
         UnexpectedErrorTypeErr: Label 'Expected InvalidRequest, got %1.', Comment = '%1 = error type';
         ExpectedToolErrorContentErr: Label 'Expected non-empty tool result after execute failure.';
         ExpectedRequireFailErr: Label 'Expected RequireText to return false for a missing argument.';

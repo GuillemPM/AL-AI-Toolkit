@@ -101,7 +101,7 @@ codeunit 87428 "AIOS Chat Messages"
     end;
 
     /// <summary>
-    /// Appends an assistant message with tool calls and optional reasoning content.
+    /// Appends an assistant message with tool calls and optional reasoning content (omitted when empty).
     /// </summary>
     procedure AppendAssistantToolCalls(var Request: Record "AIOS Chat Request"; Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text)
     var
@@ -124,30 +124,9 @@ codeunit 87428 "AIOS Chat Messages"
     procedure AppendAssistantToolCalls(var Request: Record "AIOS Chat Request"; Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text; ProviderContent: JsonObject)
     var
         MessagesArr: JsonArray;
-        Msg: JsonObject;
-        CallsArr: JsonArray;
-        CallObj: JsonObject;
-        CallCU: Codeunit "AIOS Tool Call";
-        Args: JsonObject;
-        i: Integer;
     begin
         MessagesArr := GetMessages(Request);
-        for i := 1 to ToolCalls.Count() do begin
-            ToolCalls.Get(i, CallCU);
-            Clear(CallObj);
-            CallObj.Add('id', CallCU.GetId());
-            CallObj.Add('name', CallCU.GetName());
-            Args := CallCU.GetArguments();
-            CallObj.Add('arguments', Args);
-            CallsArr.Add(CallObj);
-        end;
-        Msg.Add('role', 'assistant');
-        Msg.Add('content', Content);
-        Msg.Add('tool_calls', CallsArr);
-        Msg.Add('reasoning_content', ReasoningContent);
-        if ProviderContent.Keys().Count() > 0 then
-            Msg.Add('provider_content', ProviderContent);
-        MessagesArr.Add(Msg);
+        MessagesArr.Add(AssistantToolCallsMessage(Content, ToolCalls, ReasoningContent, ProviderContent));
         SetMessages(Request, MessagesArr);
     end;
 
@@ -157,14 +136,89 @@ codeunit 87428 "AIOS Chat Messages"
     procedure AppendToolResult(var Request: Record "AIOS Chat Request"; ToolCallId: Text; ToolName: Text; Content: Text)
     var
         MessagesArr: JsonArray;
-        Msg: JsonObject;
     begin
         MessagesArr := GetMessages(Request);
+        MessagesArr.Add(ToolResultMessage(ToolCallId, ToolName, Content));
+        SetMessages(Request, MessagesArr);
+    end;
+
+    /// <summary>
+    /// Appends the assistant tool-call message and one tool result per call.
+    /// </summary>
+    internal procedure AppendToolStep(var Request: Record "AIOS Chat Request"; Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text; ResultTexts: List of [Text])
+    var
+        ProviderContent: JsonObject;
+    begin
+        AppendToolStep(Request, Content, ToolCalls, ReasoningContent, ResultTexts, ProviderContent);
+    end;
+
+    internal procedure AppendToolStep(var Request: Record "AIOS Chat Request"; Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text; ResultTexts: List of [Text]; ProviderContent: JsonObject)
+    var
+        MessagesArr: JsonArray;
+        CallCU: Codeunit "AIOS Tool Call";
+        i: Integer;
+    begin
+        MessagesArr := GetMessages(Request);
+        MessagesArr.Add(AssistantToolCallsMessage(Content, ToolCalls, ReasoningContent, ProviderContent));
+        for i := 1 to ToolCalls.Count() do begin
+            ToolCalls.Get(i, CallCU);
+            MessagesArr.Add(ToolResultMessage(CallCU.GetId(), CallCU.GetName(), ResultTexts.Get(i)));
+        end;
+        SetMessages(Request, MessagesArr);
+    end;
+
+    /// <summary>
+    /// Normalized tool-call JSON (id, name, arguments).
+    /// </summary>
+    internal procedure ToolCallToJson(CallCU: Codeunit "AIOS Tool Call"): JsonObject
+    var
+        CallObj: JsonObject;
+        Args: JsonObject;
+    begin
+        CallObj.Add('id', CallCU.GetId());
+        CallObj.Add('name', CallCU.GetName());
+        if CallCU.TryGetArguments(Args) then
+            CallObj.Add('arguments', Args)
+        else
+            CallObj.Add('arguments', CallCU.GetArgumentsJson());
+        exit(CallObj);
+    end;
+
+    local procedure AssistantToolCallsMessage(Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text): JsonObject
+    var
+        ProviderContent: JsonObject;
+    begin
+        exit(AssistantToolCallsMessage(Content, ToolCalls, ReasoningContent, ProviderContent));
+    end;
+
+    local procedure AssistantToolCallsMessage(Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text; ProviderContent: JsonObject): JsonObject
+    var
+        Msg: JsonObject;
+        CallsArr: JsonArray;
+        CallCU: Codeunit "AIOS Tool Call";
+        i: Integer;
+    begin
+        for i := 1 to ToolCalls.Count() do begin
+            ToolCalls.Get(i, CallCU);
+            CallsArr.Add(ToolCallToJson(CallCU));
+        end;
+        Msg.Add('role', 'assistant');
+        Msg.Add('content', Content);
+        Msg.Add('tool_calls', CallsArr);
+        Msg.Add('reasoning_content', ReasoningContent);
+        if ProviderContent.Keys().Count() > 0 then
+            Msg.Add('provider_content', ProviderContent);
+        exit(Msg);
+    end;
+
+    local procedure ToolResultMessage(ToolCallId: Text; ToolName: Text; Content: Text): JsonObject
+    var
+        Msg: JsonObject;
+    begin
         Msg.Add('role', 'tool');
         Msg.Add('tool_call_id', ToolCallId);
         Msg.Add('name', ToolName);
         Msg.Add('content', Content);
-        MessagesArr.Add(Msg);
-        SetMessages(Request, MessagesArr);
+        exit(Msg);
     end;
 }

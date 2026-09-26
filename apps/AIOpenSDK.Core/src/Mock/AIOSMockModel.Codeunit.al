@@ -76,10 +76,13 @@ codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
                 CallObj.Add('id', NextToolCallId);
             CallObj.Add('name', NextToolCallName);
             Clear(Args);
-            if NextToolCallArgs <> '' then
-                if not Args.ReadFrom(NextToolCallArgs) then
-                    Clear(Args);
-            CallObj.Add('arguments', Args);
+            if NextToolCallArgs = '' then
+                CallObj.Add('arguments', Args)
+            else
+                if Args.ReadFrom(NextToolCallArgs) then
+                    CallObj.Add('arguments', Args)
+                else
+                    CallObj.Add('arguments', NextToolCallArgs);
             ToolCalls.Add(CallObj);
             Response.SetToolCallsJson(ToolCalls);
             Response.SetProviderContent(ToolCallProviderContent);

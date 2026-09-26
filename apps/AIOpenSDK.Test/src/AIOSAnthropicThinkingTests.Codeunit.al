@@ -9,7 +9,7 @@ using PM.Guillem.AIOpenSDK.ProviderUtils;
 /// <summary>
 /// Anthropic extended thinking: thinking-block replay on tool-loop turns and thinking option validation.
 /// </summary>
-codeunit 87501 "AIOS Anthropic Thinking Tests"
+codeunit 87504 "AIOS Anthropic Thinking Tests"
 {
 
     Access = Internal;
