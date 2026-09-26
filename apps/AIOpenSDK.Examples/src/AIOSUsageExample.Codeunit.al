@@ -347,7 +347,7 @@ codeunit 87480 "AIOS Usage Example"
 
     /// <summary>
     /// OpenAI reasoning_effort via SetReasoning (High → "high"); SetMaxTokens is sent as max_completion_tokens.
-    /// Use a reasoning-capable model id for your account. XHigh ("xhigh") is passed through to OpenAI but only some models accept it.
+    /// Use a reasoning-capable model id for your account.
     /// </summary>
     procedure RunOpenAIReasoningDemo(ApiKey: SecretText)
     var

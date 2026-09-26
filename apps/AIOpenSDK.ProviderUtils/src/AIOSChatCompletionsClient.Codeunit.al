@@ -13,7 +13,7 @@ codeunit 87437 "AIOS Chat Completions Client"
     /// <summary>
     /// POST {BaseUrl}/chat/completions with Bearer auth and map the response into AIOS Chat Response.
     /// Requires company approval of PrivacyNoticeId (Privacy Notices Status); does not show a consent dialog.
-    /// Uses the generic OpenAI-compatible dialect (max_tokens, reasoning_effort low / medium / high).
+    /// Uses the generic OpenAI-compatible dialect.
     /// </summary>
     procedure Generate(ModelId: Text; ApiKey: SecretText; BaseUrl: Text; ProviderName: Text; PrivacyNoticeId: Code[50]; PrivacyIntegrationName: Text[250]; PrivacyLink: Text[2048]; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
     begin
@@ -21,8 +21,7 @@ codeunit 87437 "AIOS Chat Completions Client"
     end;
 
     /// <summary>
-    /// Same as Generate, choosing the request dialect. OpenAIDialect = true targets api.openai.com:
-    /// max_completion_tokens (required by reasoning models) and pass-through reasoning_effort (minimal … xhigh).
+    /// Same as Generate; OpenAIDialect = true uses the api.openai.com request dialect.
     /// </summary>
     procedure Generate(ModelId: Text; ApiKey: SecretText; BaseUrl: Text; ProviderName: Text; PrivacyNoticeId: Code[50]; PrivacyIntegrationName: Text[250]; PrivacyLink: Text[2048]; OpenAIDialect: Boolean; var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response"): Boolean
     var
@@ -77,7 +76,7 @@ codeunit 87437 "AIOS Chat Completions Client"
     end;
 
     /// <summary>
-    /// Builds the chat completions JSON body. Internal; exposed to the test app via internalsVisibleTo.
+    /// Builds the chat completions JSON body.
     /// </summary>
     internal procedure BuildRequestBody(ModelId: Text; var Request: Record "AIOS Chat Request"; OpenAIDialect: Boolean; var Warnings: JsonArray): Text
     var
@@ -131,8 +130,7 @@ codeunit 87437 "AIOS Chat Completions Client"
     end;
 
     /// <summary>
-    /// Maps a 2xx chat completions body into Response. Malformed or unexpected shapes become ParseFailed, never a runtime error.
-    /// Internal; exposed to the test app via internalsVisibleTo.
+    /// Maps a 2xx chat completions body into Response; malformed shapes become ParseFailed.
     /// </summary>
     internal procedure ParseSuccess(ResponseText: Text; var Response: Record "AIOS Chat Response"): Boolean
     var

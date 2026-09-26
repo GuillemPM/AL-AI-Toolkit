@@ -11,7 +11,7 @@ codeunit 87436 "AIOS Chat Completions Options"
 
     /// <summary>
     /// Adds OpenAI-compatible sampling fields to the chat completions root object.
-    /// Uses the generic compatible reasoning map (XHigh → high, Minimal → low, with warnings).
+    /// Uses the generic compatible reasoning map.
     /// </summary>
     procedure Apply(var Root: JsonObject; var Request: Record "AIOS Chat Request"; var Warnings: JsonArray)
     begin
@@ -19,8 +19,7 @@ codeunit 87436 "AIOS Chat Completions Options"
     end;
 
     /// <summary>
-    /// Adds sampling fields. OpenAIDialect = true passes every reasoning level through as OpenAI's reasoning_effort
-    /// (minimal … xhigh; support varies by model). Otherwise uses the compatible map low / medium / high only.
+    /// Adds sampling fields; OpenAIDialect = true passes reasoning levels through as OpenAI's reasoning_effort.
     /// </summary>
     procedure Apply(var Root: JsonObject; var Request: Record "AIOS Chat Request"; var Warnings: JsonArray; OpenAIDialect: Boolean)
     var
