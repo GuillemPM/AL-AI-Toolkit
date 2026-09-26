@@ -225,6 +225,7 @@ codeunit 87452 "AIOS Anthropic Format" implements "AIOS Chat Format"
         Source: JsonObject;
         Base64Convert: Codeunit "Base64 Convert";
         Decoded: Text;
+        Lf: Text[1];
     begin
         MediaType := GetPartMediaType(Part);
         Data := GetPartData(Part);
@@ -235,8 +236,10 @@ codeunit 87452 "AIOS Anthropic Format" implements "AIOS Chat Format"
             Decoded := GetPartText(Part);
             if Decoded = '' then
                 Decoded := Base64Convert.FromBase64(Data);
-            if Filename <> '' then
-                exit(TextBlock(StrSubstNo(FileAsTextFmtTok, Filename, Decoded)));
+            if Filename <> '' then begin
+                Lf[1] := 10;
+                exit(TextBlock(StrSubstNo(FileAsTextFmtTok, Filename, Lf, Decoded)));
+            end;
             exit(TextBlock(Decoded));
         end;
 
@@ -389,7 +392,7 @@ codeunit 87452 "AIOS Anthropic Format" implements "AIOS Chat Format"
     end;
 
     var
-        FileAsTextFmtTok: Label '[file: %1]\n%2', Locked = true;
+        FileAsTextFmtTok: Label '[file: %1]%2%3', Locked = true;
         UnsupportedFileErr: Label 'Anthropic does not accept file media type ''%1''. Use image/*, application/pdf, or text/*.', Comment = '%1 = media type';
         UnexpandedAttachmentErr: Label 'File part has an attachment id but no payload. Use Request.GetProviderMessages() before MapMessages.';
 }

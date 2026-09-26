@@ -5,7 +5,7 @@ using PM.Guillem.AIOpenSDK.Core;
 /// <summary>
 /// Tool-loop test double: a model that returns configured tool calls once, then final text, and a counting tool.
 /// </summary>
-codeunit 87501 "AIOS Tool Loop Test Double" implements "AIOS Language Model", "AIOS Tool"
+codeunit 87503 "AIOS Tool Loop Test Double" implements "AIOS Language Model", "AIOS Tool"
 {
     Access = Internal;
     SingleInstance = true;

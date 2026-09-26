@@ -101,7 +101,7 @@ codeunit 87428 "AIOS Chat Messages"
     end;
 
     /// <summary>
-    /// Appends an assistant message with tool calls and optional reasoning content.
+    /// Appends an assistant message with tool calls and optional reasoning content (omitted when empty).
     /// </summary>
     procedure AppendAssistantToolCalls(var Request: Record "AIOS Chat Request"; Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text)
     var
