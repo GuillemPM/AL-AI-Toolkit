@@ -17,6 +17,7 @@ codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
         NextToolCallName: Text;
         NextToolCallArgs: Text;
         HasNextToolCall: Boolean;
+        ToolCallProviderContent: JsonObject;
 
     procedure Initialize(ModelId: Text; Content: Text; ShouldFail: Boolean; ErrorType: Enum "AIOS Error Type"; ErrorMessage: Text; FailuresBeforeSuccess: Integer)
     begin
@@ -35,6 +36,11 @@ codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
         NextToolCallId := ToolCallId;
         NextToolCallName := ToolName;
         NextToolCallArgs := ToolArgsJson;
+    end;
+
+    procedure SetToolCallProviderContent(ProviderContent: JsonObject)
+    begin
+        ToolCallProviderContent := ProviderContent;
     end;
 
     procedure GetModelId(): Text
@@ -76,6 +82,7 @@ codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
             CallObj.Add('arguments', Args);
             ToolCalls.Add(CallObj);
             Response.SetToolCallsJson(ToolCalls);
+            Response.SetProviderContent(ToolCallProviderContent);
             Response.SetText(CannedContent);
             Response."Finish Reason" := 'tool_calls';
             Response.SetBody(Response.GetText());

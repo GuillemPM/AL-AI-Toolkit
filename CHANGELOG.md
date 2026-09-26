@@ -8,6 +8,16 @@ All notable changes to this project are documented in this file.
 
 - `"AIOS Chat Request".ClearOutput` now also disables `"Json Mode"` and drops the generated output instruction, so a reused request no longer keeps JSON mode or a stale schema hint.
 - Calling `SetOutput` repeatedly on the same request no longer stacks schema hints, and calling `SetSystemMessage` after `SetOutput` no longer drops the hint.
+- Anthropic tool loops with extended thinking no longer fail on the second request. Thinking and redacted-thinking blocks, signatures included, are now kept from the response and sent back unchanged with the assistant tool-call turn.
+- Anthropic thinking options no longer produce requests the API rejects. When the thinking budget would not fit below `max_tokens`, `max_tokens` is raised to budget + requested max tokens, with a `compatibility` warning. With thinking on, `temperature`, `top_k`, and a `top_p` outside 0.95–1 are omitted, each with an `unsupported` warning.
+- `RunAnthropicOptionsDemo` now uses 4096 max tokens and only sampling options that Anthropic accepts with thinking.
+
+### Added
+
+- `"AIOS Chat Response"` field `"Provider Content"` with `SetProviderContent` / `GetProviderContent`. It holds opaque, provider-tagged assistant content (`{ "provider": ..., "content": [...] }`) that must be sent back on tool-loop turns.
+- `"AIOS Chat Request".AppendAssistantToolCalls(var Response)` appends the assistant tool-call turn straight from a response, including provider content; use it in manual tool loops. There is also a new overload that takes `ProviderContent: JsonObject`. The history key `provider_content` is written only when provider content is present, and only the owning provider's format reads it.
+- `"AIOS Anthropic Format".ExtractProviderContent` / `GetThinkingText`. Anthropic responses now also fill `GetReasoningContent()` with the thinking text.
+- `"AIOS Mock".SetNextToolCallProviderContent` for testing tool loops.
 
 ### Changed
 

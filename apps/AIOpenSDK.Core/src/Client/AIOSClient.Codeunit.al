@@ -316,7 +316,7 @@ codeunit 87410 "AIOS Client"
             end;
 
             ToolCalls := Response.GetToolCalls();
-            Request.AppendAssistantToolCalls(Response.GetText(), ToolCalls, Response.GetReasoningContent());
+            Request.AppendAssistantToolCalls(Response);
             if not TryExecuteToolCalls(ToolSet, ToolCalls, Request, Response) then
                 exit(false);
         end;
