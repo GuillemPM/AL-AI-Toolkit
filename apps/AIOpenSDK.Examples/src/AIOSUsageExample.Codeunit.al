@@ -261,8 +261,6 @@ codeunit 87480 "AIOS Usage Example"
     /// <summary>
     /// Anthropic with sampling / thinking options.
     /// Reasoning Medium → thinking.budget_tokens ≈ 30% of Max Tokens (min 1024, always below max_tokens).
-    /// With thinking on, Anthropic accepts top_p only in [0.95, 1] and rejects temperature / top_k
-    /// (they are omitted with response warnings if set).
     /// </summary>
     procedure RunAnthropicOptionsDemo(ApiKey: SecretText)
     var

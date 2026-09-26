@@ -446,8 +446,7 @@ table 87402 "AIOS Chat Response"
     end;
 
     /// <summary>
-    /// Stores opaque provider-owned assistant content ({ "provider": ..., "content": [...] }) that must be
-    /// replayed unchanged on tool-loop turns (e.g. Anthropic thinking blocks with signatures).
+    /// Stores opaque provider-owned assistant content replayed on tool-loop turns.
     /// </summary>
     procedure SetProviderContent(Value: JsonObject)
     var

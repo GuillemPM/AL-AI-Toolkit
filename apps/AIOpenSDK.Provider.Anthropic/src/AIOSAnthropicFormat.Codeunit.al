@@ -183,9 +183,7 @@ codeunit 87452 "AIOS Anthropic Format" implements "AIOS Chat Format"
     end;
 
     /// <summary>
-    /// Returns provider content ({ "provider": "anthropic", "content": [...] }) for a response content array
-    /// that contains thinking or redacted_thinking blocks, so the turn can be replayed unchanged
-    /// (signatures included) on the next tool-loop request. Returns an empty object otherwise.
+    /// Returns provider content for a response content array with thinking blocks, or an empty object.
     /// </summary>
     procedure ExtractProviderContent(WireToken: JsonToken): JsonObject
     var
@@ -264,8 +262,7 @@ codeunit 87452 "AIOS Anthropic Format" implements "AIOS Chat Format"
     end;
 
     /// <summary>
-    /// True when the raw tool_use ids equal the tool_calls ids on the history message (same order),
-    /// i.e. the caller did not edit the tool calls and the raw content can be replayed verbatim.
+    /// True when the raw tool_use ids match the tool_calls ids on the history message.
     /// </summary>
     local procedure ReplayMatchesToolCalls(Msg: JsonObject; ReplayContent: JsonArray): Boolean
     var

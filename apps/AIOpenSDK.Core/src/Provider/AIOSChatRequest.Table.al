@@ -646,8 +646,7 @@ table 87401 "AIOS Chat Request"
     end;
 
     /// <summary>
-    /// Appends an assistant tool-call message with reasoning content and provider-owned content
-    /// ({ "provider": ..., "content": [...] }, e.g. Anthropic thinking blocks) replayed only by that provider.
+    /// Appends an assistant tool-call message with reasoning content and provider-owned content.
     /// </summary>
     procedure AppendAssistantToolCalls(Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text; ProviderContent: JsonObject)
     var
@@ -657,8 +656,7 @@ table 87401 "AIOS Chat Request"
     end;
 
     /// <summary>
-    /// Appends the assistant tool-call turn from a model response, including provider-owned content
-    /// (e.g. Anthropic thinking blocks and signatures) required to replay the turn. Use in manual tool loops.
+    /// Appends the assistant tool-call turn from a model response, including provider-owned content.
     /// </summary>
     procedure AppendAssistantToolCalls(var Response: Record "AIOS Chat Response")
     var

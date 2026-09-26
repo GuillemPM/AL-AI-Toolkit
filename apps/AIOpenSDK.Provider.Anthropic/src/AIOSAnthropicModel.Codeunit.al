@@ -172,7 +172,6 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
         if ToolCalls.Count() > 0 then
             Response.SetToolCallsJson(ToolCalls);
 
-        // Thinking blocks (with signatures) must be replayed unchanged on the next tool-loop request.
         Response.SetProviderContent(FormatCU.ExtractProviderContent(ContentToken));
         Response.SetReasoningContent(FormatCU.GetThinkingText(ContentToken));
 

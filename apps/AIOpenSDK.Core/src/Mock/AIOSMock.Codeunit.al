@@ -149,8 +149,7 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
     end;
 
     /// <summary>
-    /// Provider-owned content returned with the next tool-call response (simulates e.g. Anthropic thinking blocks).
-    /// Call after SetNextToolCall / SetNextToolCallThenResponse.
+    /// Provider-owned content returned with the next tool-call response.
     /// </summary>
     procedure SetNextToolCallProviderContent(ProviderContent: JsonObject)
     begin

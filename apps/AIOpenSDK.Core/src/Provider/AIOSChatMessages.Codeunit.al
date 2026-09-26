@@ -111,8 +111,7 @@ codeunit 87428 "AIOS Chat Messages"
     end;
 
     /// <summary>
-    /// Appends the assistant tool-call turn from a model response: text, tool calls, reasoning content,
-    /// and provider-owned content (e.g. Anthropic thinking blocks) needed to replay the turn.
+    /// Appends the assistant tool-call turn from a model response, including provider-owned content.
     /// </summary>
     procedure AppendAssistantToolCalls(var Request: Record "AIOS Chat Request"; var Response: Record "AIOS Chat Response")
     begin
@@ -121,7 +120,6 @@ codeunit 87428 "AIOS Chat Messages"
 
     /// <summary>
     /// Appends an assistant message with tool calls, optional reasoning content, and optional provider content.
-    /// Provider content is stored as provider_content only when non-empty; only the owning provider's format reads it.
     /// </summary>
     procedure AppendAssistantToolCalls(var Request: Record "AIOS Chat Request"; Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text; ProviderContent: JsonObject)
     var

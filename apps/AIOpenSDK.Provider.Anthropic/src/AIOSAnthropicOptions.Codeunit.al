@@ -11,8 +11,6 @@ codeunit 87453 "AIOS Anthropic Options"
 
     /// <summary>
     /// Adds Anthropic sampling and thinking fields to the messages root object.
-    /// When thinking is enabled: budget_tokens is kept below max_tokens (max_tokens is raised when needed),
-    /// and temperature, top_k, and top_p outside [0.95, 1] are omitted with warnings.
     /// </summary>
     procedure Apply(var Root: JsonObject; var Request: Record "AIOS Chat Request"; var Warnings: JsonArray)
     var
