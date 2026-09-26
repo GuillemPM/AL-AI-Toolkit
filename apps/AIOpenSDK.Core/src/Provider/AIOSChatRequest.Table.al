@@ -38,6 +38,7 @@ table 87401 "AIOS Chat Request"
         }
         field(14; "Output Instruction"; Blob)
         {
+            Access = Internal;
             Caption = 'Output Instruction';
             DataClassification = SystemMetadata;
         }

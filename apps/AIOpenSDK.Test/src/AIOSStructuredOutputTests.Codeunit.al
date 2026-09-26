@@ -414,6 +414,22 @@ codeunit 87494 "AIOS Structured Output Tests"
     end;
 
     [Test]
+    procedure ClearOutput_ManualJsonMode_DisablesJsonMode()
+    var
+        Request: Record "AIOS Chat Request";
+    begin
+        Request."Json Mode" := true;
+        Request.SetSystemMessage('Be brief.');
+
+        Request.ClearOutput();
+
+        if Request."Json Mode" then
+            Error(ExpectedNoJsonModeAfterClearErr);
+        if Request.GetEffectiveSystemMessage() <> 'Be brief.' then
+            Error(UnexpectedTextErr, 'Be brief.', Request.GetEffectiveSystemMessage());
+    end;
+
+    [Test]
     procedure ClearOutput_AfterRecRef_ResetsJsonModeAndInstruction()
     var
         Request: Record "AIOS Chat Request";
