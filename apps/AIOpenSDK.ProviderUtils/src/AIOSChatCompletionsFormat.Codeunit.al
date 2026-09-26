@@ -362,13 +362,18 @@ codeunit 87435 "AIOS Chat Completions Format" implements "AIOS Chat Format"
                     OutCall.Add('name', NameToken.AsValue().AsText());
                 if FunctionObj.Get('arguments', ArgsToken) then begin
                     if ArgsToken.IsObject() then
-                        ArgsObj := ArgsToken.AsObject()
+                        OutCall.Add('arguments', ArgsToken.AsObject())
                     else begin
                         ArgsText := ArgsToken.AsValue().AsText();
-                        if not ArgsObj.ReadFrom(ArgsText) then
-                            Clear(ArgsObj);
+                        if DelChr(ArgsText, '<>', ' ') = '' then
+                            OutCall.Add('arguments', EmptyObject())
+                        else
+                            if ArgsObj.ReadFrom(ArgsText) then
+                                OutCall.Add('arguments', ArgsObj)
+                            else
+                                // Malformed JSON: keep the raw text so Core rejects the call instead of running it with {}.
+                                OutCall.Add('arguments', ArgsText);
                     end;
-                    OutCall.Add('arguments', ArgsObj);
                 end else
                     OutCall.Add('arguments', EmptyObject());
             end;

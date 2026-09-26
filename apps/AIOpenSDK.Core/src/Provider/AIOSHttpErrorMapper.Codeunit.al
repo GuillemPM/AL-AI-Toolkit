@@ -9,6 +9,8 @@ codeunit 87464 "AIOS Http Error Mapper"
 
     /// <summary>
     /// Maps a provider HTTP status code to the toolkit error enum.
+    /// Transient 5xx statuses (including 529 overloaded) map to ProviderUnavailable so they are retried;
+    /// 501 and 505 are permanent and map to Unknown.
     /// </summary>
     procedure FromHttpStatus(StatusCode: Integer): Enum "AIOS Error Type"
     begin
@@ -21,7 +23,9 @@ codeunit 87464 "AIOS Http Error Mapper"
                 exit("AIOS Error Type"::InvalidRequest);
             408, 504:
                 exit("AIOS Error Type"::Timeout);
-            500, 502, 503:
+            501, 505:
+                exit("AIOS Error Type"::Unknown);
+            500 .. 599:
                 exit("AIOS Error Type"::ProviderUnavailable);
             else
                 exit("AIOS Error Type"::Unknown);

@@ -54,17 +54,28 @@ codeunit 87416 "AIOS Tool Call"
     end;
 
     /// <summary>
-    /// Parsed tool arguments as a JSON object.
+    /// Parsed tool arguments as a JSON object. Returns an empty object when the arguments are not valid JSON;
+    /// use TryGetArguments to tell malformed arguments apart from an empty argument list.
     /// </summary>
     procedure GetArguments(): JsonObject
     var
         Arguments: JsonObject;
     begin
-        if ArgumentsText = '' then
-            exit(Arguments);
-        if not Arguments.ReadFrom(ArgumentsText) then
+        if not TryGetArguments(Arguments) then
             Clear(Arguments);
         exit(Arguments);
+    end;
+
+    /// <summary>
+    /// Parses the tool arguments into a JSON object. Returns false when the model sent arguments that are not a valid JSON object.
+    /// Blank arguments count as an empty object.
+    /// </summary>
+    procedure TryGetArguments(var Arguments: JsonObject): Boolean
+    begin
+        Clear(Arguments);
+        if DelChr(ArgumentsText, '<>', ' ') = '' then
+            exit(true);
+        exit(Arguments.ReadFrom(ArgumentsText));
     end;
 
     /// <summary>
