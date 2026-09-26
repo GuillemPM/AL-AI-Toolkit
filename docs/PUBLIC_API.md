@@ -10,6 +10,7 @@ Supported surface for application developers. Prefer these objects; treat anythi
   - `SetOutput` keeps its generated JSON/schema instruction apart from the system message: `GetSystemMessage` returns only your text, `GetEffectiveSystemMessage` returns the text sent to providers. `ClearOutput` removes the instruction and turns `"Json Mode"` off.
   - `Messages` holds conversation turns only. `GetProviderMessages` adds the current effective system message first, so system/output changes on a reused request apply. `SetPrompt` on a request with history adds the prompt once as the next user turn.
 - `"AIOS Schema"`, `"AIOS Tool Set"`, `"AIOS Tool"` / `"AIOS Tool Handler"` interfaces
+  - `"AIOS Tool Call".TryGetArguments` returns false when the model sent arguments that are not valid JSON; `GetArguments` returns `{}` in that case and `GetArgumentsJson` returns the raw text.
 - `"AIOS Mock"` — unit tests without network
 - `"AIOS Http Error Mapper"` — shared HTTP status → error type mapping (provider authors)
 - `"AIOS Privacy Notice"` — company-level privacy-notice approval gate for outbound AI HTTP (no per-call UI)
@@ -34,6 +35,8 @@ Usually **not** referenced from application code. Provider authors use:
 - `"AIOS Chat Completions Client"`
 
 OpenAI / OpenAI Compatible / OpenCode Zen depend on ProviderUtils; Anthropic depends on Core only.
+
+`Client.Generate` and `Options.Apply` each have an overload with an `OpenAIDialect: Boolean` argument. `true` (used by the OpenAI provider) sends `max_completion_tokens` and passes every reasoning level through as `reasoning_effort`; the original overloads use the compatible dialect (`max_tokens`, reasoning coerced to `low` / `medium` / `high` with a compatibility warning).
 
 ## Not public for consumers
 

@@ -21,7 +21,9 @@ codeunit 87464 "AIOS Http Error Mapper"
                 exit("AIOS Error Type"::InvalidRequest);
             408, 504:
                 exit("AIOS Error Type"::Timeout);
-            500, 502, 503:
+            501, 505:
+                exit("AIOS Error Type"::Unknown);
+            500 .. 599:
                 exit("AIOS Error Type"::ProviderUnavailable);
             else
                 exit("AIOS Error Type"::Unknown);

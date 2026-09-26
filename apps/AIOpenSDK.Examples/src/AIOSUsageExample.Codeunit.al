@@ -346,7 +346,7 @@ codeunit 87480 "AIOS Usage Example"
     end;
 
     /// <summary>
-    /// OpenAI reasoning_effort via SetReasoning (XHigh → "xhigh").
+    /// OpenAI reasoning_effort via SetReasoning (High → "high"); SetMaxTokens is sent as max_completion_tokens.
     /// Use a reasoning-capable model id for your account.
     /// </summary>
     procedure RunOpenAIReasoningDemo(ApiKey: SecretText)
@@ -357,7 +357,7 @@ codeunit 87480 "AIOS Usage Example"
     begin
         Request.SetSystemMessage('Answer in one sentence.');
         Request.SetPrompt('Explain why BC uses temporary tables for request/response records.');
-        Request.SetReasoning("AIOS Reasoning Effort"::XHigh);
+        Request.SetReasoning("AIOS Reasoning Effort"::High);
         Request.SetMaxTokens(512);
         Request.SetMaxRetries(1);
 

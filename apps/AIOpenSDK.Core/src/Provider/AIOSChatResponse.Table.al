@@ -374,16 +374,18 @@ table 87402 "AIOS Chat Response"
             if CallObj.Get('name', NameToken) then
                 Name := NameToken.AsValue().AsText();
             Clear(ArgsObj);
+            Clear(ArgsText);
+            Clear(CallCU);
             if CallObj.Get('arguments', ArgsToken) then
                 if ArgsToken.IsObject() then
                     ArgsObj := ArgsToken.AsObject()
-                else begin
-                    ArgsText := ArgsToken.AsValue().AsText();
-                    if not ArgsObj.ReadFrom(ArgsText) then
-                        Clear(ArgsObj);
-                end;
-            Clear(CallCU);
-            CallCU.SetCall(Id, Name, ArgsObj);
+                else
+                    if ArgsToken.IsValue() then
+                        ArgsText := ArgsToken.AsValue().AsText();
+            if ArgsText <> '' then
+                CallCU.SetCall(Id, Name, ArgsText)
+            else
+                CallCU.SetCall(Id, Name, ArgsObj);
             Result.Add(CallCU);
         end;
         exit(Result);
@@ -395,19 +397,13 @@ table 87402 "AIOS Chat Response"
     procedure SetToolCallsFromList(ToolCalls: List of [Codeunit "AIOS Tool Call"])
     var
         ToolCallsArr: JsonArray;
-        CallObj: JsonObject;
         CallCU: Codeunit "AIOS Tool Call";
-        Args: JsonObject;
+        ChatMessages: Codeunit "AIOS Chat Messages";
         i: Integer;
     begin
         for i := 1 to ToolCalls.Count() do begin
             ToolCalls.Get(i, CallCU);
-            Clear(CallObj);
-            CallObj.Add('id', CallCU.GetId());
-            CallObj.Add('name', CallCU.GetName());
-            Args := CallCU.GetArguments();
-            CallObj.Add('arguments', Args);
-            ToolCallsArr.Add(CallObj);
+            ToolCallsArr.Add(ChatMessages.ToolCallToJson(CallCU));
         end;
         SetToolCallsJson(ToolCallsArr);
     end;

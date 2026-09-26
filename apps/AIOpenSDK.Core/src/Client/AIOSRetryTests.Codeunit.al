@@ -26,6 +26,20 @@ codeunit 87415 "AIOS Retry Tests"
     end;
 
     [Test]
+    procedure Retry_IsRetriable_OverloadedAndTransient5xx()
+    var
+        Retry: Codeunit "AIOS Retry";
+        HttpErrors: Codeunit "AIOS Http Error Mapper";
+    begin
+        if not Retry.IsRetriable(HttpErrors.FromHttpStatus(529)) then
+            Error(ExpectedRetriableErr, '529');
+        if not Retry.IsRetriable(HttpErrors.FromHttpStatus(520)) then
+            Error(ExpectedRetriableErr, '520');
+        if Retry.IsRetriable(HttpErrors.FromHttpStatus(501)) then
+            Error(ExpectedNotRetriableErr, '501');
+    end;
+
+    [Test]
     procedure Retry_BackoffMs_LinearThenCapped()
     var
         Retry: Codeunit "AIOS Retry";
