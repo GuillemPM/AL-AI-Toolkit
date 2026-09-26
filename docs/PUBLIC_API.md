@@ -8,6 +8,7 @@ Supported surface for application developers. Prefer these objects; treat anythi
 - `"AIOS Generate Result"` / `"AIOS Generate Image Result"` and related result helpers (`Output`, `GetResponseCalls`, …)
 - `"AIOS Chat Request"` / `"AIOS Chat Response"` (and image request/response tables)
   - `SetOutput` keeps its generated JSON/schema instruction apart from the system message: `GetSystemMessage` returns only your text, `GetEffectiveSystemMessage` returns the text sent to providers. `ClearOutput` removes the instruction and turns `"Json Mode"` off.
+  - `Messages` holds conversation turns only. `GetProviderMessages` adds the current effective system message first, so system/output changes on a reused request apply. `SetPrompt` on a request with history adds the prompt once as the next user turn.
 - `"AIOS Schema"`, `"AIOS Tool Set"`, `"AIOS Tool"` / `"AIOS Tool Handler"` interfaces
 - `"AIOS Mock"` — unit tests without network
 - `"AIOS Http Error Mapper"` — shared HTTP status → error type mapping (provider authors)

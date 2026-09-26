@@ -299,6 +299,46 @@ codeunit 87500 "AIOS File Content Tests"
     end;
 
     [Test]
+    procedure Attach_AfterToolResult_WithoutNewPrompt_DoesNotResendPrompt()
+    var
+        Request: Record "AIOS Chat Request";
+        Call: Codeunit "AIOS Tool Call";
+        Base64Convert: Codeunit "Base64 Convert";
+        ToolCalls: List of [Codeunit "AIOS Tool Call"];
+        Messages: JsonArray;
+        MsgToken: JsonToken;
+        ContentToken: JsonToken;
+        PartToken: JsonToken;
+        TypeToken: JsonToken;
+        Args: JsonObject;
+        Parts: JsonArray;
+    begin
+        Request.SetPrompt('use the tool');
+        Request.EnsureMessagesFromPrompt();
+        Call.SetCall('call_1', 'echo', Args);
+        ToolCalls.Add(Call);
+        Request.AppendAssistantToolCalls('', ToolCalls);
+        Request.AppendToolResult('call_1', 'echo', 'ok');
+        Request.Attach(Base64Convert.ToBase64('notes'), 'text/plain', 'notes.txt');
+        Request.EnsureMessagesFromPrompt();
+
+        Messages := Request.GetMessages();
+        if CountRole(Messages, 'user') <> 2 then
+            Error(UnexpectedCountErr, 2, CountRole(Messages, 'user'));
+        Messages.Get(Messages.Count() - 1, MsgToken);
+        MsgToken.AsObject().Get('content', ContentToken);
+        if not ContentToken.IsArray() then
+            Error(ExpectedMultipartErr);
+        Parts := ContentToken.AsArray();
+        if Parts.Count() <> 1 then
+            Error(UnexpectedCountErr, 1, Parts.Count());
+        Parts.Get(0, PartToken);
+        PartToken.AsObject().Get('type', TypeToken);
+        if TypeToken.AsValue().AsText() <> 'file' then
+            Error(UnexpectedTextErr, 'file', TypeToken.AsValue().AsText());
+    end;
+
+    [Test]
     procedure ClearAttachments_DropsOrphanPayload_KeepsHistoryPayload()
     var
         Request: Record "AIOS Chat Request";

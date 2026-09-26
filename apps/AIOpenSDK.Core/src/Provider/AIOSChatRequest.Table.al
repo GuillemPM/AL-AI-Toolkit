@@ -42,6 +42,12 @@ table 87401 "AIOS Chat Request"
             Caption = 'Output Instruction';
             DataClassification = SystemMetadata;
         }
+        field(15; "Prompt Pending"; Boolean)
+        {
+            Access = Internal;
+            Caption = 'Prompt Pending';
+            DataClassification = SystemMetadata;
+        }
         field(20; "Json Mode"; Boolean)
         {
             Caption = 'JSON Mode';
@@ -191,6 +197,10 @@ table 87401 "AIOS Chat Request"
         }
     }
 
+    /// <summary>
+    /// Sets the user prompt. When history is empty, Generate builds the user turn from it.
+    /// When history exists, the prompt is appended as the next user turn once; later generates do not repeat it.
+    /// </summary>
     procedure SetPrompt(Value: Text)
     var
         ChatPrompt: Codeunit "AIOS Chat Prompt";
@@ -232,7 +242,7 @@ table 87401 "AIOS Chat Request"
     end;
 
     /// <summary>
-    /// Binds flat JSON fields onto RecRef. Pass the same RecRef to GenerateText(Model, Request, RecRef).
+    /// Binds flat JSON fields onto RecRef. GenerateText(Model, Request, RecRef) rebinds to the RecRef passed there.
     /// Prefer SetOutput with a JSON Schema for nested shapes.
     /// </summary>
     procedure SetOutput(RecRef: RecordRef)
@@ -563,6 +573,7 @@ table 87401 "AIOS Chat Request"
 
     /// <summary>
     /// AIOS-normalized conversation history (system, user, assistant, tool roles).
+    /// Holds only turns: the system message and output instruction are not stored here; GetProviderMessages adds them.
     /// </summary>
     procedure GetMessages(): JsonArray
     var
@@ -657,8 +668,10 @@ table 87401 "AIOS Chat Request"
 
     /// <summary>
     /// Ensures Messages includes the prompt and any pending Attach parts.
-    /// When history is empty: system (effective) + user turn.
-    /// When history exists and Attachments are pending: merge into the last user message, or append a new user turn.
+    /// When history is empty: a user turn from the prompt and attachments.
+    /// When history exists and SetPrompt was called since the prompt was last added: a new user turn from the prompt and attachments.
+    /// Otherwise pending attachments merge into the last user message, or go into a new user turn.
+    /// The system message is not stored in history; GetProviderMessages adds the current one.
     /// </summary>
     procedure EnsureMessagesFromPrompt()
     var
@@ -670,8 +683,8 @@ table 87401 "AIOS Chat Request"
     /// <summary>
     /// Attaches content to the next user turn (AI SDK–style file part). mediaType is IANA (e.g. image/png, application/pdf).
     /// Binary bytes are stored raw in Attachment Binaries; message history stores an id ref. Base64 is produced only in GetProviderMessages.
-    /// Applied in EnsureMessagesFromPrompt / Generate: into a new user turn when history is empty or last turn is not user;
-    /// otherwise merged into the last user message.
+    /// Applied in EnsureMessagesFromPrompt / Generate: together with a new prompt, or into a new user turn when history is empty
+    /// or the last turn is not user; otherwise merged into the last user message.
     /// </summary>
     procedure Attach(var ContentInStream: InStream; MediaType: Text; Filename: Text)
     var
@@ -771,7 +784,8 @@ table 87401 "AIOS Chat Request"
     end;
 
     /// <summary>
-    /// Message history with file refs expanded (text or base64 data) for provider MapMessages. Does not mutate stored Messages.
+    /// Messages to send to providers: the effective system message (GetEffectiveSystemMessage) first, then the history
+    /// with file refs expanded (text or base64 data). Does not mutate stored Messages.
     /// </summary>
     procedure GetProviderMessages(): JsonArray
     var

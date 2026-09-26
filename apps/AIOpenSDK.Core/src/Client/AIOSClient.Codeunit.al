@@ -47,10 +47,7 @@ codeunit 87410 "AIOS Client"
     var
         Response: Record "AIOS Chat Response";
     begin
-        if OutputRecRef.Number() = 0 then
-            Error(OutputRecordMissingErr);
-        if not Request.HasOutput() then
-            Request.SetOutput(OutputRecRef);
+        BindOutputRecord(Request, OutputRecRef);
         if not TryGenerate(Model, Request, Response, OutputRecRef) then
             Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
         exit(BuildGenerateResult(Response));
@@ -92,10 +89,7 @@ codeunit 87410 "AIOS Client"
     var
         Response: Record "AIOS Chat Response";
     begin
-        if OutputRecRef.Number() = 0 then
-            Error(OutputRecordMissingErr);
-        if not Request.HasOutput() then
-            Request.SetOutput(OutputRecRef);
+        BindOutputRecord(Request, OutputRecRef);
         if not TryGenerateWithTools(Model, Request, ToolSet, MaxSteps, Response, OutputRecRef) then
             Error(GenerationFailedErr, Response.GetErrorType(), Response."Error Message");
         exit(BuildGenerateResult(Response));
@@ -267,9 +261,9 @@ codeunit 87410 "AIOS Client"
     begin
         Clear(Response);
         ClearChatResponseCalls();
-        Request.EnsureMessagesFromPrompt();
         ModelId := Model.GetModelId();
         OnBeforeGenerate(ModelId, Request, Response);
+        Request.EnsureMessagesFromPrompt();
         if not TryGenerateCore(Model, Request, Response, OutputRecRef) then
             exit(false);
         OnAfterGenerate(ModelId, Request, Response);
@@ -296,9 +290,9 @@ codeunit 87410 "AIOS Client"
 
         ModelId := Model.GetModelId();
         Request.SetTools(ToolSet);
-        Request.EnsureMessagesFromPrompt();
 
         OnBeforeGenerate(ModelId, Request, Response);
+        Request.EnsureMessagesFromPrompt();
 
         for Step := 1 to EffectiveMaxSteps do begin
             if not TryGenerateCore(Model, Request, Response, OutputRecRef) then
@@ -507,13 +501,24 @@ codeunit 87410 "AIOS Client"
         exit(TryGenerate(Model, Request, Response, EmptyOutput));
     end;
 
+    /// <summary>
+    /// Binds structured output to OutputRecRef, replacing any earlier binding so the schema hint matches this record.
+    /// </summary>
+    local procedure BindOutputRecord(var Request: Record "AIOS Chat Request"; var OutputRecRef: RecordRef)
+    begin
+        if OutputRecRef.Number() = 0 then
+            Error(OutputRecordMissingErr);
+        Request.SetOutput(OutputRecRef);
+    end;
+
     local procedure DefaultToolMaxSteps(): Integer
     begin
         exit(5);
     end;
 
     /// <summary>
-    /// Raised once when generation starts, before any model call.
+    /// Raised once when generation starts, before the prompt and pending attachments are added to the history
+    /// and before any model call. Changes made to the request here are sent.
     /// </summary>
     [IntegrationEvent(false, false)]
     local procedure OnBeforeGenerate(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
@@ -521,7 +526,8 @@ codeunit 87410 "AIOS Client"
     end;
 
     /// <summary>
-    /// Raised immediately before each language-model call attempt.
+    /// Raised immediately before each language-model call attempt. The prompt is already in the history;
+    /// system message and output changes made here still apply to this call.
     /// </summary>
     [IntegrationEvent(false, false)]
     local procedure OnBeforeLanguageModelCall(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")

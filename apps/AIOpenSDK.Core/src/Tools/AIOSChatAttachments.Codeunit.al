@@ -16,18 +16,17 @@ codeunit 87423 "AIOS Chat Attachments"
 
     /// <summary>
     /// Ensures Messages includes the prompt and any pending Attach parts on Request.
+    /// Empty history: adds a user turn from the prompt. Existing history: adds the prompt only if it was set since it was
+    /// last added, so repeated generates and manual tool loops do not resend it. The system message is never stored here.
     /// </summary>
     procedure EnsureMessagesFromPrompt(var Request: Record "AIOS Chat Request")
     var
         ChatMessages: Codeunit "AIOS Chat Messages";
         ChatPrompt: Codeunit "AIOS Chat Prompt";
-        SystemText: Text;
     begin
-        if not ChatMessages.HasMessages(Request) then begin
-            SystemText := ChatPrompt.GetEffectiveSystemMessage(Request);
-            if SystemText <> '' then
-                AppendSystemMessage(Request, SystemText);
+        if (not ChatMessages.HasMessages(Request)) or Request."Prompt Pending" then begin
             AppendUserMessageWithAttachments(Request, ChatPrompt.GetPrompt(Request));
+            Request."Prompt Pending" := false;
             exit;
         end;
 
@@ -35,7 +34,7 @@ codeunit 87423 "AIOS Chat Attachments"
             exit;
 
         if not TryMergeAttachmentsIntoLastUserMessage(Request) then
-            AppendUserMessageWithAttachments(Request, ChatPrompt.GetPrompt(Request));
+            AppendUserMessageWithAttachments(Request, '');
     end;
 
     /// <summary>
@@ -274,21 +273,32 @@ codeunit 87423 "AIOS Chat Attachments"
     end;
 
     /// <summary>
-    /// Message history with file refs expanded for provider MapMessages. Does not mutate stored Messages.
+    /// Messages for provider MapMessages: the current effective system message first, then the history with file refs
+    /// expanded. The system message is skipped when history already starts with the same system text. Does not mutate stored Messages.
     /// </summary>
     procedure GetProviderMessages(var Request: Record "AIOS Chat Request"): JsonArray
     var
         ChatMessages: Codeunit "AIOS Chat Messages";
+        ChatPrompt: Codeunit "AIOS Chat Prompt";
         MessagesArr: JsonArray;
         Expanded: JsonArray;
         MsgToken: JsonToken;
         Msg: JsonObject;
         NewMsg: JsonObject;
+        SystemMsg: JsonObject;
         ContentToken: JsonToken;
         i: Integer;
         MsgText: Text;
+        SystemText: Text;
     begin
         MessagesArr := ChatMessages.GetMessages(Request);
+        SystemText := ChatPrompt.GetEffectiveSystemMessage(Request);
+        if SystemText <> '' then
+            if not StartsWithSystemMessage(MessagesArr, SystemText) then begin
+                SystemMsg.Add('role', 'system');
+                SystemMsg.Add('content', SystemText);
+                Expanded.Add(SystemMsg);
+            end;
         for i := 0 to MessagesArr.Count() - 1 do begin
             MessagesArr.Get(i, MsgToken);
             Msg := MsgToken.AsObject();
@@ -742,17 +752,28 @@ codeunit 87423 "AIOS Chat Attachments"
         exit(true);
     end;
 
-    local procedure AppendSystemMessage(var Request: Record "AIOS Chat Request"; Content: Text)
+    local procedure StartsWithSystemMessage(MessagesArr: JsonArray; SystemText: Text): Boolean
     var
-        ChatMessages: Codeunit "AIOS Chat Messages";
-        MessagesArr: JsonArray;
+        MsgToken: JsonToken;
         Msg: JsonObject;
+        RoleToken: JsonToken;
+        ContentToken: JsonToken;
     begin
-        MessagesArr := ChatMessages.GetMessages(Request);
-        Msg.Add('role', 'system');
-        Msg.Add('content', Content);
-        MessagesArr.Add(Msg);
-        ChatMessages.SetMessages(Request, MessagesArr);
+        if MessagesArr.Count() = 0 then
+            exit(false);
+        MessagesArr.Get(0, MsgToken);
+        if not MsgToken.IsObject() then
+            exit(false);
+        Msg := MsgToken.AsObject();
+        if not Msg.Get('role', RoleToken) then
+            exit(false);
+        if RoleToken.AsValue().AsText() <> 'system' then
+            exit(false);
+        if not Msg.Get('content', ContentToken) then
+            exit(false);
+        if not ContentToken.IsValue() then
+            exit(false);
+        exit(ContentToken.AsValue().AsText() = SystemText);
     end;
 
     local procedure MaxAttachmentsPerRequest(): Integer
