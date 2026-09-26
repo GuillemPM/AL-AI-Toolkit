@@ -12,6 +12,9 @@ All notable changes to this project are documented in this file.
 - `GenerateText(Model, Request, ToolSet, [MaxSteps,] RecRef)` now raises an error when MaxSteps is reached while the model still requests tool calls, instead of returning success with an unfilled record.
 - `"AIOS Chat Request".ClearOutput` now also disables `"Json Mode"` and drops the generated output instruction, so a reused request no longer keeps JSON mode or a stale schema hint.
 - Calling `SetOutput` repeatedly on the same request no longer stacks schema hints, and calling `SetSystemMessage` after `SetOutput` no longer drops the hint.
+- Examples demo page: Generate structured, Generate JSON and Generate choice now work with Mock. The canned Mock response is set before the model is bound, and the choice response is built as JSON instead of by string substitution.
+- Examples demo page: Generate images now stores every generated image on the history line. It previously read the provider body, which holds only the last batch, and stored one image (or one corrupt picture with Mock).
+- Examples `get_customer_list` tool: the model-supplied `searchName` can no longer add filter clauses or break the filter. Filter characters match any single character instead.
 - Anthropic tool loops with extended thinking no longer fail on the second request. Thinking and redacted-thinking blocks, signatures included, are now kept from the response and sent back unchanged with the assistant tool-call turn.
 - Anthropic thinking options no longer produce requests the API rejects. When the thinking budget would not fit below `max_tokens`, `max_tokens` is raised to budget + requested max tokens, with a `compatibility` warning. With thinking on, `temperature`, `top_k`, and a `top_p` outside 0.95–1 are omitted, each with an `unsupported` warning.
 - `RunAnthropicOptionsDemo` now uses 4096 max tokens and only sampling options that Anthropic accepts with thinking.
@@ -42,6 +45,8 @@ All notable changes to this project are documented in this file.
 
 - `SetOutput` no longer rewrites the system message. The generated output instruction is kept in the new internal field `"Output Instruction"` and added by `GetEffectiveSystemMessage`, so `GetSystemMessage` returns only the text you set. Provider payloads are unchanged; read `GetEffectiveSystemMessage` if you need the text as sent.
 - `ClearOutput` resets `"Json Mode"` even if it was set by hand.
+- `"AIOS Mock"`: a tool-call turn no longer carries the final response text. `SetNextToolCallThenResponse(Id, Name, Args, FinalContent)` returns empty text with the tool call and `FinalContent` on the next turn, like real providers. The new overload `SetNextToolCallThenResponse(Id, Name, Args, ToolTurnText, FinalContent)` sets text on the tool-call turn.
+- Examples `"AIOS Demo Tools"` and `"AIOS Lifecycle Example"` are now manual event subscribers. Call `BindSubscription` to use them. Installing the Examples app no longer answers other apps' `echo` / `add_numbers` / `to_upper` tools or records every generate call. `"AIOS Lifecycle Example"` now keeps the trace of the last generate only.
 - `"AIOS Chat Request".Messages` no longer contains a generated system turn. `GetProviderMessages` puts the current effective system message first (skipped when history already starts with the same system text); system turns you add to history yourself are kept after it.
 - `OnBeforeGenerate` now runs before the prompt and pending attachments are added to the history.
 - For manual multi-turn chats, add the reply with `AppendAssistantMessage(Result.Output())` before the next `SetPrompt`. To reuse a request for an unrelated prompt, call `ClearMessages` first.

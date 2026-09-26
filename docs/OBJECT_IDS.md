@@ -110,3 +110,5 @@ Interfaces (`"AIOS Provider"`, `"AIOS Language Model"`, `"AIOS Image Model"`, `"
 | 87501 | AIOS Chat Completions Tests | Test |
 | 87503 | AIOS Tool Loop Test Double | Test |
 | 87504 | AIOS Anthropic Thinking Tests | Test |
+| 87502 | AIOS Examples Tests | Test |
+| 87505 | AIOS Test Named Tools | Test |

@@ -643,6 +643,7 @@ page 87481 "AIOS Toolkit Demo"
             Error(ApiKeyRequiredErr);
 
         SaveSettings();
+        PrepareMockResponse(MockDefaultReplyTok);
         Model := BindSelectedModel();
         BuildRequest(Request);
 
@@ -682,9 +683,8 @@ page 87481 "AIOS Toolkit Demo"
             Error(PromptRequiredErr);
 
         SaveSettings();
+        PrepareMockResponse(MockStructuredJsonTok);
         Model := BindSelectedModel();
-        if SelectedProvider = SelectedProvider::Mock then
-            MockProvider.SetNextResponse(MockStructuredJsonTok);
 
         Fields.Add(Schema.Field('Sentiment', Schema.String()));
         Fields.Add(Schema.Field('Score', Schema.Number()));
@@ -718,9 +718,8 @@ page 87481 "AIOS Toolkit Demo"
             Error(JsonPromptRequiredErr);
 
         SaveSettings();
+        PrepareMockResponse(MockJsonTok);
         Model := BindSelectedModel();
-        if SelectedProvider = SelectedProvider::Mock then
-            MockProvider.SetNextResponse(MockJsonTok);
 
         BuildRequest(Request);
         Request.SetOutput(Schema.Json());
@@ -740,6 +739,8 @@ page 87481 "AIOS Toolkit Demo"
         Result: Codeunit "AIOS Generate Result";
         Options: List of [Text];
         Model: Interface "AIOS Language Model";
+        MockChoice: JsonObject;
+        MockChoiceText: Text;
         FirstOption: Text;
     begin
         if ModelId = '' then
@@ -754,11 +755,11 @@ page 87481 "AIOS Toolkit Demo"
             Error(ChoiceOptionsRequiredErr);
 
         SaveSettings();
+        Options.Get(1, FirstOption);
+        MockChoice.Add('result', FirstOption);
+        MockChoice.WriteTo(MockChoiceText);
+        PrepareMockResponse(MockChoiceText);
         Model := BindSelectedModel();
-        if SelectedProvider = SelectedProvider::Mock then begin
-            Options.Get(1, FirstOption);
-            MockProvider.SetNextResponse(StrSubstNo('{"result":"%1"}', FirstOption));
-        end;
 
         BuildRequest(Request);
         Request.SetOutput(Schema.Choice(Options));
@@ -793,7 +794,7 @@ page 87481 "AIOS Toolkit Demo"
         if ToolMaxSteps < 1 then
             ToolMaxSteps := 5;
 
-        Model := BindSelectedModelForTools();
+        Model := BindSelectedModel();
         ToolSet.Add(GetCustomers);
 
         BuildRequest(Request);
@@ -882,17 +883,8 @@ page 87481 "AIOS Toolkit Demo"
     local procedure LogImageHistory(Ok: Boolean; PromptText: Text; RequestedCount: Integer; Usage: Codeunit "AIOS Image Usage"; Result: Codeunit "AIOS Generate Image Result")
     var
         History: Record "AIOS Demo History";
-        ImageCU: Codeunit "AIOS Generated Image";
         Images: List of [Codeunit "AIOS Generated Image"];
-        Base64Convert: Codeunit "Base64 Convert";
-        TempBlob: Codeunit "Temp Blob";
-        OutStream: OutStream;
-        InStream: InStream;
-        MimeType: Text;
-        FileName: Text;
-        Base64: Text;
         BodyText: Text;
-        i: Integer;
     begin
         History.Init();
         History."Created At" := CurrentDateTime();
@@ -918,29 +910,11 @@ page 87481 "AIOS Toolkit Demo"
         History."Output Tokens" := Usage.OutputTokens();
         History.Insert(true);
 
-        // Prefer provider JSON body (data[].b64_json) — avoids large-base64 JSON roundtrip truncation.
-        if not History.ImportPicturesFromImageJson(BodyText) then begin
-            Images := Result.GetImages();
-            for i := 1 to Images.Count() do begin
-                Images.Get(i, ImageCU);
-                Base64 := ImageCU.Base64();
-                if Base64 = '' then
-                    Error(MissingGeneratedBase64Err, i);
-
-                MimeType := ImageCU.MediaType();
-                if MimeType = '' then
-                    MimeType := 'image/png';
-                FileName := StrSubstNo(ImageFileNameTok, i);
-
-                Clear(TempBlob);
-                TempBlob.CreateOutStream(OutStream);
-                Base64Convert.FromBase64(Base64, OutStream);
-                TempBlob.CreateInStream(InStream);
-                History.Pictures.ImportStream(InStream, FileName, MimeType);
-            end;
-            if (Images.Count() > 0) and (History.Pictures.Count() = 0) then
-                Error(ImportGeneratedMediaErr, Images.Count());
-        end;
+        Images := Result.GetImages();
+        if History.ImportPicturesFromGeneratedImages(Images) = 0 then
+            if not History.ImportPicturesFromImageJson(BodyText) then
+                if Images.Count() > 0 then
+                    Error(ImportGeneratedMediaErr, Images.Count());
         History.Modify(true);
         Commit();
     end;
@@ -1181,10 +1155,7 @@ page 87481 "AIOS Toolkit Demo"
 
         case SelectedProvider of
             SelectedProvider::Mock:
-                begin
-                    MockProvider.SetNextResponse('Mock response: Great product, support felt pricey.');
-                    exit(MockProvider.Model(ModelId));
-                end;
+                exit(MockProvider.Model(ModelId));
             SelectedProvider::Anthropic:
                 exit(Anthropic.Model(ModelId, ApiKey));
             SelectedProvider::OpenAI:
@@ -1194,25 +1165,10 @@ page 87481 "AIOS Toolkit Demo"
         end;
     end;
 
-    local procedure BindSelectedModelForTools(): Interface "AIOS Language Model"
-    var
-        Anthropic: Codeunit "AIOS Anthropic";
-        OpenAI: Codeunit "AIOS OpenAI";
-        Zen: Codeunit "AIOS OpenCode Zen";
-        ApiKey: SecretText;
+    local procedure PrepareMockResponse(CannedText: Text)
     begin
-        ApiKey := ResolveApiKey();
-
-        case SelectedProvider of
-            SelectedProvider::Mock:
-                exit(MockProvider.Model(ModelId));
-            SelectedProvider::Anthropic:
-                exit(Anthropic.Model(ModelId, ApiKey));
-            SelectedProvider::OpenAI:
-                exit(OpenAI.Model(ModelId, ApiKey));
-            SelectedProvider::"OpenCode Zen":
-                exit(Zen.Model(ModelId, ApiKey));
-        end;
+        if SelectedProvider = SelectedProvider::Mock then
+            MockProvider.SetNextResponse(CannedText);
     end;
 
     local procedure SaveSettings()
@@ -1468,12 +1424,11 @@ page 87481 "AIOS Toolkit Demo"
         ImagePromptRequiredErr: Label 'Enter a prompt before generating images.';
         ImageProviderUnsupportedErr: Label 'Image generation is not available for %1. Use Mock or OpenAI.', Comment = '%1 = provider name';
         ImageResultMsg: Label 'Generated %1 image(s). Usage images=%2. HTTP %3.', Comment = '%1 = list count, %2 = usage count, %3 = status';
-        ImageFileNameTok: Label 'aios-demo-%1.png', Locked = true, Comment = '%1 = entry no';
-        MissingGeneratedBase64Err: Label 'GenerateImage returned empty base64 for image %1.', Comment = '%1 = entry no';
         ImportGeneratedMediaErr: Label 'Could not import generated images into history MediaSet (expected %1).', Comment = '%1 = image count';
         ImageHistorySystemTok: Label 'Image generation (count=%1, size=%2)', Comment = '%1 = image count, %2 = size';
         MockStructuredJsonTok: Label '{"Sentiment":"positive","Score":0.9,"Urgent":false,"Summary":"Good product, pricey support.","Topics":["pricing","support"]}', Locked = true;
         MockJsonTok: Label '{"sentiment":"positive","topics":["pricing","support"]}', Locked = true;
+        MockDefaultReplyTok: Label 'Mock response: Great product, support felt pricey.', Locked = true;
         NoHistorySelectedErr: Label 'Select a history line first.';
         UnknownProviderErr: Label 'Unknown provider in history: %1', Comment = '%1 = provider name';
         ClearHistoryQst: Label 'Delete all demo history for your user?';

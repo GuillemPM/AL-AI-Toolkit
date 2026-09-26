@@ -5,14 +5,18 @@ using PM.Guillem.AIOpenSDK.Core;
 /// <summary>
 /// Escape hatch sample: OnBeforeExecuteTool for ToolSet.Add(Name, Description, Schema).
 /// Prefer "AIOS Tool" + Add(Tool) or "AIOS Tool Handler" + Use(Handler).
+/// Manually bound: bind it only around your own GenerateText call.
 /// </summary>
 codeunit 87487 "AIOS Demo Tools"
 {
     Access = Public;
+    EventSubscriberInstance = Manual;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Tool Set", 'OnBeforeExecuteTool', '', false, false)]
     local procedure OnBeforeExecuteTool(Name: Text; Arguments: JsonObject; var ResultText: Text; var Succeeded: Boolean; var Handled: Boolean)
     begin
+        if Handled then
+            exit;
         case Name of
             'echo':
                 begin

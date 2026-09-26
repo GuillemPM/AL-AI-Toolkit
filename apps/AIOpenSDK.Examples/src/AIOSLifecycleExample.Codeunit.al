@@ -2,9 +2,12 @@ namespace PM.Guillem.AIOpenSDK.Examples;
 
 using PM.Guillem.AIOpenSDK.Core;
 
+/// <summary>
+/// Manually bound lifecycle event sample; GetLastEventTrace() covers the last generate only.
+/// </summary>
 codeunit 87484 "AIOS Lifecycle Example"
 {
-    SingleInstance = true;
+    EventSubscriberInstance = Manual;
 
     /// <summary>
     /// Last ModelId seen by a lifecycle event (demo / diagnostics).
@@ -31,6 +34,7 @@ codeunit 87484 "AIOS Lifecycle Example"
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AIOS Client", OnBeforeGenerate, '', false, false)]
     local procedure LogOnBeforeGenerate(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
     begin
+        ClearTrace();
         AppendTrace('OnBeforeGenerate', ModelId);
     end;
 

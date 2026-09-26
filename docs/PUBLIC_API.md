@@ -10,8 +10,8 @@ Supported surface for application developers. Prefer these objects; treat anythi
   - `SetOutput` keeps its generated JSON/schema instruction apart from the system message: `GetSystemMessage` returns only your text, `GetEffectiveSystemMessage` returns the text sent to providers. `ClearOutput` removes the instruction and turns `"Json Mode"` off.
   - `Messages` holds conversation turns only. `GetProviderMessages` adds the current effective system message first, so system/output changes on a reused request apply. `SetPrompt` on a request with history adds the prompt once as the next user turn.
 - `"AIOS Schema"`, `"AIOS Tool Set"`, `"AIOS Tool"` / `"AIOS Tool Handler"` interfaces
+- `"AIOS Mock"` — unit tests without network. Configure `SetNext*` before `Model` / `ImageModel`: the bound model takes a copy of that state. `SetNextToolCallThenResponse` returns empty text on the tool-call turn. Use the `ToolTurnText` overload for a preamble.
   - `"AIOS Tool Call".TryGetArguments` returns false when the model sent arguments that are not valid JSON; `GetArguments` returns `{}` in that case and `GetArgumentsJson` returns the raw text.
-- `"AIOS Mock"` — unit tests without network
 - `"AIOS Http Error Mapper"` — shared HTTP status → error type mapping (provider authors)
 - `"AIOS Privacy Notice"` — company-level privacy-notice approval gate for outbound AI HTTP (no per-call UI)
 - `"AIOS Request Options"` — reasoning helpers

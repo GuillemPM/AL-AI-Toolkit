@@ -436,7 +436,7 @@ codeunit 87480 "AIOS Usage Example"
         ImageCU: Codeunit "AIOS Generated Image";
         Images: List of [Codeunit "AIOS Generated Image"];
     begin
-        Mock.SetNextImageBase64('mock-image-base64', 'image/png');
+        Mock.SetNextImageBase64(MinimalPngBase64Tok, 'image/png');
         Request.SetPrompt('A blue triangle');
         Request.SetSize('1024x1024');
 
@@ -568,6 +568,48 @@ codeunit 87480 "AIOS Usage Example"
     end;
 
     /// <summary>
+    /// Escape hatch: ToolSet.Add(Name, …) executed by a manually bound OnBeforeExecuteTool subscriber.
+    /// </summary>
+    procedure RunTools_NamedEscapeHatch()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Schema: Codeunit "AIOS Schema";
+        DemoTools: Codeunit "AIOS Demo Tools";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+        Fields: List of [JsonObject];
+    begin
+        Fields.Add(Schema.Field('text', Schema.String()));
+        ToolSet.Add('to_upper', 'Converts the text argument to uppercase.', Schema.Object(Fields));
+
+        Mock.SetNextToolCallThenResponse('call_1', 'to_upper', '{"text":"hello"}', 'HELLO');
+        Request.SetPrompt('Uppercase hello');
+
+        BindSubscription(DemoTools);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet);
+        UnbindSubscription(DemoTools);
+        Message(ToolsNamedMsg, Result.Output());
+    end;
+
+    /// <summary>
+    /// Lifecycle events: bind the (manual) subscriber around the calls you want to observe.
+    /// </summary>
+    procedure RunLifecycleDemo()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        LifecycleExample: Codeunit "AIOS Lifecycle Example";
+    begin
+        Mock.SetNextResponse('observed');
+        BindSubscription(LifecycleExample);
+        Client.GenerateText(Mock.Model('demo-model'), 'hello');
+        UnbindSubscription(LifecycleExample);
+        Message(LifecycleMsg, LifecycleExample.GetLastModelId(), LifecycleExample.GetLastEventTrace());
+    end;
+
+    /// <summary>
     /// Finds the first Item with a Picture and attaches it via Attach(MediaId).
     /// </summary>
     local procedure TryAddFirstItemPicture(var Request: Record "AIOS Chat Request"; var Item: Record Item; var ItemNo: Code[20]): Boolean
@@ -604,4 +646,6 @@ codeunit 87480 "AIOS Usage Example"
         ToolsMixMsg: Label 'Mix Add(Tool)+Use(Handler) | Count=%1 Final=%2', Comment = '%1 = count, %2 = output';
         ToolsManualMsg: Label 'Manual continue | Tool=%1 Final=%2', Comment = '%1 = tool result, %2 = output';
         ToolsManualExpectedCallsErr: Label 'Expected tool calls on the first GenerateText.';
+        ToolsNamedMsg: Label 'Named escape hatch | Final=%1', Comment = '%1 = output';
+        LifecycleMsg: Label 'Model=%1 | Events=%2', Comment = '%1 = model id, %2 = pipe-separated event names';
 }

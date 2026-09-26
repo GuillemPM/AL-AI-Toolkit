@@ -187,12 +187,15 @@ codeunit 87497 "AIOS Tool Tests"
         ToolSet: Codeunit "AIOS Tool Set";
         Request: Record "AIOS Chat Request";
         Result: Codeunit "AIOS Generate Result";
+        NamedTools: Codeunit "AIOS Test Named Tools";
     begin
         AddDemoNamedTools(ToolSet);
         Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"via-event"}', 'done via event');
         Request.SetPrompt('use echo');
 
+        BindSubscription(NamedTools);
         Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+        UnbindSubscription(NamedTools);
         if Result.HasToolCalls() then
             Error(UnexpectedToolCallsErr);
         if Result.Output() <> 'done via event' then
@@ -328,6 +331,46 @@ codeunit 87497 "AIOS Tool Tests"
     end;
 
     [Test]
+    procedure GenerateText_NamedCommonTool_NotHandledByUnboundExampleSubscriber()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Request: Record "AIOS Chat Request";
+    begin
+        AddDemoNamedTools(ToolSet);
+        Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"hijack?"}', 'should not get here');
+        Request.SetPrompt('use echo');
+        asserterror Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+        if StrPos(GetLastErrorText(), 'echo') = 0 then
+            Error(UnexpectedTextErr, 'error naming echo', GetLastErrorText());
+    end;
+
+    [Test]
+    procedure GenerateText_DemoToolsBound_HandlesNamedTool()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+        DemoTools: Codeunit "AIOS Demo Tools";
+    begin
+        AddDemoNamedTools(ToolSet);
+        Mock.SetNextToolCallThenResponse('call_1', 'to_upper', '{"text":"ab"}', 'done');
+        Request.SetPrompt('upper');
+
+        BindSubscription(DemoTools);
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+        UnbindSubscription(DemoTools);
+
+        if Result.Output() <> 'done' then
+            Error(UnexpectedTextErr, 'done', Result.Output());
+        if StrPos(MessagesText(Request), '"AB"') = 0 then
+            Error(UnexpectedTextErr, 'tool result AB in history', MessagesText(Request));
+    end;
+
+    [Test]
     procedure GenerateText_MultiTool_ToolSetAdd_ExecutesAddNumbers()
     var
         Mock: Codeunit "AIOS Mock";
@@ -335,12 +378,15 @@ codeunit 87497 "AIOS Tool Tests"
         ToolSet: Codeunit "AIOS Tool Set";
         Request: Record "AIOS Chat Request";
         Result: Codeunit "AIOS Generate Result";
+        NamedTools: Codeunit "AIOS Test Named Tools";
     begin
         AddDemoNamedTools(ToolSet);
         Mock.SetNextToolCallThenResponse('call_1', 'add_numbers', '{"a":2,"b":3}', 'sum is 5');
         Request.SetPrompt('add');
 
+        BindSubscription(NamedTools);
         Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
+        UnbindSubscription(NamedTools);
         if Result.Output() <> 'sum is 5' then
             Error(UnexpectedTextErr, 'sum is 5', Result.Output());
         if ToolSet.Count() <> 3 then
@@ -584,7 +630,7 @@ codeunit 87497 "AIOS Tool Tests"
     begin
         Tool := Echo;
         ToolSet.Add(Tool);
-        Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"x"}', '{"answer":"42"}');
+        Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"x"}', 'Calling echo first.', '{"answer":"42"}');
         Fields.Add(Schema.Field('answer', Schema.String()));
         Request.SetPrompt('structured');
         Request.SetOutput(Schema.Object(Fields));
@@ -592,6 +638,35 @@ codeunit 87497 "AIOS Tool Tests"
         Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
         if Result.Output() <> '{"answer":"42"}' then
             Error(UnexpectedTextErr, '{"answer":"42"}', Result.Output());
+        if Result.GetStepCount() <> 2 then
+            Error(UnexpectedCountErr, 2, Result.GetStepCount());
+        if StrPos(MessagesText(Request), 'Calling echo first.') = 0 then
+            Error(UnexpectedTextErr, 'tool-turn text in history', MessagesText(Request));
+    end;
+
+    [Test]
+    procedure Mock_ToolCallTurn_DoesNotCarryFinalText()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        ToolSet: Codeunit "AIOS Tool Set";
+        Echo: Codeunit "AIOS Echo Tool";
+        Request: Record "AIOS Chat Request";
+        Result: Codeunit "AIOS Generate Result";
+        Tool: Interface "AIOS Tool";
+    begin
+        Tool := Echo;
+        ToolSet.Add(Tool);
+        Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"x"}', 'final answer');
+        Request.SetPrompt('use echo');
+
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 1);
+        if not Result.HasToolCalls() then
+            Error(ExpectedToolCallsErr);
+        if Result.Output() <> '' then
+            Error(UnexpectedTextErr, '', Result.Output());
+        if StrPos(MessagesText(Request), 'final answer') <> 0 then
+            Error(UnexpectedTextErr, 'no final text in history', MessagesText(Request));
     end;
 
     [Test]
@@ -941,6 +1016,16 @@ codeunit 87497 "AIOS Tool Tests"
             Error(UnexpectedCountErr, SumIn, Result.GetTotalInputTokens());
         if Result.GetTotalOutputTokens() <> SumOut then
             Error(UnexpectedCountErr, SumOut, Result.GetTotalOutputTokens());
+    end;
+
+    local procedure MessagesText(var Request: Record "AIOS Chat Request"): Text
+    var
+        Messages: JsonArray;
+        MessagesJson: Text;
+    begin
+        Messages := Request.GetMessages();
+        Messages.WriteTo(MessagesJson);
+        exit(MessagesJson);
     end;
 
     /// <summary>

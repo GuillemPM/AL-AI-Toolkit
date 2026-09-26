@@ -37,6 +37,22 @@ codeunit 87490 "AIOS Mock Tests"
     end;
 
     [Test]
+    procedure Model_SnapshotsCannedResponseAtBind()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Model: Interface "AIOS Language Model";
+        Result: Codeunit "AIOS Generate Result";
+    begin
+        Mock.SetNextResponse('before bind');
+        Model := Mock.Model('demo-model');
+        Mock.SetNextResponse('after bind');
+        Result := Client.GenerateText(Model, 'ping');
+        if Result.Output() <> 'before bind' then
+            Error(UnexpectedResultErr, 'before bind', Result.Output());
+    end;
+
+    [Test]
     procedure ChatResponse_BodyAndHeaders_RoundTrip()
     var
         Response: Record "AIOS Chat Response";

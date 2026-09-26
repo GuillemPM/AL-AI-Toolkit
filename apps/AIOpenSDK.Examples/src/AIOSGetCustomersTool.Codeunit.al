@@ -49,16 +49,18 @@ codeunit 87499 "AIOS Get Customers Tool" implements "AIOS Tool"
     procedure Execute(Arguments: JsonObject; var ResultText: Text): Boolean
     var
         Args: Codeunit "AIOS Tool Args";
-        CustomerRef: RecordRef;
-        NameFieldRef: FieldRef;
+        Customer: Record Customer;
         Customers: JsonArray;
         Entry: JsonObject;
         SearchName: Text;
         MaxCount: Integer;
         Taken: Integer;
-        CustomerNo: Code[20];
-        CustomerName: Text[100];
     begin
+        if not Customer.ReadPermission() then begin
+            ResultText := NoReadPermissionErr;
+            exit(false);
+        end;
+
         MaxCount := 25;
         if Args.TryGetInteger(Arguments, 'maxCount', MaxCount) then begin
             if MaxCount < 1 then
@@ -70,27 +72,36 @@ codeunit 87499 "AIOS Get Customers Tool" implements "AIOS Tool"
 
         SearchName := '';
         Args.TryGetText(Arguments, 'searchName', SearchName);
+        SearchName := CopyStr(SearchName.Trim(), 1, MaxStrLen(Customer.Name));
 
-        CustomerRef.Open(Database::Customer);
-        if SearchName <> '' then begin
-            NameFieldRef := CustomerRef.Field(2);
-            NameFieldRef.SetFilter('@*' + SearchName + '*');
-        end;
+        Customer.SetLoadFields("No.", Name);
+        if SearchName <> '' then
+            Customer.SetFilter(Name, '@*' + EscapeFilterValue(SearchName) + '*');
 
         Taken := 0;
-        if CustomerRef.FindSet() then
+        if Customer.FindSet() then
             repeat
-                CustomerNo := CustomerRef.Field(1).Value();
-                CustomerName := CustomerRef.Field(2).Value();
                 Clear(Entry);
-                Entry.Add('no', CustomerNo);
-                Entry.Add('name', CustomerName);
+                Entry.Add('no', Customer."No.");
+                Entry.Add('name', Customer.Name);
                 Customers.Add(Entry);
                 Taken += 1;
-            until (Taken >= MaxCount) or (CustomerRef.Next() = 0);
+            until (Taken >= MaxCount) or (Customer.Next() = 0);
 
         Clear(ResultText);
         Customers.WriteTo(ResultText);
         exit(true);
     end;
+
+    /// <summary>
+    /// Replace filter metacharacters with '?' so untrusted model input can only match literally.
+    /// </summary>
+    local procedure EscapeFilterValue(Value: Text): Text
+    begin
+        exit(ConvertStr(Value, FilterMetaCharsTok, PadStr('', StrLen(FilterMetaCharsTok), '?')));
+    end;
+
+    var
+        FilterMetaCharsTok: Label '|&<>=()''".*@%', Locked = true;
+        NoReadPermissionErr: Label 'You do not have permission to read customers.';
 }
