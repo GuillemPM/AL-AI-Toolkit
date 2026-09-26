@@ -3,8 +3,7 @@ namespace PM.Guillem.AIOpenSDK.Test;
 using PM.Guillem.AIOpenSDK.Core;
 
 /// <summary>
-/// Test double for tool-loop tests: a language model that returns a configured tool-call array once, then final text,
-/// and a counting tool ('count_calls'). SingleInstance so the ToolSet copy and the test share the execution count.
+/// Tool-loop test double: a model that returns configured tool calls once, then final text, and a counting tool.
 /// </summary>
 codeunit 87501 "AIOS Tool Loop Test Double" implements "AIOS Language Model", "AIOS Tool"
 {
@@ -12,7 +11,7 @@ codeunit 87501 "AIOS Tool Loop Test Double" implements "AIOS Language Model", "A
     SingleInstance = true;
 
     /// <summary>
-    /// Clears state. The next Generate returns ToolCallsJson (normalized AIOS tool calls); the one after returns FinalText.
+    /// Resets the tool calls and final text the model returns.
     /// </summary>
     procedure Reset(ToolCallsJson: Text; FinalText: Text)
     begin

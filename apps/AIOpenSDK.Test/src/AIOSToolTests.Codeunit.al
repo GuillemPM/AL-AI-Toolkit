@@ -324,7 +324,6 @@ codeunit 87497 "AIOS Tool Tests"
         Mock.SetNextToolCall('orphan_tool_no_subscriber', '{}');
         Request.SetPrompt('x');
         asserterror Client.GenerateText(Mock.Model('demo-model'), Request, ToolSet, 5);
-        // The tool raised an AL error; the assistant tool-call turn must not be left without results.
         AssertNoToolTurns(Request, 1);
     end;
 
@@ -676,7 +675,6 @@ codeunit 87497 "AIOS Tool Tests"
             Error(UnexpectedTextErr, 'both done', Result.Output());
         if TestDouble.GetExecuteCount() <> 2 then
             Error(UnexpectedCountErr, 2, TestDouble.GetExecuteCount());
-        // user, assistant(tool_calls), tool c1, tool c2
         Messages := Request.GetMessages();
         if Messages.Count() <> 4 then
             Error(UnexpectedCountErr, 4, Messages.Count());
@@ -719,7 +717,6 @@ codeunit 87497 "AIOS Tool Tests"
         if StrPos(ContentToken.AsValue().AsText(), 'not valid JSON') = 0 then
             Error(UnexpectedTextErr, 'not valid JSON', ContentToken.AsValue().AsText());
 
-        // History keeps the raw arguments instead of rewriting them to {}.
         Messages.Get(1, MsgToken);
         MsgToken.AsObject().Get('tool_calls', CallsToken);
         CallsToken.AsArray().Get(0, CallToken);
@@ -753,7 +750,6 @@ codeunit 87497 "AIOS Tool Tests"
         Messages := Request.GetMessages();
         Messages.Get(2, MsgToken);
         MsgToken.AsObject().Get('content', ContentToken);
-        // Echo would have answered "Missing required tool argument"; the loop must not run it at all.
         if StrPos(ContentToken.AsValue().AsText(), 'not valid JSON') = 0 then
             Error(UnexpectedTextErr, 'not valid JSON', ContentToken.AsValue().AsText());
     end;
@@ -875,7 +871,7 @@ codeunit 87497 "AIOS Tool Tests"
     end;
 
     /// <summary>
-    /// Asserts the history has no tool-call or tool-result messages. A negative ExpectedCount skips the message count check.
+    /// Asserts the history has no tool-call or tool-result messages.
     /// </summary>
     local procedure AssertNoToolTurns(var Request: Record "AIOS Chat Request"; ExpectedCount: Integer)
     var

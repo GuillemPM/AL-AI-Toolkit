@@ -382,7 +382,6 @@ table 87402 "AIOS Chat Response"
                 else
                     if ArgsToken.IsValue() then
                         ArgsText := ArgsToken.AsValue().AsText();
-            // Keep raw text so malformed arguments stay detectable (Tool Call.TryGetArguments).
             if ArgsText <> '' then
                 CallCU.SetCall(Id, Name, ArgsText)
             else

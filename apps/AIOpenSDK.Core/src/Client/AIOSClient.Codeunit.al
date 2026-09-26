@@ -66,8 +66,6 @@ codeunit 87410 "AIOS Client"
 
     /// <summary>
     /// Generates text with tools: runs the model up to MaxSteps times, executing tools between steps until final text or the step limit.
-    /// Tool calls with arguments that are not valid JSON are not executed; the error is returned to the model as the tool result.
-    /// If a step fails (unknown tool, or an error raised by tool code), Request history is left as it was before that step.
     /// </summary>
     procedure GenerateText(Model: Interface "AIOS Language Model"; var Request: Record "AIOS Chat Request"; ToolSet: Codeunit "AIOS Tool Set"; MaxSteps: Integer): Codeunit "AIOS Generate Result"
     var
@@ -89,7 +87,6 @@ codeunit 87410 "AIOS Client"
 
     /// <summary>
     /// Generates text with tools and binds JSON into OutputRecRef on the final non-tool-call response.
-    /// Raises an error if MaxSteps is reached while the model still requests tool calls, because the record was not filled.
     /// </summary>
     procedure GenerateText(Model: Interface "AIOS Language Model"; var Request: Record "AIOS Chat Request"; ToolSet: Codeunit "AIOS Tool Set"; MaxSteps: Integer; var OutputRecRef: RecordRef): Codeunit "AIOS Generate Result"
     var
@@ -316,7 +313,6 @@ codeunit 87410 "AIOS Client"
 
             if Step = EffectiveMaxSteps then begin
                 LastStoppedAtStepLimit := true;
-                // A RecRef was requested but never bound: the loop ended on tool calls, not a final response.
                 if Request.HasOutput() then begin
                     Response.SetError("AIOS Error Type"::ParseFailed, StrSubstNo(StepLimitNoOutputErr, EffectiveMaxSteps));
                     exit(false);
@@ -328,7 +324,6 @@ codeunit 87410 "AIOS Client"
             ToolCalls := Response.GetToolCalls();
             if not TryExecuteToolCalls(ToolSet, ToolCalls, Response, ResultTexts) then
                 exit(false);
-            // Record the assistant turn and its results only once every tool has run, so a failure never leaves unanswered tool calls.
             ChatMessages.AppendToolStep(Request, Response.GetText(), ToolCalls, Response.GetReasoningContent(), ResultTexts);
         end;
 
@@ -409,8 +404,7 @@ codeunit 87410 "AIOS Client"
     end;
 
     /// <summary>
-    /// Runs every tool call and collects one result text per call, without touching the request history.
-    /// All names are checked before any tool runs, so an unknown tool does not leave earlier tools half-applied.
+    /// Runs every tool call and collects one result text per call.
     /// </summary>
     local procedure TryExecuteToolCalls(ToolSet: Codeunit "AIOS Tool Set"; ToolCalls: List of [Codeunit "AIOS Tool Call"]; var Response: Record "AIOS Chat Response"; var ResultTexts: List of [Text]): Boolean
     var

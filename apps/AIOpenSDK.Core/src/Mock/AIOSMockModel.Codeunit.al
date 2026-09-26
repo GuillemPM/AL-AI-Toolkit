@@ -76,7 +76,6 @@ codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
                 if Args.ReadFrom(NextToolCallArgs) then
                     CallObj.Add('arguments', Args)
                 else
-                    // Malformed JSON is passed through raw, like a provider would.
                     CallObj.Add('arguments', NextToolCallArgs);
             ToolCalls.Add(CallObj);
             Response.SetToolCallsJson(ToolCalls);

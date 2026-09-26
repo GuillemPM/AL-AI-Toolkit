@@ -125,8 +125,7 @@ codeunit 87428 "AIOS Chat Messages"
     end;
 
     /// <summary>
-    /// Appends one complete tool step in a single history write: the assistant tool-call message followed by one tool result per call.
-    /// ResultTexts must be aligned with ToolCalls. Used by the client tool loop so a failed step never leaves unanswered tool calls.
+    /// Appends the assistant tool-call message and one tool result per call.
     /// </summary>
     internal procedure AppendToolStep(var Request: Record "AIOS Chat Request"; Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text; ResultTexts: List of [Text])
     var
@@ -144,7 +143,7 @@ codeunit 87428 "AIOS Chat Messages"
     end;
 
     /// <summary>
-    /// Normalized tool-call JSON (id, name, arguments). Arguments are an object when valid, otherwise the raw text the model sent.
+    /// Normalized tool-call JSON (id, name, arguments).
     /// </summary>
     internal procedure ToolCallToJson(CallCU: Codeunit "AIOS Tool Call"): JsonObject
     var

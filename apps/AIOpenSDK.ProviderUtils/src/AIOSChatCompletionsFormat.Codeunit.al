@@ -371,7 +371,6 @@ codeunit 87435 "AIOS Chat Completions Format" implements "AIOS Chat Format"
                             if ArgsObj.ReadFrom(ArgsText) then
                                 OutCall.Add('arguments', ArgsObj)
                             else
-                                // Malformed JSON: keep the raw text so Core rejects the call instead of running it with {}.
                                 OutCall.Add('arguments', ArgsText);
                     end;
                 end else
