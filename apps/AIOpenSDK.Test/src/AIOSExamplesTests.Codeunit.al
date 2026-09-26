@@ -42,12 +42,17 @@ codeunit 87502 "AIOS Examples Tests"
     [Test]
     procedure GetCustomersTool_SearchName_UnbalancedSyntaxDoesNotError()
     var
+        Customers: JsonArray;
         ResultText: Text;
     begin
-        InsertCustomer(BetaNoTok, 'Beta Trading');
+        // Unescaped, '@*Gamma (''..<)*' is not valid filter syntax (unbalanced quote, dangling range).
+        // Escaped, each metacharacter matches any single character, so the literal name is still found.
+        InsertCustomer(GammaNoTok, 'Gamma (''..<) Ltd');
 
-        ResultText := RunGetCustomers('Beta (''..<');
-        AssertNotContains(ResultText, BetaNoTok);
+        ResultText := RunGetCustomers('Gamma (''..<)');
+        if not Customers.ReadFrom(ResultText) then
+            Error(ExpectedJsonArrayErr, ResultText);
+        AssertContains(ResultText, GammaNoTok);
     end;
 
     [Test]
@@ -147,9 +152,11 @@ codeunit 87502 "AIOS Examples Tests"
     var
         AlphaNoTok: Label 'AIOSTSTALPHA', Locked = true;
         BetaNoTok: Label 'AIOSTSTBETA', Locked = true;
+        GammaNoTok: Label 'AIOSTSTGAMMA', Locked = true;
         OneGenerateTraceTok: Label 'OnBeforeGenerate|OnBeforeLanguageModelCall|OnAfterLanguageModelCall|OnAfterGenerate', Locked = true;
         UnexpectedTextErr: Label 'Expected ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
         UnexpectedCountErr: Label 'Expected count %1, got %2.', Comment = '%1 = expected, %2 = actual';
+        ExpectedJsonArrayErr: Label 'Expected a JSON array, got ''%1''.', Comment = '%1 = tool result';
         ToolFailedErr: Label 'get_customer_list failed: %1', Comment = '%1 = tool result';
         ExpectedContainsErr: Label 'Expected ''%1'' in ''%2''.', Comment = '%1 = expected fragment, %2 = actual';
         UnexpectedContainsErr: Label 'Did not expect ''%1'' in ''%2''.', Comment = '%1 = unexpected fragment, %2 = actual';
