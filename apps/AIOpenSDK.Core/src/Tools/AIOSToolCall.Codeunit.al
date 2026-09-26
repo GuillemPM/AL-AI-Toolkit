@@ -60,11 +60,20 @@ codeunit 87416 "AIOS Tool Call"
     var
         Arguments: JsonObject;
     begin
-        if ArgumentsText = '' then
-            exit(Arguments);
-        if not Arguments.ReadFrom(ArgumentsText) then
+        if not TryGetArguments(Arguments) then
             Clear(Arguments);
         exit(Arguments);
+    end;
+
+    /// <summary>
+    /// Parses the tool arguments into a JSON object; returns false when they are not valid JSON.
+    /// </summary>
+    procedure TryGetArguments(var Arguments: JsonObject): Boolean
+    begin
+        Clear(Arguments);
+        if DelChr(ArgumentsText, '<>', ' ') = '' then
+            exit(true);
+        exit(Arguments.ReadFrom(ArgumentsText));
     end;
 
     /// <summary>

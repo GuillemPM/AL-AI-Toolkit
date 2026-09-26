@@ -365,13 +365,17 @@ codeunit 87435 "AIOS Chat Completions Format" implements "AIOS Chat Format"
                     OutCall.Add('name', TokenText(NameToken));
                 if FunctionObj.Get('arguments', ArgsToken) then begin
                     if ArgsToken.IsObject() then
-                        ArgsObj := ArgsToken.AsObject()
+                        OutCall.Add('arguments', ArgsToken.AsObject())
                     else begin
                         ArgsText := TokenText(ArgsToken);
-                        if (ArgsText = '') or (not ArgsObj.ReadFrom(ArgsText)) then
-                            Clear(ArgsObj);
+                        if DelChr(ArgsText, '<>', ' ') = '' then
+                            OutCall.Add('arguments', EmptyObject())
+                        else
+                            if ArgsObj.ReadFrom(ArgsText) then
+                                OutCall.Add('arguments', ArgsObj)
+                            else
+                                OutCall.Add('arguments', ArgsText);
                     end;
-                    OutCall.Add('arguments', ArgsObj);
                 end else
                     OutCall.Add('arguments', EmptyObject());
             end;
