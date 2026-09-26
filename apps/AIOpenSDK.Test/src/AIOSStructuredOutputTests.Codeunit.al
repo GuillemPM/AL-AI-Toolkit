@@ -357,6 +357,206 @@ codeunit 87494 "AIOS Structured Output Tests"
             Error(UnexpectedChoiceEmptyErr, GetLastErrorText());
     end;
 
+    [Test]
+    procedure GenerateText_ReusedRequest_TextAfterStructured_ReturnsPlainText()
+    var
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Fields: List of [JsonObject];
+        Result: Text;
+    begin
+        Fields.Add(Schema.Field('name', Schema.String()));
+        Request.SetSystemMessage('You are a helper.');
+        Request.SetPrompt('person');
+        Request.SetOutput(Schema.Object(Fields));
+        Mock.SetNextResponse('{"name":"Ada"}');
+        Client.GenerateText(Mock.Model('demo-model'), Request);
+
+        // Generate materializes the effective system message into Messages; history is reset separately.
+        Request.ClearMessages();
+        Request.SetOutput(Schema.Text());
+        Mock.SetNextResponse('plain words');
+        Result := Client.GenerateText(Mock.Model('demo-model'), Request).Output();
+
+        if Result <> 'plain words' then
+            Error(UnexpectedTextErr, 'plain words', Result);
+        if Request."Json Mode" then
+            Error(ExpectedNoJsonModeErr);
+        if Request.GetEffectiveSystemMessage() <> 'You are a helper.' then
+            Error(UnexpectedTextErr, 'You are a helper.', Request.GetEffectiveSystemMessage());
+    end;
+
+    [Test]
+    procedure ClearOutput_AfterSchema_ResetsJsonModeAndInstruction()
+    var
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Fields: List of [JsonObject];
+    begin
+        Fields.Add(Schema.Field('name', Schema.String()));
+        Request.SetSystemMessage('You are a helper.');
+        Request.SetOutput(Schema.Object(Fields));
+        if not Request."Json Mode" then
+            Error(ExpectedJsonModeErr);
+        if StrPos(Request.GetEffectiveSystemMessage(), 'conforms to this JSON Schema') = 0 then
+            Error(ExpectedHintErr, Request.GetEffectiveSystemMessage());
+
+        Request.ClearOutput();
+
+        if Request."Json Mode" then
+            Error(ExpectedNoJsonModeAfterClearErr);
+        if Request.HasOutputSchema() then
+            Error(ExpectedNoOutputSchemaErr);
+        if Request.GetEffectiveSystemMessage() <> 'You are a helper.' then
+            Error(UnexpectedTextErr, 'You are a helper.', Request.GetEffectiveSystemMessage());
+    end;
+
+    [Test]
+    procedure ClearOutput_AfterRecRef_ResetsJsonModeAndInstruction()
+    var
+        Request: Record "AIOS Chat Request";
+        Feedback: Record "AIOS Test Bind Target";
+        RecRef: RecordRef;
+    begin
+        RecRef.GetTable(Feedback);
+        Request.SetOutput(RecRef);
+        if Request.GetEffectiveSystemMessage() = '' then
+            Error(ExpectedHintErr, '');
+
+        Request.ClearOutput();
+
+        if Request.HasOutput() then
+            Error(ExpectedNoOutputErr);
+        if Request."Json Mode" then
+            Error(ExpectedNoJsonModeAfterClearErr);
+        if Request.GetEffectiveSystemMessage() <> '' then
+            Error(UnexpectedTextErr, '', Request.GetEffectiveSystemMessage());
+    end;
+
+    [Test]
+    procedure SetOutput_RepeatedSchema_DoesNotAccumulateHints()
+    var
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        FirstFields: List of [JsonObject];
+        SecondFields: List of [JsonObject];
+        Effective: Text;
+    begin
+        FirstFields.Add(Schema.Field('firstonly', Schema.String()));
+        SecondFields.Add(Schema.Field('secondonly', Schema.String()));
+        Request.SetSystemMessage('You are a helper.');
+        Request.SetOutput(Schema.Object(FirstFields));
+        Request.SetOutput(Schema.Object(SecondFields));
+
+        Effective := Request.GetEffectiveSystemMessage();
+        if StrPos(Effective, 'firstonly') <> 0 then
+            Error(UnexpectedStaleHintErr, Effective);
+        if StrPos(Effective, 'secondonly') = 0 then
+            Error(ExpectedHintErr, Effective);
+        if CountOccurrences(Effective, 'conforms to this JSON Schema') <> 1 then
+            Error(UnexpectedCountErr, 1, CountOccurrences(Effective, 'conforms to this JSON Schema'));
+        if StrPos(Effective, 'You are a helper. ') <> 1 then
+            Error(UnexpectedTextErr, 'You are a helper. ...', Effective);
+    end;
+
+    [Test]
+    procedure SetOutput_RepeatedRecRef_DoesNotAccumulateHints()
+    var
+        Request: Record "AIOS Chat Request";
+        Feedback: Record "AIOS Test Bind Target";
+        RecRef: RecordRef;
+        Effective: Text;
+    begin
+        RecRef.GetTable(Feedback);
+        Request.SetSystemMessage('You are a helper.');
+        Request.SetOutput(RecRef);
+        Request.SetOutput(RecRef);
+
+        Effective := Request.GetEffectiveSystemMessage();
+        if CountOccurrences(Effective, 'Respond with a single JSON object only') <> 1 then
+            Error(UnexpectedCountErr, 1, CountOccurrences(Effective, 'Respond with a single JSON object only'));
+    end;
+
+    [Test]
+    procedure SetOutput_PreservesUserSystemMessage()
+    var
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Feedback: Record "AIOS Test Bind Target";
+        RecRef: RecordRef;
+        Fields: List of [JsonObject];
+    begin
+        Fields.Add(Schema.Field('name', Schema.String()));
+        Request.SetSystemMessage('You are a helper.');
+        Request.SetOutput(Schema.Object(Fields));
+        if Request.GetSystemMessage() <> 'You are a helper.' then
+            Error(UnexpectedTextErr, 'You are a helper.', Request.GetSystemMessage());
+
+        RecRef.GetTable(Feedback);
+        Request.SetOutput(RecRef);
+        if Request.GetSystemMessage() <> 'You are a helper.' then
+            Error(UnexpectedTextErr, 'You are a helper.', Request.GetSystemMessage());
+    end;
+
+    [Test]
+    procedure SetSystemMessage_AfterSetOutput_KeepsInstruction()
+    var
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+        Effective: Text;
+    begin
+        Request.SetOutput(Schema.Json());
+        Request.SetSystemMessage('Be brief.');
+
+        Effective := Request.GetEffectiveSystemMessage();
+        if Effective <> 'Be brief. Respond with valid JSON only, no markdown fences.' then
+            Error(UnexpectedTextErr, 'Be brief. Respond with valid JSON only, no markdown fences.', Effective);
+    end;
+
+    [Test]
+    procedure GetEffectiveSystemMessage_SchemaWithoutUserText_IsInstructionOnly()
+    var
+        Schema: Codeunit "AIOS Schema";
+        Request: Record "AIOS Chat Request";
+    begin
+        Request.SetOutput(Schema.Json());
+        if Request.GetEffectiveSystemMessage() <> 'Respond with valid JSON only, no markdown fences.' then
+            Error(UnexpectedTextErr, 'Respond with valid JSON only, no markdown fences.', Request.GetEffectiveSystemMessage());
+
+        Request.ClearOutput();
+        if Request.GetEffectiveSystemMessage() <> '' then
+            Error(UnexpectedTextErr, '', Request.GetEffectiveSystemMessage());
+    end;
+
+    [Test]
+    procedure GetEffectiveSystemMessage_ManualJsonMode_AppendsJsonInstruction()
+    var
+        Request: Record "AIOS Chat Request";
+    begin
+        Request."Json Mode" := true;
+        Request.SetSystemMessage('Be brief.');
+        Request.SetPrompt('hello');
+
+        if Request.GetEffectiveSystemMessage() <> 'Be brief. Respond with valid JSON only, no markdown fences.' then
+            Error(UnexpectedTextErr, 'Be brief. Respond with valid JSON only, no markdown fences.', Request.GetEffectiveSystemMessage());
+    end;
+
+    local procedure CountOccurrences(Value: Text; Search: Text): Integer
+    var
+        Position: Integer;
+        Occurrences: Integer;
+    begin
+        Position := StrPos(Value, Search);
+        while Position <> 0 do begin
+            Occurrences += 1;
+            Value := CopyStr(Value, Position + StrLen(Search));
+            Position := StrPos(Value, Search);
+        end;
+        exit(Occurrences);
+    end;
+
     var
         UnexpectedTextErr: Label 'Expected ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
         UnexpectedDecErr: Label 'Expected %1, got %2.', Comment = '%1 = expected, %2 = actual';
@@ -369,4 +569,10 @@ codeunit 87494 "AIOS Structured Output Tests"
         MissingPropErr: Label 'Missing property %1.', Comment = '%1 = name';
         UnexpectedCountErr: Label 'Expected count %1, got %2.', Comment = '%1 = expected, %2 = actual';
         UnexpectedChoiceEmptyErr: Label 'Expected empty-options error, got: %1', Comment = '%1 = actual error text';
+        ExpectedJsonModeErr: Label 'Structured output should enable JSON mode.';
+        ExpectedNoJsonModeAfterClearErr: Label 'ClearOutput should disable JSON mode.';
+        ExpectedNoOutputSchemaErr: Label 'ClearOutput should remove the output schema.';
+        ExpectedNoOutputErr: Label 'ClearOutput should remove the RecRef output binding.';
+        ExpectedHintErr: Label 'Expected the output instruction in the effective system message, got: %1', Comment = '%1 = effective system message';
+        UnexpectedStaleHintErr: Label 'Effective system message still contains a stale output instruction: %1', Comment = '%1 = effective system message';
 }
