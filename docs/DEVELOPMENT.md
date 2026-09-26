@@ -109,7 +109,7 @@ If PowerShell blocks the script:
 ## Path D — Examples / Test
 
 - **Examples**: needs Core + the providers the demo uses (see its `app.json`). Run `prepare-deps`, then package those providers into `.alpackages` (AL: Package on each).
-- **Test**: mock tests need Core (Mock is in Core). Some tests also need ProviderUtils, Anthropic Format, and Examples (sample tools). Prefer packaging via the workspace after deps are prepared.
+- **Test**: mock tests need Core (Mock is in Core). Some tests also need ProviderUtils, Anthropic Format, and Examples (sample tools and `AIOS Examples Tests`, which inserts test customers). Prefer packaging via the workspace after deps are prepared.
 
 ---
 

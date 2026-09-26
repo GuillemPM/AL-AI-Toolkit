@@ -390,7 +390,52 @@ table 87482 "AIOS Demo History"
     end;
 
     /// <summary>
+    /// Replace Pictures with every generated image (all batches). Returns the number imported;
+    /// Pictures are left untouched when no image carries base64 data (for example URL-only responses).
+    /// </summary>
+    procedure ImportPicturesFromGeneratedImages(Images: List of [Codeunit "AIOS Generated Image"]): Integer
+    var
+        ImageCU: Codeunit "AIOS Generated Image";
+        Base64Convert: Codeunit "Base64 Convert";
+        TempBlob: Codeunit "Temp Blob";
+        OutStream: OutStream;
+        InStream: InStream;
+        MimeType: Text;
+        Imported: Integer;
+        i: Integer;
+        ImageFileNameTok: Label 'aios-demo-%1.png', Locked = true, Comment = '%1 = image index';
+    begin
+        for i := 1 to Images.Count() do begin
+            Images.Get(i, ImageCU);
+            if ImageCU.Base64() <> '' then
+                Imported += 1;
+        end;
+        if Imported = 0 then
+            exit(0);
+
+        // Only clear existing MediaSet once we know there is at least one payload.
+        Clear(Pictures);
+        Imported := 0;
+        for i := 1 to Images.Count() do begin
+            Images.Get(i, ImageCU);
+            if ImageCU.Base64() <> '' then begin
+                MimeType := ImageCU.MediaType();
+                if MimeType = '' then
+                    MimeType := 'image/png';
+                Clear(TempBlob);
+                TempBlob.CreateOutStream(OutStream);
+                Base64Convert.FromBase64(ImageCU.Base64(), OutStream);
+                TempBlob.CreateInStream(InStream);
+                Pictures.ImportStream(InStream, StrSubstNo(ImageFileNameTok, i), MimeType);
+                Imported += 1;
+            end;
+        end;
+        exit(Imported);
+    end;
+
+    /// <summary>
     /// Decode OpenAI-style data[].b64_json from the stored response body into Pictures (Tenant Media).
+    /// The stored body is the last image batch only; prefer ImportPicturesFromGeneratedImages when the result is available.
     /// </summary>
     procedure SyncPicturesFromResponseBody(): Boolean
     begin

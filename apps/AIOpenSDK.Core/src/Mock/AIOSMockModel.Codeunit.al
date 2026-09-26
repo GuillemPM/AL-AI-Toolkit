@@ -16,6 +16,7 @@ codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
         NextToolCallId: Text;
         NextToolCallName: Text;
         NextToolCallArgs: Text;
+        NextToolTurnText: Text;
         HasNextToolCall: Boolean;
 
     procedure Initialize(ModelId: Text; Content: Text; ShouldFail: Boolean; ErrorType: Enum "AIOS Error Type"; ErrorMessage: Text; FailuresBeforeSuccess: Integer)
@@ -24,6 +25,11 @@ codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
     end;
 
     procedure Initialize(ModelId: Text; Content: Text; ShouldFail: Boolean; ErrorType: Enum "AIOS Error Type"; ErrorMessage: Text; FailuresBeforeSuccess: Integer; ReturnToolCall: Boolean; ToolCallId: Text; ToolName: Text; ToolArgsJson: Text)
+    begin
+        Initialize(ModelId, Content, ShouldFail, ErrorType, ErrorMessage, FailuresBeforeSuccess, ReturnToolCall, ToolCallId, ToolName, ToolArgsJson, '');
+    end;
+
+    procedure Initialize(ModelId: Text; Content: Text; ShouldFail: Boolean; ErrorType: Enum "AIOS Error Type"; ErrorMessage: Text; FailuresBeforeSuccess: Integer; ReturnToolCall: Boolean; ToolCallId: Text; ToolName: Text; ToolArgsJson: Text; ToolTurnText: Text)
     begin
         BoundModelId := ModelId;
         CannedContent := Content;
@@ -35,6 +41,7 @@ codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
         NextToolCallId := ToolCallId;
         NextToolCallName := ToolName;
         NextToolCallArgs := ToolArgsJson;
+        NextToolTurnText := ToolTurnText;
     end;
 
     procedure GetModelId(): Text
@@ -76,12 +83,13 @@ codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
             CallObj.Add('arguments', Args);
             ToolCalls.Add(CallObj);
             Response.SetToolCallsJson(ToolCalls);
-            Response.SetText(CannedContent);
+            // Tool-call turns carry only their own (usually empty) text; CannedContent is the next text turn.
+            Response.SetText(NextToolTurnText);
             Response."Finish Reason" := 'tool_calls';
             Response.SetBody(Response.GetText());
             Response.ClearError();
             Response."Input Tokens" := StrLen(Request.GetPrompt());
-            Response."Output Tokens" := 0;
+            Response."Output Tokens" := StrLen(NextToolTurnText);
             HasNextToolCall := false;
             exit(true);
         end;
