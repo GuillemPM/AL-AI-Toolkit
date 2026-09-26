@@ -683,7 +683,6 @@ page 87481 "AIOS Toolkit Demo"
             Error(PromptRequiredErr);
 
         SaveSettings();
-        // Mock models snapshot the canned response at bind time, so configure it first.
         PrepareMockResponse(MockStructuredJsonTok);
         Model := BindSelectedModel();
 
@@ -911,7 +910,6 @@ page 87481 "AIOS Toolkit Demo"
         History."Output Tokens" := Usage.OutputTokens();
         History.Insert(true);
 
-        // Import from the aggregated image list: it holds every batch, while Body() is the last batch only.
         Images := Result.GetImages();
         if History.ImportPicturesFromGeneratedImages(Images) = 0 then
             if not History.ImportPicturesFromImageJson(BodyText) then

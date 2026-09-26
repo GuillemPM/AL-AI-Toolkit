@@ -5,8 +5,7 @@ using PM.Guillem.AIOpenSDK.Core;
 /// <summary>
 /// Escape hatch sample: OnBeforeExecuteTool for ToolSet.Add(Name, Description, Schema).
 /// Prefer "AIOS Tool" + Add(Tool) or "AIOS Tool Handler" + Use(Handler).
-/// Manual binding: call BindSubscription(DemoTools) around GenerateText and UnbindSubscription afterwards,
-/// so these common tool names never intercept tools registered by other apps.
+/// Manually bound: bind it only around your own GenerateText call.
 /// </summary>
 codeunit 87487 "AIOS Demo Tools"
 {

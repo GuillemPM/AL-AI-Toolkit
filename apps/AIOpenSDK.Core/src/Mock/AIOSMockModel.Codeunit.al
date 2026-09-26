@@ -83,7 +83,6 @@ codeunit 87447 "AIOS Mock Model" implements "AIOS Language Model"
             CallObj.Add('arguments', Args);
             ToolCalls.Add(CallObj);
             Response.SetToolCallsJson(ToolCalls);
-            // Tool-call turns carry only their own (usually empty) text; CannedContent is the next text turn.
             Response.SetText(NextToolTurnText);
             Response."Finish Reason" := 'tool_calls';
             Response.SetBody(Response.GetText());

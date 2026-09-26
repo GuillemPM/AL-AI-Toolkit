@@ -337,7 +337,6 @@ codeunit 87497 "AIOS Tool Tests"
         ToolSet: Codeunit "AIOS Tool Set";
         Request: Record "AIOS Chat Request";
     begin
-        // Examples' "AIOS Demo Tools" also answers echo/add_numbers/to_upper, but only when bound.
         AddDemoNamedTools(ToolSet);
         Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"hijack?"}', 'should not get here');
         Request.SetPrompt('use echo');
@@ -611,7 +610,6 @@ codeunit 87497 "AIOS Tool Tests"
     begin
         Tool := Echo;
         ToolSet.Add(Tool);
-        // The tool-call turn text is not schema-valid: the call only succeeds if it is not validated.
         Mock.SetNextToolCallThenResponse('call_1', 'echo', '{"message":"x"}', 'Calling echo first.', '{"answer":"42"}');
         Fields.Add(Schema.Field('answer', Schema.String()));
         Request.SetPrompt('structured');

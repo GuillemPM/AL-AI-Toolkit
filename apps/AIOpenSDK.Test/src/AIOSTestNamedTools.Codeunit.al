@@ -3,8 +3,7 @@ namespace PM.Guillem.AIOpenSDK.Test;
 using PM.Guillem.AIOpenSDK.Core;
 
 /// <summary>
-/// Test double for the ToolSet.Add(Name, …) escape hatch. Manual binding keeps it from answering
-/// tools outside the test that binds it.
+/// Manually bound test double for the ToolSet.Add(Name, …) escape hatch.
 /// </summary>
 codeunit 87501 "AIOS Test Named Tools"
 {

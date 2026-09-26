@@ -34,7 +34,6 @@ codeunit 87502 "AIOS Examples Tests"
     begin
         InsertCustomer(BetaNoTok, 'Beta Trading');
 
-        // Unescaped, '@*zzz|Beta*' would OR in every customer whose name starts with Beta.
         ResultText := RunGetCustomers('zzz|Beta');
         AssertNotContains(ResultText, BetaNoTok);
     end;
@@ -45,8 +44,6 @@ codeunit 87502 "AIOS Examples Tests"
         Customers: JsonArray;
         ResultText: Text;
     begin
-        // Unescaped, '@*Gamma (''..<)*' is not valid filter syntax (unbalanced quote, dangling range).
-        // Escaped, each metacharacter matches any single character, so the literal name is still found.
         InsertCustomer(GammaNoTok, 'Gamma (''..<) Ltd');
 
         ResultText := RunGetCustomers('Gamma (''..<)');
@@ -65,7 +62,6 @@ codeunit 87502 "AIOS Examples Tests"
         History: Record "AIOS Demo History";
         Imported: Integer;
     begin
-        // Mock returns one image per call, so three images arrive in three batches.
         Request.SetPrompt('three images');
         Request.SetImageCount(3);
         Result := Client.GenerateImage(Mock.ImageModel('mock-image'), Request);

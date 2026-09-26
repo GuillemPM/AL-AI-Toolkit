@@ -44,7 +44,6 @@ codeunit 87490 "AIOS Mock Tests"
         Model: Interface "AIOS Language Model";
         Result: Codeunit "AIOS Generate Result";
     begin
-        // Configure SetNext* before binding: later calls do not reach an already bound model.
         Mock.SetNextResponse('before bind');
         Model := Mock.Model('demo-model');
         Mock.SetNextResponse('after bind');

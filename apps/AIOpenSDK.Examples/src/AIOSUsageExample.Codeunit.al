@@ -570,8 +570,7 @@ codeunit 87480 "AIOS Usage Example"
     end;
 
     /// <summary>
-    /// Escape hatch: ToolSet.Add(Name, …) executed by an OnBeforeExecuteTool subscriber.
-    /// Bind the (manual) subscriber only around your own call so it never answers other apps' tools.
+    /// Escape hatch: ToolSet.Add(Name, …) executed by a manually bound OnBeforeExecuteTool subscriber.
     /// </summary>
     procedure RunTools_NamedEscapeHatch()
     var

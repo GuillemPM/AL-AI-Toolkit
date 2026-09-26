@@ -94,9 +94,7 @@ codeunit 87499 "AIOS Get Customers Tool" implements "AIOS Tool"
     end;
 
     /// <summary>
-    /// Model arguments are untrusted: replace every filter metacharacter with the single-character
-    /// wildcard so the value can only match literally (for example "Smith &amp; Sons" still matches itself)
-    /// and can never add OR/range/comparison clauses or break the filter syntax.
+    /// Replace filter metacharacters with '?' so untrusted model input can only match literally.
     /// </summary>
     local procedure EscapeFilterValue(Value: Text): Text
     begin

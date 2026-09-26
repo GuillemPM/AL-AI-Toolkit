@@ -38,7 +38,6 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
 
     /// <summary>
     /// Bind a mock model (no API key). Use SetNextResponse / SetNextError / SetFailuresBeforeSuccess / SetNextToolCall before calling.
-    /// The bound model snapshots the configured state: SetNext* calls made after binding do not affect it.
     /// </summary>
     procedure Model(ModelId: Text): Interface "AIOS Language Model"
     var
@@ -140,9 +139,7 @@ codeunit 87446 "AIOS Mock" implements "AIOS Provider"
     end;
 
     /// <summary>
-    /// Next Generate returns a tool call with ToolTurnText as assistant text (for example a preamble);
-    /// the following successful Generate returns FinalContent (when bound before the call).
-    /// Does not reset FailuresBeforeSuccess (supports retry tests before the tool step).
+    /// Next Generate returns a tool call with ToolTurnText as assistant text; the following successful Generate returns FinalContent.
     /// </summary>
     procedure SetNextToolCallThenResponse(Id: Text; Name: Text; ArgumentsJson: Text; ToolTurnText: Text; FinalContent: Text)
     begin

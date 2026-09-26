@@ -3,8 +3,7 @@ namespace PM.Guillem.AIOpenSDK.Examples;
 using PM.Guillem.AIOpenSDK.Core;
 
 /// <summary>
-/// Lifecycle event sample. Manual binding: BindSubscription(LifecycleExample) before GenerateText,
-/// read GetLastEventTrace(), then UnbindSubscription. The trace covers the last generate only.
+/// Manually bound lifecycle event sample; GetLastEventTrace() covers the last generate only.
 /// </summary>
 codeunit 87484 "AIOS Lifecycle Example"
 {

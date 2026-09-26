@@ -390,8 +390,7 @@ table 87482 "AIOS Demo History"
     end;
 
     /// <summary>
-    /// Replace Pictures with every generated image (all batches). Returns the number imported;
-    /// Pictures are left untouched when no image carries base64 data (for example URL-only responses).
+    /// Replace Pictures with every generated image that carries base64 data. Returns the number imported.
     /// </summary>
     procedure ImportPicturesFromGeneratedImages(Images: List of [Codeunit "AIOS Generated Image"]): Integer
     var
@@ -413,7 +412,6 @@ table 87482 "AIOS Demo History"
         if Imported = 0 then
             exit(0);
 
-        // Only clear existing MediaSet once we know there is at least one payload.
         Clear(Pictures);
         Imported := 0;
         for i := 1 to Images.Count() do begin
@@ -435,7 +433,6 @@ table 87482 "AIOS Demo History"
 
     /// <summary>
     /// Decode OpenAI-style data[].b64_json from the stored response body into Pictures (Tenant Media).
-    /// The stored body is the last image batch only; prefer ImportPicturesFromGeneratedImages when the result is available.
     /// </summary>
     procedure SyncPicturesFromResponseBody(): Boolean
     begin
@@ -488,7 +485,6 @@ table 87482 "AIOS Demo History"
                     MimeType := 'image/png';
             end;
 
-        // Only clear existing MediaSet once we know there is at least one payload.
         Imported := 0;
         for i := 0 to Data.Count() - 1 do begin
             Data.Get(i, ItemToken);
