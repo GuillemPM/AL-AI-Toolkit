@@ -144,8 +144,8 @@ codeunit 87497 "AIOS Tool Tests"
             Error(MissingFieldErr, 'tool_calls');
         if ToolCallsToken.AsArray().Count() <> 1 then
             Error(UnexpectedCountErr, 1, ToolCallsToken.AsArray().Count());
-        if not Msg.Get('reasoning_content', ContentToken) then
-            Error(MissingFieldErr, 'reasoning_content');
+        if Msg.Get('reasoning_content', ContentToken) then
+            Error(UnexpectedFieldErr, 'reasoning_content');
 
         Messages.Get(2, MsgToken);
         Msg := MsgToken.AsObject();
@@ -646,6 +646,7 @@ codeunit 87497 "AIOS Tool Tests"
         UnexpectedTextErr: Label 'Expected ''%1'', got ''%2''.', Comment = '%1 = expected, %2 = actual';
         UnexpectedCountErr: Label 'Expected count %1, got %2.', Comment = '%1 = expected, %2 = actual';
         MissingFieldErr: Label 'Missing field %1.', Comment = '%1 = field name';
+        UnexpectedFieldErr: Label 'Did not expect field %1.', Comment = '%1 = field name';
         ExpectedDescriptionErr: Label 'Expected a non-empty tool description.';
         ExpectedParametersObjectErr: Label 'Expected parameters to be a JSON object.';
         ExpectedHasToolsErr: Label 'Expected request to have tools.';

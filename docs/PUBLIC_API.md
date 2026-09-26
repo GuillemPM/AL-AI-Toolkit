@@ -34,6 +34,8 @@ Usually **not** referenced from application code. Provider authors use:
 
 OpenAI / OpenAI Compatible / OpenCode Zen depend on ProviderUtils; Anthropic depends on Core only.
 
+`Client.Generate` and `Options.Apply` each have an overload with an `OpenAIDialect: Boolean` argument. `true` (used by the OpenAI provider) sends `max_completion_tokens` and passes every reasoning level through as `reasoning_effort`; the original overloads use the compatible dialect (`max_tokens`, reasoning coerced to `low` / `medium` / `high` with a compatibility warning).
+
 ## Not public for consumers
 
 - `TryGenerate*` / `TryGenerateImage` / `GetChatResponseCalls` on `"AIOS Client"` (`internal`)

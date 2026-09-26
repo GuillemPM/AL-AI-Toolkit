@@ -32,6 +32,6 @@ codeunit 87443 "AIOS OpenAI Model" implements "AIOS Language Model"
         exit(Completions.Generate(
             BoundModelId, ApiKey, BaseUrl, 'openai',
             OpenAI.PrivacyNoticeId(), OpenAI.PrivacyIntegrationName(), OpenAI.PrivacyLink(),
-            Request, Response));
+            true, Request, Response));
     end;
 }
