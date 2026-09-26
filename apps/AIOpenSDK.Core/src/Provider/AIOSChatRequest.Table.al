@@ -198,8 +198,7 @@ table 87401 "AIOS Chat Request"
     }
 
     /// <summary>
-    /// Sets the user prompt. When history is empty, Generate builds the user turn from it.
-    /// When history exists, the prompt is appended as the next user turn once; later generates do not repeat it.
+    /// Sets the user prompt; it is added once to the history as the next user turn.
     /// </summary>
     procedure SetPrompt(Value: Text)
     var
@@ -573,7 +572,6 @@ table 87401 "AIOS Chat Request"
 
     /// <summary>
     /// AIOS-normalized conversation history (system, user, assistant, tool roles).
-    /// Holds only turns: the system message and output instruction are not stored here; GetProviderMessages adds them.
     /// </summary>
     procedure GetMessages(): JsonArray
     var
@@ -668,10 +666,6 @@ table 87401 "AIOS Chat Request"
 
     /// <summary>
     /// Ensures Messages includes the prompt and any pending Attach parts.
-    /// When history is empty: a user turn from the prompt and attachments.
-    /// When history exists and SetPrompt was called since the prompt was last added: a new user turn from the prompt and attachments.
-    /// Otherwise pending attachments merge into the last user message, or go into a new user turn.
-    /// The system message is not stored in history; GetProviderMessages adds the current one.
     /// </summary>
     procedure EnsureMessagesFromPrompt()
     var
@@ -784,8 +778,7 @@ table 87401 "AIOS Chat Request"
     end;
 
     /// <summary>
-    /// Messages to send to providers: the effective system message (GetEffectiveSystemMessage) first, then the history
-    /// with file refs expanded (text or base64 data). Does not mutate stored Messages.
+    /// Messages for providers: the effective system message, then the history with file refs expanded. Does not mutate stored Messages.
     /// </summary>
     procedure GetProviderMessages(): JsonArray
     var

@@ -374,7 +374,6 @@ codeunit 87494 "AIOS Structured Output Tests"
         Mock.SetNextResponse('{"name":"Ada"}');
         Client.GenerateText(Mock.Model('demo-model'), Request);
 
-        // History is reset separately; the system message is never stored in it.
         Request.ClearMessages();
         Request.SetOutput(Schema.Text());
         Mock.SetNextResponse('plain words');

@@ -390,7 +390,6 @@ codeunit 87497 "AIOS Tool Tests"
             Error(UnexpectedTextErr, 'done after echo', Result.Output());
         if ResultText <> 'hello-tool' then
             Error(UnexpectedTextErr, 'hello-tool', ResultText);
-        // The prompt was already added by EnsureMessagesFromPrompt; the second generate must not add it again.
         if CountUserMessages(Request.GetMessages()) <> 1 then
             Error(UnexpectedCountErr, 1, CountUserMessages(Request.GetMessages()));
     end;

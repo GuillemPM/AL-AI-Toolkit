@@ -10,7 +10,7 @@ codeunit 87424 "AIOS Chat Prompt"
     Access = Public;
 
     /// <summary>
-    /// Sets the user prompt text on the request. With existing history, it is added once as the next user turn.
+    /// Sets the user prompt text on the request.
     /// </summary>
     procedure SetPrompt(var Request: Record "AIOS Chat Request"; Value: Text)
     var

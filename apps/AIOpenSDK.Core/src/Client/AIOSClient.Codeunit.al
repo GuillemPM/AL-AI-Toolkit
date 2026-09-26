@@ -502,7 +502,7 @@ codeunit 87410 "AIOS Client"
     end;
 
     /// <summary>
-    /// Binds structured output to OutputRecRef, replacing any earlier binding so the schema hint matches this record.
+    /// Binds structured output to OutputRecRef, replacing any earlier binding.
     /// </summary>
     local procedure BindOutputRecord(var Request: Record "AIOS Chat Request"; var OutputRecRef: RecordRef)
     begin
@@ -517,8 +517,7 @@ codeunit 87410 "AIOS Client"
     end;
 
     /// <summary>
-    /// Raised once when generation starts, before the prompt and pending attachments are added to the history
-    /// and before any model call. Changes made to the request here are sent.
+    /// Raised once when generation starts, before the prompt is added to the history and before any model call.
     /// </summary>
     [IntegrationEvent(false, false)]
     local procedure OnBeforeGenerate(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")
@@ -526,8 +525,7 @@ codeunit 87410 "AIOS Client"
     end;
 
     /// <summary>
-    /// Raised immediately before each language-model call attempt. The prompt is already in the history;
-    /// system message and output changes made here still apply to this call.
+    /// Raised immediately before each language-model call attempt.
     /// </summary>
     [IntegrationEvent(false, false)]
     local procedure OnBeforeLanguageModelCall(ModelId: Text; var AIOSChatRequest: Record "AIOS Chat Request"; var AIOSChatResponse: Record "AIOS Chat Response")

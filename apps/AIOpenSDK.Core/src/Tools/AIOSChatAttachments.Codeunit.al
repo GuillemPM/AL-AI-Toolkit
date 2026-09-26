@@ -16,8 +16,6 @@ codeunit 87423 "AIOS Chat Attachments"
 
     /// <summary>
     /// Ensures Messages includes the prompt and any pending Attach parts on Request.
-    /// Empty history: adds a user turn from the prompt. Existing history: adds the prompt only if it was set since it was
-    /// last added, so repeated generates and manual tool loops do not resend it. The system message is never stored here.
     /// </summary>
     procedure EnsureMessagesFromPrompt(var Request: Record "AIOS Chat Request")
     var
@@ -273,8 +271,7 @@ codeunit 87423 "AIOS Chat Attachments"
     end;
 
     /// <summary>
-    /// Messages for provider MapMessages: the current effective system message first, then the history with file refs
-    /// expanded. The system message is skipped when history already starts with the same system text. Does not mutate stored Messages.
+    /// Messages for provider MapMessages: the effective system message, then the history with file refs expanded. Does not mutate stored Messages.
     /// </summary>
     procedure GetProviderMessages(var Request: Record "AIOS Chat Request"): JsonArray
     var
