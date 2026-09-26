@@ -10,7 +10,7 @@ codeunit 87425 "AIOS Chat Output"
     Access = Public;
 
     /// <summary>
-    /// Binds flat JSON fields onto RecRef. Pass the same RecRef to GenerateText(Model, Request, RecRef).
+    /// Binds flat JSON fields onto RecRef. GenerateText(Model, Request, RecRef) rebinds to the RecRef passed there.
     /// Prefer SetOutput with a JSON Schema for nested shapes.
     /// </summary>
     procedure SetOutput(var Request: Record "AIOS Chat Request"; RecRef: RecordRef)

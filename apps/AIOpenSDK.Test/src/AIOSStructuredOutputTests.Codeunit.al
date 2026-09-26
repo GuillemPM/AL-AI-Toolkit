@@ -374,7 +374,6 @@ codeunit 87494 "AIOS Structured Output Tests"
         Mock.SetNextResponse('{"name":"Ada"}');
         Client.GenerateText(Mock.Model('demo-model'), Request);
 
-        // Generate materializes the effective system message into Messages; history is reset separately.
         Request.ClearMessages();
         Request.SetOutput(Schema.Text());
         Mock.SetNextResponse('plain words');
@@ -493,6 +492,38 @@ codeunit 87494 "AIOS Structured Output Tests"
         Effective := Request.GetEffectiveSystemMessage();
         if CountOccurrences(Effective, 'Respond with a single JSON object only') <> 1 then
             Error(UnexpectedCountErr, 1, CountOccurrences(Effective, 'Respond with a single JSON object only'));
+    end;
+
+    [Test]
+    procedure GenerateText_RecRef_DifferentTable_RebindsHint()
+    var
+        Request: Record "AIOS Chat Request";
+        Feedback: Record "AIOS Test Bind Target";
+        OtherTarget: Record "AIOS Chat Response";
+        Mock: Codeunit "AIOS Mock";
+        Client: Codeunit "AIOS Client";
+        FeedbackRecRef: RecordRef;
+        OtherRecRef: RecordRef;
+        Effective: Text;
+    begin
+        FeedbackRecRef.GetTable(Feedback);
+        Request.SetPrompt('feedback');
+        Mock.SetNextResponse('{"Sentiment":"positive"}');
+        Client.GenerateText(Mock.Model('demo-model'), Request, FeedbackRecRef);
+
+        OtherRecRef.GetTable(OtherTarget);
+        Request.ClearMessages();
+        Mock.SetNextResponse('{"Provider Name":"bound"}');
+        Client.GenerateText(Mock.Model('demo-model'), Request, OtherRecRef);
+        OtherRecRef.SetTable(OtherTarget, true);
+
+        Effective := Request.GetEffectiveSystemMessage();
+        if StrPos(Effective, 'Provider Name') = 0 then
+            Error(ExpectedHintErr, Effective);
+        if StrPos(Effective, 'Sentiment') > 0 then
+            Error(UnexpectedStaleHintErr, Effective);
+        if OtherTarget."Provider Name" <> 'bound' then
+            Error(UnexpectedTextErr, 'bound', OtherTarget."Provider Name");
     end;
 
     [Test]

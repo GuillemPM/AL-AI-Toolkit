@@ -88,6 +88,7 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
         ChatFormat: Interface "AIOS Chat Format";
         Root: JsonObject;
         Messages: JsonArray;
+        ProviderMessages: JsonArray;
         UserMessage: JsonObject;
         ToolDefs: JsonArray;
         SystemText: Text;
@@ -100,10 +101,9 @@ codeunit 87441 "AIOS Anthropic Model" implements "AIOS Language Model"
             MaxTokens := 4096;
 
         if Request.HasMessages() then begin
-            Messages := ChatFormat.MapMessages(Request.GetProviderMessages());
-            SystemText := ChatFormat.GetSystemText(Request.GetMessages());
-            if SystemText = '' then
-                SystemText := Request.GetEffectiveSystemMessage();
+            ProviderMessages := Request.GetProviderMessages();
+            Messages := ChatFormat.MapMessages(ProviderMessages);
+            SystemText := ChatFormat.GetSystemText(ProviderMessages);
         end else begin
             SystemText := Request.GetEffectiveSystemMessage();
             UserMessage.Add('role', 'user');

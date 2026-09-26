@@ -391,6 +391,24 @@ codeunit 87497 "AIOS Tool Tests"
             Error(UnexpectedTextErr, 'done after echo', Result.Output());
         if ResultText <> 'hello-tool' then
             Error(UnexpectedTextErr, 'hello-tool', ResultText);
+        if CountUserMessages(Request.GetMessages()) <> 1 then
+            Error(UnexpectedCountErr, 1, CountUserMessages(Request.GetMessages()));
+    end;
+
+    local procedure CountUserMessages(Messages: JsonArray): Integer
+    var
+        MsgToken: JsonToken;
+        RoleToken: JsonToken;
+        i: Integer;
+        Found: Integer;
+    begin
+        for i := 0 to Messages.Count() - 1 do begin
+            Messages.Get(i, MsgToken);
+            if MsgToken.AsObject().Get('role', RoleToken) then
+                if RoleToken.AsValue().AsText() = 'user' then
+                    Found += 1;
+        end;
+        exit(Found);
     end;
 
     [Test]
