@@ -80,6 +80,11 @@ table 87402 "AIOS Chat Response"
             Caption = 'Reasoning Content';
             DataClassification = CustomerContent;
         }
+        field(92; "Provider Content"; Blob)
+        {
+            Caption = 'Provider Content';
+            DataClassification = CustomerContent;
+        }
     }
 
     keys
@@ -374,16 +379,18 @@ table 87402 "AIOS Chat Response"
             if CallObj.Get('name', NameToken) then
                 Name := NameToken.AsValue().AsText();
             Clear(ArgsObj);
+            Clear(ArgsText);
+            Clear(CallCU);
             if CallObj.Get('arguments', ArgsToken) then
                 if ArgsToken.IsObject() then
                     ArgsObj := ArgsToken.AsObject()
-                else begin
-                    ArgsText := ArgsToken.AsValue().AsText();
-                    if not ArgsObj.ReadFrom(ArgsText) then
-                        Clear(ArgsObj);
-                end;
-            Clear(CallCU);
-            CallCU.SetCall(Id, Name, ArgsObj);
+                else
+                    if ArgsToken.IsValue() then
+                        ArgsText := ArgsToken.AsValue().AsText();
+            if ArgsText <> '' then
+                CallCU.SetCall(Id, Name, ArgsText)
+            else
+                CallCU.SetCall(Id, Name, ArgsObj);
             Result.Add(CallCU);
         end;
         exit(Result);
@@ -395,19 +402,13 @@ table 87402 "AIOS Chat Response"
     procedure SetToolCallsFromList(ToolCalls: List of [Codeunit "AIOS Tool Call"])
     var
         ToolCallsArr: JsonArray;
-        CallObj: JsonObject;
         CallCU: Codeunit "AIOS Tool Call";
-        Args: JsonObject;
+        ChatMessages: Codeunit "AIOS Chat Messages";
         i: Integer;
     begin
         for i := 1 to ToolCalls.Count() do begin
             ToolCalls.Get(i, CallCU);
-            Clear(CallObj);
-            CallObj.Add('id', CallCU.GetId());
-            CallObj.Add('name', CallCU.GetName());
-            Args := CallCU.GetArguments();
-            CallObj.Add('arguments', Args);
-            ToolCallsArr.Add(CallObj);
+            ToolCallsArr.Add(ChatMessages.ToolCallToJson(CallCU));
         end;
         SetToolCallsJson(ToolCallsArr);
     end;
@@ -438,6 +439,41 @@ table 87402 "AIOS Chat Response"
             exit('');
         "Reasoning Content".CreateInStream(InStream, TextEncoding::UTF8);
         exit(TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator()));
+    end;
+
+    /// <summary>
+    /// Stores opaque provider-owned assistant content replayed on tool-loop turns.
+    /// </summary>
+    procedure SetProviderContent(Value: JsonObject)
+    var
+        OutStream: OutStream;
+        Text: Text;
+    begin
+        Clear("Provider Content");
+        if Value.Keys().Count() = 0 then
+            exit;
+        Value.WriteTo(Text);
+        "Provider Content".CreateOutStream(OutStream, TextEncoding::UTF8);
+        OutStream.WriteText(Text);
+    end;
+
+    /// <summary>
+    /// Provider-owned assistant content from the last response, or an empty object when none was returned.
+    /// </summary>
+    procedure GetProviderContent(): JsonObject
+    var
+        TypeHelper: Codeunit "Type Helper";
+        InStream: InStream;
+        Value: JsonObject;
+        Text: Text;
+    begin
+        if not "Provider Content".HasValue then
+            exit(Value);
+        "Provider Content".CreateInStream(InStream, TextEncoding::UTF8);
+        Text := TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator());
+        if not Value.ReadFrom(Text) then
+            Clear(Value);
+        exit(Value);
     end;
 
     local procedure SetWarnings(var WarningsArray: JsonArray)

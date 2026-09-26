@@ -115,9 +115,10 @@ Shipped factories: `"AIOS Anthropic"`, `"AIOS OpenAI"`, `"AIOS OpenCode Zen"`, `
 - **Flat record convenience:** `Request.SetOutput(RecRef)` then `GenerateText(Model, Request, RecRef)` — JSON fills bindable fields; raw JSON is on `Result.Output()`
 - **Attachments / multimodal:** `Request.Attach(Item.Picture.Item(1))` or `Attach(InStream|TempBlob|TenantMedia|Base64, …)`
 - **Tools:** primary `ToolSet.Add(Tool)` (`"AIOS Tool"`). Secondary: `"AIOS Tool Handler"` + `ToolSet.Use(Handler)`. Escape hatch: `ToolSet.Add(Name, Description, Schema)` + `OnBeforeExecuteTool` (use a manual subscriber and `BindSubscription` so your handler doesn't answer other apps' tools)
+- **Tools:** primary `ToolSet.Add(Tool)` (`"AIOS Tool"`). Secondary: `"AIOS Tool Handler"` + `ToolSet.Use(Handler)`. Escape hatch: `ToolSet.Add(Name, Description, Schema)` + `OnBeforeExecuteTool`. Tool calls whose arguments are not valid JSON are not executed; the error goes back to the model as the tool result
 - **Image generation:** `OpenAI.ImageModel(...)` / `Mock.ImageModel(...)` + `Client.GenerateImage`
 - **Soft-fail in your app:** wrap `GenerateText` / `GenerateImage` in a `[TryFunction]` (see Examples). Core `TryGenerate*` stays **internal**.
-- **Lifecycle** Integration Events on `"AIOS Client"`: `OnBeforeGenerate`, `OnBeforeLanguageModelCall`, `OnAfterLanguageModelCall`, `OnAfterGenerate` (success only)
+- **Lifecycle** Integration Events on `"AIOS Client"`: `OnBeforeGenerate` (before the prompt is added to history; request changes there are sent), `OnBeforeLanguageModelCall`, `OnAfterLanguageModelCall`, `OnAfterGenerate` (success only)
 - **Retries:** request `GetMaxRetries` / `SetMaxRetries` (default 2)
 - **Custom providers:** implement `"AIOS Language Model"` in your own app depending on Core (and Provider Utils if you speak Chat Completions). Or use `"AIOS OpenAI Compatible".Model(Id, Key, BaseUrl)`.
 

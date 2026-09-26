@@ -5,7 +5,7 @@ using PM.Guillem.AIOpenSDK.Core;
 /// <summary>
 /// Manually bound test double for the ToolSet.Add(Name, …) escape hatch.
 /// </summary>
-codeunit 87501 "AIOS Test Named Tools"
+codeunit 87505 "AIOS Test Named Tools"
 {
     Access = Internal;
     EventSubscriberInstance = Manual;

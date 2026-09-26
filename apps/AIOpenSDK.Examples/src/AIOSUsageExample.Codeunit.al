@@ -260,7 +260,7 @@ codeunit 87480 "AIOS Usage Example"
 
     /// <summary>
     /// Anthropic with sampling / thinking options.
-    /// Reasoning Medium → thinking.budget_tokens ≈ 30% of Max Tokens (clamped ≥ 1024).
+    /// Reasoning Medium → thinking.budget_tokens ≈ 30% of Max Tokens (min 1024, always below max_tokens).
     /// </summary>
     procedure RunAnthropicOptionsDemo(ApiKey: SecretText)
     var
@@ -272,11 +272,9 @@ codeunit 87480 "AIOS Usage Example"
         Request.SetSystemMessage('You extract sentiment and topics from customer feedback.');
         Request.SetPrompt('Feedback: Great product, but support felt pricey.');
         Request.SetOutput(Schema.Json());
-        Request.SetTemperature(0.2);
         Request.SetTopP(0.95);
-        Request.SetTopK(40);
         Request.SetReasoning("AIOS Reasoning Effort"::Medium);
-        Request.SetMaxTokens(1024);
+        Request.SetMaxTokens(4096);
         Request.SetMaxRetries(2);
 
         Message(SuccessMsg, Client.GenerateText(Anthropic.Model('claude-sonnet-4-5', ApiKey), Request).Output());
@@ -346,7 +344,7 @@ codeunit 87480 "AIOS Usage Example"
     end;
 
     /// <summary>
-    /// OpenAI reasoning_effort via SetReasoning (XHigh → "xhigh").
+    /// OpenAI reasoning_effort via SetReasoning (High → "high"); SetMaxTokens is sent as max_completion_tokens.
     /// Use a reasoning-capable model id for your account.
     /// </summary>
     procedure RunOpenAIReasoningDemo(ApiKey: SecretText)
@@ -357,7 +355,7 @@ codeunit 87480 "AIOS Usage Example"
     begin
         Request.SetSystemMessage('Answer in one sentence.');
         Request.SetPrompt('Explain why BC uses temporary tables for request/response records.');
-        Request.SetReasoning("AIOS Reasoning Effort"::XHigh);
+        Request.SetReasoning("AIOS Reasoning Effort"::High);
         Request.SetMaxTokens(512);
         Request.SetMaxRetries(1);
 

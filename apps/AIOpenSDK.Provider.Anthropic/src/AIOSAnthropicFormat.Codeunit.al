@@ -53,9 +53,10 @@ codeunit 87452 "AIOS Anthropic Format" implements "AIOS Chat Format"
         Msg: JsonObject;
         RoleToken: JsonToken;
         ContentToken: JsonToken;
-        ToolCallsToken: JsonToken;
         OutMsg: JsonObject;
         ContentArr: JsonArray;
+        ReplayContent: JsonArray;
+        HasReplay: Boolean;
         Role: Text;
         i: Integer;
     begin
@@ -85,11 +86,14 @@ codeunit 87452 "AIOS Anthropic Format" implements "AIOS Chat Format"
                     begin
                         OutMsg.Add('role', 'assistant');
                         Clear(ContentArr);
-                        if Msg.Get('content', ContentToken) and ContentToken.IsValue() and (not ContentToken.AsValue().IsNull()) then
-                            if ContentToken.AsValue().AsText() <> '' then
-                                ContentArr.Add(TextBlock(ContentToken.AsValue().AsText()));
-                        if Msg.Get('tool_calls', ToolCallsToken) then
-                            AppendToolUseBlocks(ContentArr, ToolCallsToken.AsArray());
+                        HasReplay := GetReplayContent(Msg, ReplayContent);
+                        if HasReplay and ReplayMatchesToolCalls(Msg, ReplayContent) then
+                            ContentArr := ReplayContent.Clone().AsArray()
+                        else begin
+                            if HasReplay then
+                                AppendThinkingBlocks(ContentArr, ReplayContent);
+                            AppendAssistantBlocks(ContentArr, Msg);
+                        end;
                         OutMsg.Add('content', ContentArr);
                         OutMessages.Add(OutMsg);
                     end;
@@ -178,6 +182,163 @@ codeunit 87452 "AIOS Anthropic Format" implements "AIOS Chat Format"
         exit(Out);
     end;
 
+    /// <summary>
+    /// Returns provider content for a response content array with thinking blocks, or an empty object.
+    /// </summary>
+    procedure ExtractProviderContent(WireToken: JsonToken): JsonObject
+    var
+        ProviderContent: JsonObject;
+        ContentBlocks: JsonArray;
+        BlockToken: JsonToken;
+        HasThinking: Boolean;
+        i: Integer;
+    begin
+        if not WireToken.IsArray() then
+            exit(ProviderContent);
+        ContentBlocks := WireToken.AsArray();
+        for i := 0 to ContentBlocks.Count() - 1 do begin
+            ContentBlocks.Get(i, BlockToken);
+            if IsThinkingBlock(BlockToken) then
+                HasThinking := true;
+        end;
+        if not HasThinking then
+            exit(ProviderContent);
+        ProviderContent.Add('provider', ProviderNameTok);
+        ProviderContent.Add('content', ContentBlocks);
+        exit(ProviderContent);
+    end;
+
+    /// <summary>
+    /// Concatenated text of thinking blocks in a response content array (empty when none or omitted).
+    /// </summary>
+    procedure GetThinkingText(WireToken: JsonToken): Text
+    var
+        ContentBlocks: JsonArray;
+        BlockToken: JsonToken;
+        TypeToken: JsonToken;
+        TextToken: JsonToken;
+        ThinkingText: Text;
+        i: Integer;
+    begin
+        if not WireToken.IsArray() then
+            exit('');
+        ContentBlocks := WireToken.AsArray();
+        for i := 0 to ContentBlocks.Count() - 1 do begin
+            ContentBlocks.Get(i, BlockToken);
+            if BlockToken.IsObject() then
+                if BlockToken.AsObject().Get('type', TypeToken) then
+                    if TypeToken.AsValue().AsText() = 'thinking' then
+                        if BlockToken.AsObject().Get('thinking', TextToken) then
+                            if TextToken.IsValue() and (not TextToken.AsValue().IsNull()) then
+                                ThinkingText += TextToken.AsValue().AsText();
+        end;
+        exit(ThinkingText);
+    end;
+
+    local procedure GetReplayContent(Msg: JsonObject; var ReplayContent: JsonArray): Boolean
+    var
+        ProviderToken: JsonToken;
+        ProviderContent: JsonObject;
+        Token: JsonToken;
+    begin
+        Clear(ReplayContent);
+        if not Msg.Get('provider_content', ProviderToken) then
+            exit(false);
+        if not ProviderToken.IsObject() then
+            exit(false);
+        ProviderContent := ProviderToken.AsObject();
+        if not ProviderContent.Get('provider', Token) then
+            exit(false);
+        if not Token.IsValue() then
+            exit(false);
+        if Token.AsValue().AsText() <> ProviderNameTok then
+            exit(false);
+        if not ProviderContent.Get('content', Token) then
+            exit(false);
+        if not Token.IsArray() then
+            exit(false);
+        ReplayContent := Token.AsArray();
+        exit(ReplayContent.Count() > 0);
+    end;
+
+    /// <summary>
+    /// True when the raw tool_use ids match the tool_calls ids on the history message.
+    /// </summary>
+    local procedure ReplayMatchesToolCalls(Msg: JsonObject; ReplayContent: JsonArray): Boolean
+    var
+        ToolCallsToken: JsonToken;
+        ToolCalls: JsonArray;
+        BlockToken: JsonToken;
+        CallToken: JsonToken;
+        TypeToken: JsonToken;
+        IdToken: JsonToken;
+        CallIndex: Integer;
+        i: Integer;
+    begin
+        if Msg.Get('tool_calls', ToolCallsToken) and ToolCallsToken.IsArray() then
+            ToolCalls := ToolCallsToken.AsArray();
+        for i := 0 to ReplayContent.Count() - 1 do begin
+            ReplayContent.Get(i, BlockToken);
+            if not BlockToken.IsObject() then
+                exit(false);
+            if BlockToken.AsObject().Get('type', TypeToken) then
+                if TypeToken.AsValue().AsText() = 'tool_use' then begin
+                    if CallIndex >= ToolCalls.Count() then
+                        exit(false);
+                    ToolCalls.Get(CallIndex, CallToken);
+                    if GetObjectText(BlockToken.AsObject(), 'id') <> GetObjectText(CallToken.AsObject(), 'id') then
+                        exit(false);
+                    CallIndex += 1;
+                end;
+        end;
+        exit(CallIndex = ToolCalls.Count());
+    end;
+
+    local procedure AppendThinkingBlocks(var ContentArr: JsonArray; ReplayContent: JsonArray)
+    var
+        BlockToken: JsonToken;
+        i: Integer;
+    begin
+        for i := 0 to ReplayContent.Count() - 1 do begin
+            ReplayContent.Get(i, BlockToken);
+            if IsThinkingBlock(BlockToken) then
+                ContentArr.Add(BlockToken);
+        end;
+    end;
+
+    local procedure AppendAssistantBlocks(var ContentArr: JsonArray; Msg: JsonObject)
+    var
+        ContentToken: JsonToken;
+        ToolCallsToken: JsonToken;
+    begin
+        if Msg.Get('content', ContentToken) and ContentToken.IsValue() and (not ContentToken.AsValue().IsNull()) then
+            if ContentToken.AsValue().AsText() <> '' then
+                ContentArr.Add(TextBlock(ContentToken.AsValue().AsText()));
+        if Msg.Get('tool_calls', ToolCallsToken) then
+            AppendToolUseBlocks(ContentArr, ToolCallsToken.AsArray());
+    end;
+
+    local procedure IsThinkingBlock(BlockToken: JsonToken): Boolean
+    var
+        TypeToken: JsonToken;
+    begin
+        if not BlockToken.IsObject() then
+            exit(false);
+        if not BlockToken.AsObject().Get('type', TypeToken) then
+            exit(false);
+        exit(TypeToken.AsValue().AsText() in ['thinking', 'redacted_thinking']);
+    end;
+
+    local procedure GetObjectText(Obj: JsonObject; KeyName: Text): Text
+    var
+        Token: JsonToken;
+    begin
+        if Obj.Get(KeyName, Token) then
+            if Token.IsValue() then
+                exit(Token.AsValue().AsText());
+        exit('');
+    end;
+
     local procedure MapUserContent(ContentToken: JsonToken): JsonArray
     var
         Parts: JsonArray;
@@ -225,6 +386,7 @@ codeunit 87452 "AIOS Anthropic Format" implements "AIOS Chat Format"
         Source: JsonObject;
         Base64Convert: Codeunit "Base64 Convert";
         Decoded: Text;
+        Lf: Text[1];
     begin
         MediaType := GetPartMediaType(Part);
         Data := GetPartData(Part);
@@ -235,8 +397,10 @@ codeunit 87452 "AIOS Anthropic Format" implements "AIOS Chat Format"
             Decoded := GetPartText(Part);
             if Decoded = '' then
                 Decoded := Base64Convert.FromBase64(Data);
-            if Filename <> '' then
-                exit(TextBlock(StrSubstNo(FileAsTextFmtTok, Filename, Decoded)));
+            if Filename <> '' then begin
+                Lf[1] := 10;
+                exit(TextBlock(StrSubstNo(FileAsTextFmtTok, Filename, Lf, Decoded)));
+            end;
             exit(TextBlock(Decoded));
         end;
 
@@ -389,7 +553,8 @@ codeunit 87452 "AIOS Anthropic Format" implements "AIOS Chat Format"
     end;
 
     var
-        FileAsTextFmtTok: Label '[file: %1]\n%2', Locked = true;
+        ProviderNameTok: Label 'anthropic', Locked = true;
+        FileAsTextFmtTok: Label '[file: %1]%2%3', Locked = true;
         UnsupportedFileErr: Label 'Anthropic does not accept file media type ''%1''. Use image/*, application/pdf, or text/*.', Comment = '%1 = media type';
         UnexpandedAttachmentErr: Label 'File part has an attachment id but no payload. Use Request.GetProviderMessages() before MapMessages.';
 }

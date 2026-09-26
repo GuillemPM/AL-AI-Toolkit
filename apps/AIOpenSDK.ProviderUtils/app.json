@@ -18,6 +18,13 @@
       "version": "0.1.0.0"
     }
   ],
+  "internalsVisibleTo": [
+    {
+      "id": "1de9f510-5694-4445-9cd8-1216b89d49bd",
+      "name": "AI Open SDK Test",
+      "publisher": "Guillermo Padilla"
+    }
+  ],
   "screenshots": [],
   "platform": "1.0.0.0",
   "application": "28.0.0.0",

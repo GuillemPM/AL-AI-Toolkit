@@ -42,6 +42,12 @@ table 87401 "AIOS Chat Request"
             Caption = 'Output Instruction';
             DataClassification = SystemMetadata;
         }
+        field(15; "Prompt Pending"; Boolean)
+        {
+            Access = Internal;
+            Caption = 'Prompt Pending';
+            DataClassification = SystemMetadata;
+        }
         field(20; "Json Mode"; Boolean)
         {
             Caption = 'JSON Mode';
@@ -191,6 +197,9 @@ table 87401 "AIOS Chat Request"
         }
     }
 
+    /// <summary>
+    /// Sets the user prompt; it is added once to the history as the next user turn.
+    /// </summary>
     procedure SetPrompt(Value: Text)
     var
         ChatPrompt: Codeunit "AIOS Chat Prompt";
@@ -232,7 +241,7 @@ table 87401 "AIOS Chat Request"
     end;
 
     /// <summary>
-    /// Binds flat JSON fields onto RecRef. Pass the same RecRef to GenerateText(Model, Request, RecRef).
+    /// Binds flat JSON fields onto RecRef. GenerateText(Model, Request, RecRef) rebinds to the RecRef passed there.
     /// Prefer SetOutput with a JSON Schema for nested shapes.
     /// </summary>
     procedure SetOutput(RecRef: RecordRef)
@@ -646,6 +655,26 @@ table 87401 "AIOS Chat Request"
     end;
 
     /// <summary>
+    /// Appends an assistant tool-call message with reasoning content and provider-owned content.
+    /// </summary>
+    procedure AppendAssistantToolCalls(Content: Text; ToolCalls: List of [Codeunit "AIOS Tool Call"]; ReasoningContent: Text; ProviderContent: JsonObject)
+    var
+        ChatMessages: Codeunit "AIOS Chat Messages";
+    begin
+        ChatMessages.AppendAssistantToolCalls(Rec, Content, ToolCalls, ReasoningContent, ProviderContent);
+    end;
+
+    /// <summary>
+    /// Appends the assistant tool-call turn from a model response, including provider-owned content.
+    /// </summary>
+    procedure AppendAssistantToolCalls(var Response: Record "AIOS Chat Response")
+    var
+        ChatMessages: Codeunit "AIOS Chat Messages";
+    begin
+        ChatMessages.AppendAssistantToolCalls(Rec, Response);
+    end;
+
+    /// <summary>
     /// Appends a tool result message for a prior tool call id.
     /// </summary>
     procedure AppendToolResult(ToolCallId: Text; ToolName: Text; Content: Text)
@@ -657,8 +686,6 @@ table 87401 "AIOS Chat Request"
 
     /// <summary>
     /// Ensures Messages includes the prompt and any pending Attach parts.
-    /// When history is empty: system (effective) + user turn.
-    /// When history exists and Attachments are pending: merge into the last user message, or append a new user turn.
     /// </summary>
     procedure EnsureMessagesFromPrompt()
     var
@@ -670,8 +697,8 @@ table 87401 "AIOS Chat Request"
     /// <summary>
     /// Attaches content to the next user turn (AI SDK–style file part). mediaType is IANA (e.g. image/png, application/pdf).
     /// Binary bytes are stored raw in Attachment Binaries; message history stores an id ref. Base64 is produced only in GetProviderMessages.
-    /// Applied in EnsureMessagesFromPrompt / Generate: into a new user turn when history is empty or last turn is not user;
-    /// otherwise merged into the last user message.
+    /// Applied in EnsureMessagesFromPrompt / Generate: together with a new prompt, or into a new user turn when history is empty
+    /// or the last turn is not user; otherwise merged into the last user message.
     /// </summary>
     procedure Attach(var ContentInStream: InStream; MediaType: Text; Filename: Text)
     var
@@ -771,7 +798,7 @@ table 87401 "AIOS Chat Request"
     end;
 
     /// <summary>
-    /// Message history with file refs expanded (text or base64 data) for provider MapMessages. Does not mutate stored Messages.
+    /// Messages for providers: the effective system message, then the history with file refs expanded. Does not mutate stored Messages.
     /// </summary>
     procedure GetProviderMessages(): JsonArray
     var
