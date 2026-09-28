@@ -113,6 +113,16 @@ If PowerShell blocks the script:
 
 ---
 
+## CI
+
+GitHub Actions compiles every app with [AL-Go for GitHub](https://aka.ms/AL-Go) (v9.2 PTE template):
+
+- **Pull Request Build** (`PullRequestHandler.yaml`) on PRs to `main`, and **CI/CD** (`CICD.yaml`) on pushes to `main`.
+- The runner downloads BC artifact `28.5.54151.54178` (us sandbox; platform `28.0.54016.0`) and its AL compiler itself (`useCompilerFolder`). You don't need local symbols.
+- It compiles Core → ProviderUtils → providers → Examples → Test. No container is created and no BC tests run (`doNotPublishApps`, `doNotRunTests`).
+- Build settings live in `.AL-Go/settings.json`. When you add an app under `apps/`, add its folder to `appFolders` (or `testFolders`); `ci.yml` fails if the list is out of sync.
+- `ci.yml` also checks the multi-app layout and object IDs.
+
 ## Troubleshooting
 
 | Symptom | Fix |

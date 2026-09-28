@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- CI compile gate using AL-Go for GitHub (v9.2): PR and `main` builds compile all apps against BC artifact 28.5.54151.54178 (platform 28.0.54016.0), with no container and no BC test run. See `docs/DEVELOPMENT.md#ci`.
+
 ### Fixed
 
 - `"AIOS Chat Request".ClearOutput` now also disables `"Json Mode"` and drops the generated output instruction, so a reused request no longer keeps JSON mode or a stale schema hint.

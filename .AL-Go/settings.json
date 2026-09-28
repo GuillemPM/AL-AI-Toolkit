@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/AL-Go-Actions/v9.2/.Modules/settings.schema.json",
+  "country": "us",
+  "artifact": "bcartifacts/sandbox/28.5.54151.54178/us/latest",
+  "useCompilerFolder": true,
+  "doNotPublishApps": true,
+  "doNotRunTests": true,
+  "doNotRunBcptTests": true,
+  "doNotRunPageScriptingTests": true,
+  "skipUpgrade": true,
+  "appFolders": [
+    "apps/AIOpenSDK.Core",
+    "apps/AIOpenSDK.ProviderUtils",
+    "apps/AIOpenSDK.Provider.OpenAI",
+    "apps/AIOpenSDK.Provider.Anthropic",
+    "apps/AIOpenSDK.Provider.OpenAICompatible",
+    "apps/AIOpenSDK.Provider.OpenCodeZen",
+    "apps/AIOpenSDK.Examples"
+  ],
+  "testFolders": [
+    "apps/AIOpenSDK.Test"
+  ],
+  "bcptTestFolders": []
+}

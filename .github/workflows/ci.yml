@@ -60,7 +60,20 @@ jobs:
           print(f'Unique object IDs: {len(ids)}')
           PY
 
-      - name: Remind compile/test
+      - name: Check every app is compiled by AL-Go
         run: |
-          echo "Full AL compile + mock tests require BC 28 symbols (AL-Go / local alc)."
-          echo "Open AL-AI-Toolkit.code-workspace and compile Core → Utils → providers → Examples → Test."
+          set -euo pipefail
+          python3 <<'PY'
+          import json, sys
+          from pathlib import Path
+
+          settings = json.loads(Path('.AL-Go/settings.json').read_text())
+          configured = settings.get('appFolders', []) + settings.get('testFolders', [])
+          on_disk = sorted(str(p.parent) for p in Path('apps').glob('*/app.json'))
+          missing = sorted(set(on_disk) - set(configured))
+          stale = sorted(set(configured) - set(on_disk))
+          if missing or stale:
+              print(f'.AL-Go/settings.json out of sync. Missing: {missing} Stale: {stale}', file=sys.stderr)
+              sys.exit(1)
+          print(f'AL-Go project compiles {len(configured)} apps (full compile: CICD / Pull Request Build workflows)')
+          PY
