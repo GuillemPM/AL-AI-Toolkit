@@ -29,3 +29,12 @@ secrets/
 # BCQuality knowledge library (clone locally; not a Cursor agent plugin)
 #   git clone https://github.com/microsoft/BCQuality.git BCQuality
 BCQuality/
+
+# AL-Go for GitHub build output
+.buildartifacts/
+.dependencies/
+.packages/
+BuildOutput.txt
+TestResults*.xml
+bcptTestResults*.json
+cache_*
